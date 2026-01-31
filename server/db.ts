@@ -1,5 +1,7 @@
 import { eq, and, desc, gte, lte, or, isNull, sql, isNotNull, ne } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/libsql";
+import { createClient } from "@libsql/client";
+import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { format } from "date-fns";
 import {
@@ -22,10 +24,24 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
-// SQLite database instance
-const dbPath = process.env.DATABASE_URL || 'sqlite.db';
-const sqlite = new Database(dbPath);
-const _db = drizzle(sqlite);
+// Database Instance (Dual Support: SQLite & Turso)
+let _db: any;
+
+const dbUrl = process.env.DATABASE_URL || 'file:sqlite.db';
+
+if (dbUrl.startsWith("libsql://")) {
+  console.log("Using Turso (LibSQL) Database");
+  const client = createClient({
+    url: dbUrl,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
+  _db = drizzle(client);
+} else {
+  // Local Development
+  console.log("Using Local SQLite Database");
+  const sqlite = new Database('sqlite.db');
+  _db = drizzleSqlite(sqlite);
+}
 
 export async function getDb() {
   return _db;
