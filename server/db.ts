@@ -24,17 +24,25 @@ import { ENV } from './_core/env';
 
 // Database Instance (Unified LibSQL/Turso)
 const dbUrl = process.env.DATABASE_URL || 'file:sqlite.db';
+let _db: any = null;
 
 console.log(`Initializing database with URL: ${dbUrl}`);
 
-const client = createClient({
-  url: dbUrl,
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+try {
+  const client = createClient({
+    url: dbUrl,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
 
-const _db = drizzle(client);
+  _db = drizzle(client);
+} catch (e) {
+  console.error("Failed to initialize database client:", e);
+}
 
 export async function getDb() {
+  if (!_db) {
+    console.warn("Database is not initialized. Check environment variables.");
+  }
   return _db;
 }
 
