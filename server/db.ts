@@ -23,20 +23,24 @@ import {
 import { ENV } from './_core/env';
 
 // Database Instance (Unified LibSQL/Turso)
-const dbUrl = process.env.DATABASE_URL || 'file:sqlite.db';
+// Database Instance (Unified LibSQL/Turso)
+// Vercel環境でfile:sqlite.dbを使おうとするとクラッシュするため、環境変数がない場合は初期化をスキップする
+const dbUrl = process.env.DATABASE_URL;
 let _db: any = null;
 
-console.log(`Initializing database with URL: ${dbUrl}`);
-
-try {
-  const client = createClient({
-    url: dbUrl,
-    authToken: process.env.TURSO_AUTH_TOKEN,
-  });
-
-  _db = drizzle(client);
-} catch (e) {
-  console.error("Failed to initialize database client:", e);
+if (dbUrl) {
+  console.log(`Initializing database...`);
+  try {
+    const client = createClient({
+      url: dbUrl,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+    _db = drizzle(client);
+  } catch (e) {
+    console.error("Failed to initialize database client:", e);
+  }
+} else {
+  console.warn("DATABASE_URL is not set. Database initialization skipped.");
 }
 
 export async function getDb() {
