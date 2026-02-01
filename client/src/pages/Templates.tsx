@@ -909,31 +909,7 @@ export default function Templates() {
   );
 
   // 未認証時
-  if (!authLoading && !isAuthenticated) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 texture-overlay">
-        <div className="quest-frame p-8 max-w-md w-full text-center">
-          <div className="quest-frame-corner top-left" />
-          <div className="quest-frame-corner top-right" />
-          <div className="quest-frame-corner bottom-left" />
-          <div className="quest-frame-corner bottom-right" />
 
-          <h1 className="text-2xl font-bold text-accent mb-4">クエストテンプレート</h1>
-          <p className="text-muted-foreground mb-6">
-            テンプレートを管理するにはログインが必要です
-          </p>
-
-          <Button
-            onClick={() => window.location.href = getLoginUrl()}
-            className="btn-quest btn-quest-primary"
-          >
-            <Swords className="w-4 h-4 mr-2" />
-            ログイン
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   // ローディング
   if (authLoading || templatesLoading) {
