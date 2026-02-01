@@ -4,11 +4,11 @@ import axios, { type AxiosInstance } from "axios";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
-import type { User } from "../../drizzle/schema";
-import { users } from "../../drizzle/schema";
-import * as db from "../db";
+import type { User } from "../../drizzle/schema.js";
+import { users } from "../../drizzle/schema.js";
+import * as db from "../db.js";
 
-import { ENV } from "./env";
+import { ENV } from "./env.js";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,

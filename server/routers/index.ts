@@ -1,9 +1,9 @@
 import { COOKIE_NAME } from "../../shared/const.js";
-import { getSessionCookieOptions } from "../_core/cookies";
-import { systemRouter } from "../_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "../_core/trpc";
+import { getSessionCookieOptions } from "../_core/cookies.js";
+import { systemRouter } from "../_core/systemRouter.js";
+import { publicProcedure, router, protectedProcedure } from "../_core/trpc.js";
 import { z } from "zod";
-import type { TrpcContext } from "../_core/context";
+import type { TrpcContext } from "../_core/context.js";
 import {
   createQuest,
   getActiveQuests,
@@ -34,8 +34,8 @@ import {
   deleteProject,
   migrateLegacyProjects,
   fixInconsistentData,
-} from "../db";
-import { SheetPayload, sendToSpreadsheet } from "../services/sheets";
+} from "../db.js";
+import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 
 export const appRouter = router({
   system: systemRouter,

@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { notifyOwner } from "./notification";
-import { adminProcedure, publicProcedure, router } from "./trpc";
-import { checkDbConnection } from "../db";
+import { notifyOwner } from "./notification.js";
+import { adminProcedure, publicProcedure, router } from "./trpc.js";
+import { checkDbConnection } from "../db.js";
 
 export const systemRouter = router({
   health: publicProcedure

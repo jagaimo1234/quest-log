@@ -19,8 +19,8 @@ import {
   projects,
   InsertProject,
   Project,
-} from "../drizzle/schema";
-import { ENV } from './_core/env';
+} from "../drizzle/schema.js";
+import { ENV } from './_core/env.js';
 
 // Database Instance (Unified LibSQL/Turso)
 // Database Instance (Unified LibSQL/Turso)
