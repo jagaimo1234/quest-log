@@ -3,6 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
+import type { TrpcContext } from "./_core/context";
 import {
   createQuest,
   getActiveQuests,
@@ -39,8 +40,8 @@ import { SheetPayload, sendToSpreadsheet } from "./services/sheets";
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
+    me: publicProcedure.query((opts) => opts.ctx.user),
+    logout: publicProcedure.mutation(({ ctx }: { ctx: TrpcContext }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return {
@@ -57,25 +58,25 @@ export const appRouter = router({
      * アクティブなクエスト一覧を取得
      * （cleared, cancelled 以外のすべてのクエスト）
      */
-    list: protectedProcedure.query(async ({ ctx }) => {
+    list: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
       // Auto-fix reversed data on list load to ensure consistency
-      await fixInconsistentData(ctx.user.id);
-      return getActiveQuests(ctx.user.id);
+      await fixInconsistentData(ctx.user!.id);
+      return getActiveQuests(ctx.user!.id);
     }),
 
     /**
      * 受注中のクエスト一覧を取得
      * （accepted, challenging, almost のクエスト）
      */
-    inProgress: protectedProcedure.query(async ({ ctx }) => {
-      return getInProgressQuests(ctx.user.id);
+    inProgress: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
+      return getInProgressQuests(ctx.user!.id);
     }),
 
     /**
      * 未受注のクエスト一覧を取得
      */
-    unreceived: protectedProcedure.query(async ({ ctx }) => {
-      return getUnreceivedQuests(ctx.user.id);
+    unreceived: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
+      return getUnreceivedQuests(ctx.user!.id);
     }),
 
     /**
@@ -83,8 +84,8 @@ export const appRouter = router({
      */
     get: protectedProcedure
       .input(z.object({ questId: z.number() }))
-      .query(async ({ ctx, input }) => {
-        return getQuestById(input.questId, ctx.user.id);
+      .query(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return getQuestById(input.questId, ctx.user!.id);
       }),
 
     /**
@@ -106,8 +107,8 @@ export const appRouter = router({
         templateId: z.number().optional().nullable(),
         status: z.enum(["unreceived", "accepted"]).optional(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        return createQuest(ctx.user.id, input);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return createQuest(ctx.user!.id, input);
       }),
 
     /**
@@ -118,8 +119,8 @@ export const appRouter = router({
         questId: z.number(),
         status: z.enum(["unreceived", "accepted", "challenging", "almost", "cleared", "paused", "cancelled", "failed"]),
       }))
-      .mutation(async ({ ctx, input }) => {
-        const quest = await updateQuestStatus(input.questId, ctx.user.id, input.status);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        const quest = await updateQuestStatus(input.questId, ctx.user!.id, input.status);
 
         // Helper to prepare spreadsheet payload
         const preparePayload = async (finalStatus: string, earnedXp: number = 0): Promise<SheetPayload> => {
@@ -179,13 +180,13 @@ export const appRouter = router({
           const xpReward = calculateXpReward(quest.difficulty);
 
           // XPを加算し、ストリークを更新
-          await updateUserProgression(ctx.user.id, {
+          await updateUserProgression(ctx.user!.id, {
             xpGain: xpReward,
             questCleared: true,
           });
 
           // 履歴に追加
-          await addToHistory(ctx.user.id, input.questId, {
+          await addToHistory(ctx.user!.id, input.questId, {
             questName: quest.questName,
             projectName: quest.projectName,
             questType: quest.questType,
@@ -205,7 +206,7 @@ export const appRouter = router({
 
         // 中断、キャンセル、失敗時の処理
         if (input.status === "paused" || input.status === "cancelled" || input.status === "failed") {
-          await addToHistory(ctx.user.id, input.questId, {
+          await addToHistory(ctx.user!.id, input.questId, {
             questName: quest.questName,
             projectName: quest.projectName,
             questType: quest.questType,
@@ -234,8 +235,8 @@ export const appRouter = router({
         questId: z.number(),
         deadline: z.date().optional().nullable(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        return updateQuestDeadline(input.questId, ctx.user.id, input.deadline || null);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return updateQuestDeadline(input.questId, ctx.user!.id, input.deadline || null);
       }),
 
     /**
@@ -251,8 +252,8 @@ export const appRouter = router({
         deadline: z.date().optional().nullable(),
         plannedTimeSlot: z.string().optional().nullable(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        return updateQuest(input.questId, ctx.user.id, input);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return updateQuest(input.questId, ctx.user!.id, input);
       }),
 
     /**
@@ -260,8 +261,8 @@ export const appRouter = router({
      */
     delete: protectedProcedure
       .input(z.object({ questId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        return deleteQuest(input.questId, ctx.user.id);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return deleteQuest(input.questId, ctx.user!.id);
       }),
   }),
 
@@ -269,10 +270,10 @@ export const appRouter = router({
   // プロジェクト管理 (Hierarchy)
   // ============================================
   project: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
+    list: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
       // Auto-migrate legacy projects on access
-      await migrateLegacyProjects(ctx.user.id);
-      return getProjects(ctx.user.id);
+      await migrateLegacyProjects(ctx.user!.id);
+      return getProjects(ctx.user!.id);
     }),
 
     create: protectedProcedure
@@ -282,8 +283,8 @@ export const appRouter = router({
         startDate: z.string().optional().nullable(), // ISO string from frontend
         endDate: z.string().optional().nullable(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        return createProject(ctx.user.id, {
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return createProject(ctx.user!.id, {
           ...input,
           startDate: input.startDate ? new Date(input.startDate) : null,
           endDate: input.endDate ? new Date(input.endDate) : null,
@@ -299,8 +300,8 @@ export const appRouter = router({
         endDate: z.string().optional().nullable(),
         status: z.enum(["active", "archived"]).optional(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        return updateProject(input.projectId, ctx.user.id, {
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return updateProject(input.projectId, ctx.user!.id, {
           ...input,
           startDate: input.startDate ? new Date(input.startDate) : null,
           endDate: input.endDate ? new Date(input.endDate) : null,
@@ -309,8 +310,8 @@ export const appRouter = router({
 
     delete: protectedProcedure
       .input(z.object({ projectId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        return deleteProject(input.projectId, ctx.user.id);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return deleteProject(input.projectId, ctx.user!.id);
       }),
   }),
 
@@ -321,8 +322,8 @@ export const appRouter = router({
     /**
      * テンプレート一覧を取得
      */
-    list: protectedProcedure.query(async ({ ctx }) => {
-      return getQuestTemplates(ctx.user.id);
+    list: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
+      return getQuestTemplates(ctx.user!.id);
     }),
 
     /**
@@ -343,8 +344,8 @@ export const appRouter = router({
         endDate: z.date().optional().nullable(),
         projectId: z.number().optional().nullable(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        return createQuestTemplate(ctx.user.id, input);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return createQuestTemplate(ctx.user!.id, input);
       }),
 
     /**
@@ -355,16 +356,16 @@ export const appRouter = router({
         templateId: z.number(),
         isActive: z.boolean(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        return updateTemplateStatus(input.templateId, ctx.user.id, input.isActive);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return updateTemplateStatus(input.templateId, ctx.user!.id, input.isActive);
       }),
 
     /**
      * テンプレートからクエストを自動生成
      */
     generate: protectedProcedure
-      .mutation(async ({ ctx }) => {
-        return generateQuestsFromTemplates(ctx.user.id);
+      .mutation(async ({ ctx }: { ctx: TrpcContext }) => {
+        return generateQuestsFromTemplates(ctx.user!.id);
       }),
 
     /**
@@ -385,8 +386,8 @@ export const appRouter = router({
         startDate: z.date().optional().nullable(),
         endDate: z.date().optional().nullable(),
       }))
-      .mutation(async ({ ctx, input }) => {
-        return updateQuestTemplate(input.templateId, ctx.user.id, input);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return updateQuestTemplate(input.templateId, ctx.user!.id, input);
       }),
 
     /**
@@ -394,8 +395,8 @@ export const appRouter = router({
      */
     delete: protectedProcedure
       .input(z.object({ templateId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        return deleteTemplate(input.templateId, ctx.user.id);
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return deleteTemplate(input.templateId, ctx.user!.id);
       }),
   }),
 
@@ -414,9 +415,9 @@ export const appRouter = router({
         startDate: z.string().optional(),
         endDate: z.string().optional(),
       }).optional())
-      .query(async ({ ctx, input }) => {
+      .query(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return getQuestHistoryByDate(
-          ctx.user.id,
+          ctx.user!.id,
           input?.startDate,
           input?.endDate
         );
@@ -430,10 +431,10 @@ export const appRouter = router({
     /**
      * 進行状況を取得
      */
-    get: protectedProcedure.query(async ({ ctx }) => {
+    get: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
       // ストリークリセットチェック
-      await resetStreakIfNeeded(ctx.user.id);
-      return getUserProgression(ctx.user.id);
+      await resetStreakIfNeeded(ctx.user!.id);
+      return getUserProgression(ctx.user!.id);
     }),
   }),
 });
