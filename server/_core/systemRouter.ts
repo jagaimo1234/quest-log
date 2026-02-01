@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
+import { checkDbConnection } from "../db";
 
 export const systemRouter = router({
   health: publicProcedure
@@ -12,6 +13,11 @@ export const systemRouter = router({
     .query(() => ({
       ok: true,
     })),
+
+  dbCheck: publicProcedure
+    .query(async () => {
+      return await checkDbConnection();
+    }),
 
   notifyOwner: adminProcedure
     .input(
