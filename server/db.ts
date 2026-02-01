@@ -38,6 +38,31 @@ export async function getDb() {
   return _db;
 }
 
+export async function checkDbConnection() {
+  try {
+    const isLibsql = dbUrl.startsWith("libsql://");
+    const hasToken = !!process.env.TURSO_AUTH_TOKEN;
+
+    // Simple query to check connection
+    const result = await _db.all(sql`SELECT 1 as connected`);
+
+    return {
+      status: "ok",
+      dbUrlStartsWith: dbUrl.substring(0, 10) + "...",
+      isLibsql,
+      hasToken,
+      result
+    };
+  } catch (error: any) {
+    return {
+      status: "error",
+      message: error.message,
+      stack: error.stack,
+      dbUrl: dbUrl // Be careful not to expose full sensitive URL in production logs if possible, but for debugging this user it's helpful
+    };
+  }
+}
+
 // ============================================
 // ユーザー管理
 // ============================================

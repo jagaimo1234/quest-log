@@ -22,9 +22,16 @@ app.use(
     })
 );
 
+import { checkDbConnection } from '../server/db';
+
 // Helper route for checking health
-app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", env: process.env.NODE_ENV });
+app.get("/api/health", async (req, res) => {
+    const dbStatus = await checkDbConnection();
+    res.json({
+        status: "ok",
+        env: process.env.NODE_ENV,
+        db: dbStatus
+    });
 });
 
 export default app;
