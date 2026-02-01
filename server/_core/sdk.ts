@@ -1,5 +1,5 @@
-import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import { ForbiddenError } from "@shared/_core/errors";
+import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
+import { ForbiddenError } from "../../shared/_core/errors.js";
 import axios, { type AxiosInstance } from "axios";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
@@ -314,9 +314,9 @@ class SDKServer {
   private async getOrCreateGuestUser(): Promise<User> {
     // ゲストユーザーの固定ID
     const guestOpenId = GUEST_USER_OPEN_ID;
-    
+
     let user = await db.getUserByOpenId(guestOpenId);
-    
+
     if (!user) {
       // ゲストユーザーが存在しない場合は作成
       await db.upsertUser({
@@ -334,11 +334,11 @@ class SDKServer {
         lastSignedIn: new Date(),
       });
     }
-    
+
     if (!user) {
       throw ForbiddenError("Failed to create guest user");
     }
-    
+
     console.log("[Auth] Guest user authenticated");
     return user;
   }
