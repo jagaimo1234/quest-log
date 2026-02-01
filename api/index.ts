@@ -1,4 +1,4 @@
-import { appRouter } from '../server/routers/index';
+import { appRouter } from '../server/routers/index.js';
 import { createContext } from '../server/_core/context';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import express from 'express';
