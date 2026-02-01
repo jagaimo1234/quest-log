@@ -1,9 +1,9 @@
 import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { getSessionCookieOptions } from "../_core/cookies";
+import { systemRouter } from "../_core/systemRouter";
+import { publicProcedure, router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
-import type { TrpcContext } from "./_core/context";
+import type { TrpcContext } from "../_core/context";
 import {
   createQuest,
   getActiveQuests,
@@ -34,13 +34,13 @@ import {
   deleteProject,
   migrateLegacyProjects,
   fixInconsistentData,
-} from "./db";
-import { SheetPayload, sendToSpreadsheet } from "./services/sheets";
+} from "../db";
+import { SheetPayload, sendToSpreadsheet } from "../services/sheets";
 
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    me: publicProcedure.query(({ ctx }) => ctx.user),
     logout: publicProcedure.mutation(({ ctx }: { ctx: TrpcContext }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

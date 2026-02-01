@@ -518,7 +518,7 @@ export async function getQuestTemplates(userId: number): Promise<(QuestTemplate 
     .where(eq(questTemplates.userId, userId))
     .orderBy(desc(questTemplates.createdAt));
 
-  const results = await Promise.all(rows.map(async ({ template, project }) => {
+  const results = await Promise.all(rows.map(async ({ template, project }: { template: QuestTemplate, project: Project | null }) => {
     const [res] = await db.select({ count: sql<number>`count(*)` })
       .from(questHistory)
       .where(and(eq(questHistory.templateId, template.id), eq(questHistory.finalStatus, 'cleared')));
@@ -675,7 +675,7 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
           // Fallback: Name match if templateId is null (for legacy records)
           and(
             isNull(questHistory.templateId),
-            eq(questHistory.questName, templates.find(t => t.id === templateId)?.questName || "")
+            eq(questHistory.questName, templates.find((t: QuestTemplate) => t.id === templateId)?.questName || "")
           )
         ),
         gte(questHistory.recordedAt, new Date(startDateStr)),
@@ -707,7 +707,7 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
     .where(and(eq(questTemplates.userId, userId), eq(questTemplates.isActive, true)));
 
   // Re-define templates array for backward compatibility logic in helper
-  const templates = templatesWithProject.map(t => t.template);
+  const templates = templatesWithProject.map((t: { template: QuestTemplate, project: Project | null }) => t.template);
 
   for (const { template, project } of templatesWithProject) {
     // 1. Is Today Valid?
@@ -751,7 +751,7 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
     if (!isTodayValid) continue;
 
     // 2. Already Active? (Prevent duplication)
-    const existingQuest = activeQuests.find(q => q.templateId === template.id);
+    const existingQuest = activeQuests.find((q: Quest) => q.templateId === template.id);
     if (existingQuest) continue; // Already have one, don't generate another until it's done.
 
     // 3. Frequency Check (Goal Met?)
