@@ -15,21 +15,27 @@ export interface SheetPayload {
 }
 
 export async function sendToSpreadsheet(payload: SheetPayload) {
+    // Log payload for debugging (Vercel Logs)
+    console.log("[Sheets] Preparing to send payload:", JSON.stringify(payload));
+
     if (!GAS_WEB_APP_URL) {
-        console.log("Skipping Spreadsheet update: GAS_WEB_APP_URL not set");
+        console.error("[Sheets] ERROR: GAS_WEB_APP_URL is not set in environment variables! Skipping update.");
         return;
     }
 
     try {
         // Fire and forget (don't wait for response too long or don't block main flow if called without await)
         // using await here but with strict timeout
-        await axios.post(GAS_WEB_APP_URL, payload, {
+        const response = await axios.post(GAS_WEB_APP_URL, payload, {
             headers: { "Content-Type": "application/json" },
             timeout: 5000
         });
-        console.log(`Sent history to Spreadsheet: ${payload.questName} (${payload.progress})`);
+        console.log(`[Sheets] Successfully sent history: ${payload.questName} (${payload.progress}). Status: ${response.status}`);
     } catch (error) {
-        console.error("Failed to send to Spreadsheet:", error instanceof Error ? error.message : error);
-        // Suppress error to avoid failing the main request
+        console.error("[Sheets] Failed to send to Spreadsheet:", error instanceof Error ? error.message : error);
+        if (axios.isAxiosError(error)) {
+            console.error("[Sheets] Axios Response:", error.response?.data);
+            console.error("[Sheets] Axios Code:", error.code);
+        }
     }
 }
