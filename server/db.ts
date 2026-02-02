@@ -52,10 +52,25 @@ export async function getDb() {
 
 export async function checkDbConnection() {
   try {
+    if (!dbUrl) {
+      return {
+        status: "error",
+        message: "DATABASE_URL is not set",
+        dbUrl: undefined
+      };
+    }
+
     const isLibsql = dbUrl.startsWith("libsql://");
     const hasToken = !!process.env.TURSO_AUTH_TOKEN;
 
     // Simple query to check connection
+    if (!_db) {
+      return {
+        status: "error",
+        message: "Database client is not initialized",
+        dbUrl: dbUrl
+      };
+    }
     const result = await _db.all(sql`SELECT 1 as connected`);
 
     return {
