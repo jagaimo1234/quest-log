@@ -173,6 +173,20 @@ function TodayItem({ quest, templates, onStatusChange }: { quest: any, templates
     bgClass = "bg-amber-50/80 dark:bg-amber-900/10";
   }
 
+  // 日付が変わっているか判定（深夜0時〜朝9時の間、前日の完了タスクを薄くする）
+  const isPreviousDay = React.useMemo(() => {
+    if (!isCompleted && !isFailed) return false;
+    const updatedAt = new Date(quest.updatedAt);
+    const now = new Date();
+    // 日付文字列で比較 (YYYY-MM-DD)
+    return updatedAt.toDateString() !== now.toDateString();
+  }, [quest.updatedAt, isCompleted, isFailed]);
+
+  // 過去分ならグレーアウトを強化
+  if (isPreviousDay) {
+    bgClass += " opacity-40 grayscale";
+  }
+
   let slotCount = 0;
   try {
     if (quest.plannedTimeSlot) {
