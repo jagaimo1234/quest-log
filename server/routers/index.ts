@@ -122,59 +122,6 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         const quest = await updateQuestStatus(input.questId, ctx.user!.id, input.status);
 
-        // Helper to prepare spreadsheet payload
-        const preparePayload = async (finalStatus: string, earnedXp: number = 0): Promise<SheetPayload> => {
-          let executionType: "FIX" | "NON-FIX" = "FIX"; // Default to FIX
-          let progress = "-"; // Default
-
-          if (quest.templateId) {
-            const template = await getQuestTemplateById(quest.templateId);
-            if (template) {
-              // FIX/NON-FIX Logic
-              // Daily is always FIX (conceptually)
-              if (quest.questType === "Daily") {
-                executionType = "FIX";
-              } else {
-                const hasFixSetting = (template.daysOfWeek && template.daysOfWeek !== "[]") ||
-                  (template.weeksOfMonth && template.weeksOfMonth !== "[]") ||
-                  (template.datesOfMonth && template.datesOfMonth !== "[]") ||
-                  template.monthOfYear;
-                executionType = hasFixSetting ? "FIX" : "NON-FIX";
-              }
-
-              // Progress Logic
-              // Count how many times cleared in this period
-              const currentCount = await getTemplateCompletionCount(template.id, quest.questType);
-              // If this action is "cleared", the history record is already inserted? 
-              // Wait, updateQuestStatus does NOT insert history. 
-              // The history is inserted via addToHistory inside the if blocks below.
-              // So if we are about to insert "cleared", the count from DB will NOT include this one yet?
-              // `getTemplateCompletionCount` counts from `questHistory`.
-              // So we should add +1 if the current action is 'cleared'.
-
-              const count = currentCount;
-              progress = `${count}/${template.frequency || 1}`;
-            }
-          } else {
-            // Manual quest: Daily/Free/Project usually don't have frequency per se, default to 1/1 ?
-            // Or just leave as "-" or "1/1"
-            progress = "1/1";
-          }
-
-
-
-          return {
-            recordedDate: new Date().toISOString().split('T')[0],
-            questName: quest.questName,
-            projectName: quest.projectName,
-            questType: quest.questType,
-            finalStatus: finalStatus,
-            plannedTimeSlot: quest.plannedTimeSlot,
-            executionType: executionType,
-            progress: progress
-          };
-        };
-
         // クリア時の処理
         if (input.status === "cleared") {
           const xpReward = calculateXpReward(quest.difficulty);
@@ -197,9 +144,7 @@ export const appRouter = router({
             plannedTimeSlot: quest.plannedTimeSlot,
           });
 
-          // スプレッドシートに送信
-          const payload = await preparePayload("cleared", xpReward);
-          await sendToSpreadsheet(payload);
+          // スプレッドシート送信はCronで行うため削除
 
           return { ...quest, xpEarned: xpReward };
         }
@@ -217,8 +162,7 @@ export const appRouter = router({
             plannedTimeSlot: quest.plannedTimeSlot,
           });
 
-          const payload = await preparePayload(input.status, 0);
-          await sendToSpreadsheet(payload);
+          // スプレッドシート送信はCronで行うため削除
         }
 
         return quest;

@@ -4,6 +4,10 @@
     "outputDirectory": "dist",
     "rewrites": [
         {
+            "source": "/api/cron",
+            "destination": "/api/cron.ts"
+        },
+        {
             "source": "/api/(.*)",
             "destination": "/api/index.ts"
         },
@@ -15,6 +19,15 @@
     "functions": {
         "api/index.ts": {
             "maxDuration": 10
+        },
+        "api/cron.ts": {
+            "maxDuration": 60
         }
-    }
+    },
+    "crons": [
+        {
+            "path": "/api/cron",
+            "schedule": "0 * * * *"
+        }
+    ]
 }

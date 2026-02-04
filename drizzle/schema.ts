@@ -161,6 +161,9 @@ export const questHistory = sqliteTable("quest_history", {
 
   // 時間枠ログ（分析用）
   plannedTimeSlot: text("plannedTimeSlot"),
+
+  // スプレッドシート同期フラグ
+  isSynced: integer("isSynced", { mode: "boolean" }).default(false).notNull(),
 });
 
 export type QuestHistory = typeof questHistory.$inferSelect;
