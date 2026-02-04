@@ -28,7 +28,7 @@ export async function sendToSpreadsheet(payload: SheetPayload) {
         // using await here but with strict timeout
         const response = await axios.post(GAS_WEB_APP_URL, payload, {
             headers: { "Content-Type": "application/json" },
-            timeout: 5000
+            timeout: 10000 // 10秒に緩和
         });
         console.log(`[Sheets] Successfully sent history: ${payload.questName} (${payload.progress}). Status: ${response.status}`);
     } catch (error) {
