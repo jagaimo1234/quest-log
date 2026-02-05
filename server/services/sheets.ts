@@ -14,13 +14,13 @@ export interface SheetPayload {
     progress: string; // e.g. "1/3"
 }
 
-export async function sendToSpreadsheet(payload: SheetPayload) {
+export async function sendToSpreadsheet(payload: SheetPayload): Promise<boolean> {
     // Log payload for debugging (Vercel Logs)
     console.log("[Sheets] Preparing to send payload:", JSON.stringify(payload));
 
     if (!GAS_WEB_APP_URL) {
         console.error("[Sheets] ERROR: GAS_WEB_APP_URL is not set in environment variables! Skipping update.");
-        return;
+        return false;
     }
 
     try {
@@ -31,11 +31,13 @@ export async function sendToSpreadsheet(payload: SheetPayload) {
             timeout: 10000 // 10秒に緩和
         });
         console.log(`[Sheets] Successfully sent history: ${payload.questName} (${payload.progress}). Status: ${response.status}`);
+        return true;
     } catch (error) {
         console.error("[Sheets] Failed to send to Spreadsheet:", error instanceof Error ? error.message : error);
         if (axios.isAxiosError(error)) {
             console.error("[Sheets] Axios Response:", error.response?.data);
             console.error("[Sheets] Axios Code:", error.code);
         }
+        return false;
     }
 }

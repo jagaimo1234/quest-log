@@ -162,7 +162,11 @@ export const questHistory = sqliteTable("quest_history", {
   // 時間枠ログ（分析用）
   plannedTimeSlot: text("plannedTimeSlot"),
 
-  // スプレッドシート同期フラグ
+  // スプレッドシート同期用データ
+  executionType: text("executionType"), // FIX or NON-FIX
+  progress: text("progress"), // e.g. "1/3"
+
+  // 同期ステータス
   isSynced: integer("isSynced", { mode: "boolean" }).default(false).notNull(),
 });
 

@@ -829,6 +829,8 @@ export async function addToHistory(
     xpEarned?: number;
     templateId?: number | null;
     plannedTimeSlot?: string | null;
+    executionType?: string | null;
+    progress?: string | null;
   }
 ): Promise<QuestHistory> {
   const db = await getDb();
@@ -849,10 +851,38 @@ export async function addToHistory(
     recordedDate,
     templateId: input.templateId || null,
     plannedTimeSlot: input.plannedTimeSlot || null,
+    executionType: input.executionType || null,
+    progress: input.progress || null,
+    isSynced: false,
+  };
+  plannedTimeSlot: input.plannedTimeSlot || null,
   };
 
-  const result = await db.insert(questHistory).values(values).returning();
-  return result[0];
+const result = await db.insert(questHistory).values(values).returning();
+return result[0];
+}
+
+/**
+ * 履歴を同期済みにマーク
+ */
+export async function markHistoryAsSynced(historyId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(questHistory)
+    .set({ isSynced: true })
+    .where(eq(questHistory.id, historyId));
+}
+
+/**
+ * 未同期の履歴を取得
+ */
+export async function getUnsyncedHistory(limit: number = 20): Promise<QuestHistory[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select()
+    .from(questHistory)
+    .where(eq(questHistory.isSynced, false))
+    .limit(limit);
 }
 
 /**
