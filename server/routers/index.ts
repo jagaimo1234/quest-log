@@ -16,7 +16,6 @@ import {
   createQuestTemplate,
   updateTemplateStatus,
   generateQuestsFromTemplates,
-  markHistoryAsSynced,
   addToHistory,
   getQuestHistoryByDate,
   getUserProgression,
@@ -179,7 +178,6 @@ export const appRouter = router({
         // クリア時の処理
         if (input.status === "cleared") {
           const xpReward = calculateXpReward(quest.difficulty);
-          const payload = await preparePayload("cleared", xpReward);
 
           // XPを加算し、ストリークを更新
           await updateUserProgression(ctx.user!.id, {
@@ -187,8 +185,8 @@ export const appRouter = router({
             questCleared: true,
           });
 
-          // 履歴に追加 (未同期状態で保存)
-          const history = await addToHistory(ctx.user!.id, input.questId, {
+          // 履歴に追加
+          await addToHistory(ctx.user!.id, input.questId, {
             questName: quest.questName,
             projectName: quest.projectName,
             questType: quest.questType,
@@ -197,24 +195,18 @@ export const appRouter = router({
             xpEarned: xpReward,
             templateId: quest.templateId,
             plannedTimeSlot: quest.plannedTimeSlot,
-            executionType: payload.executionType,
-            progress: payload.progress,
           });
 
-          // スプレッドシートに送信トライ
-          const success = await sendToSpreadsheet(payload);
-          if (success && history) {
-            await markHistoryAsSynced(history.id);
-          }
+          // スプレッドシートに送信
+          const payload = await preparePayload("cleared", xpReward);
+          await sendToSpreadsheet(payload);
 
           return { ...quest, xpEarned: xpReward };
         }
 
         // 中断、キャンセル、失敗時の処理
         if (input.status === "paused" || input.status === "cancelled" || input.status === "failed") {
-          const payload = await preparePayload(input.status, 0);
-
-          const history = await addToHistory(ctx.user!.id, input.questId, {
+          await addToHistory(ctx.user!.id, input.questId, {
             questName: quest.questName,
             projectName: quest.projectName,
             questType: quest.questType,
@@ -223,14 +215,10 @@ export const appRouter = router({
             xpEarned: 0,
             templateId: quest.templateId,
             plannedTimeSlot: quest.plannedTimeSlot,
-            executionType: payload.executionType,
-            progress: payload.progress,
           });
 
-          const success = await sendToSpreadsheet(payload);
-          if (success && history) {
-            await markHistoryAsSynced(history.id);
-          }
+          const payload = await preparePayload(input.status, 0);
+          await sendToSpreadsheet(payload);
         }
 
         return quest;
