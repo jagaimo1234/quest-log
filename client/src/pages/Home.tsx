@@ -508,410 +508,419 @@ export default function Home() {
   const [isRelaxOpen, setIsRelaxOpen] = useState(false);
 
   const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: templates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: progression, refetch: refetchProgression } = trpc.progression.get.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: unreceivedQuests } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: templates = [], refetch: refetchTemplates } = trpc.quest.getTemplates.useQuery();
+  const { data: progression, refetch: refetchProgression } = trpc.user.getProgression.useQuery();
 
-  const now = new Date();
-  const startRange = format(startOfWeek(startOfMonth(now)), 'yyyy-MM-dd');
-  const endRange = format(endOfWeek(endOfMonth(now)), 'yyyy-MM-dd');
-  const { data: history, refetch: refetchHistory } = trpc.history.list.useQuery({ startDate: startRange, endDate: endRange }, { enabled: isAuthenticated });
-
-  const updateStatus = trpc.quest.updateStatus.useMutation();
-  const createQuest = trpc.quest.create.useMutation();
-  const generateFromTemplates = trpc.template.generate.useMutation();
-  const updateQuest = trpc.quest.update.useMutation();
-
+  // Rescue unsynced data on mount (Fire-and-forget)
+  const syncSpreadsheet = trpc.system.syncSpreadsheet.useMutation();
   useEffect(() => {
-    if (isAuthenticated) generateFromTemplates.mutateAsync().then(() => refetchQuests());
-  }, [isAuthenticated]);
+    syncSpreadsheet.mutate();
+  }, []);
 
-  const refreshAll = () => {
-    refetchQuests();
-    refetchHistory();
-    refetchProgression();
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("TODAY"); s
+} = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
+
+const now = new Date();
+const startRange = format(startOfWeek(startOfMonth(now)), 'yyyy-MM-dd');
+const endRange = format(endOfWeek(endOfMonth(now)), 'yyyy-MM-dd');
+const { data: history, refetch: refetchHistory } = trpc.history.list.useQuery({ startDate: startRange, endDate: endRange }, { enabled: isAuthenticated });
+
+const updateStatus = trpc.quest.updateStatus.useMutation();
+const createQuest = trpc.quest.create.useMutation();
+const generateFromTemplates = trpc.template.generate.useMutation();
+const updateQuest = trpc.quest.update.useMutation();
+
+useEffect(() => {
+  if (isAuthenticated) generateFromTemplates.mutateAsync().then(() => refetchQuests());
+}, [isAuthenticated]);
+
+const refreshAll = () => {
+  refetchQuests();
+  refetchHistory();
+  refetchProgression();
+};
+
+const todayQuests = activeQuests?.filter(q => ["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) || [];
+
+const timeSlots = Array.from({ length: 18 }, (_, i) => {
+  const hour = i + 6;
+  const label = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
+  return { id: label, label };
+});
+
+const [dragState, setDragState] = useState<{ active: boolean, itemId: number | null, startX: number, startY: number, currentX: number, currentY: number }>({
+  active: false, itemId: null, startX: 0, startY: 0, currentX: 0, currentY: 0
+});
+
+const handleMouseDown = (e: React.MouseEvent, itemId: number) => {
+  e.preventDefault();
+  setDragState({
+    active: true,
+    itemId,
+    startX: e.clientX,
+    startY: e.clientY,
+    currentX: e.clientX,
+    currentY: e.clientY
+  });
+};
+
+const handleTouchStart = (e: React.TouchEvent, itemId: number) => {
+  const touch = e.touches[0];
+  setDragState({
+    active: true,
+    itemId,
+    startX: touch.clientX,
+    startY: touch.clientY,
+    currentX: touch.clientX,
+    currentY: touch.clientY
+  });
+};
+
+useEffect(() => {
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!dragState.active) return;
+    setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
   };
 
-  const todayQuests = activeQuests?.filter(q => ["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) || [];
-
-  const timeSlots = Array.from({ length: 18 }, (_, i) => {
-    const hour = i + 6;
-    const label = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
-    return { id: label, label };
-  });
-
-  const [dragState, setDragState] = useState<{ active: boolean, itemId: number | null, startX: number, startY: number, currentX: number, currentY: number }>({
-    active: false, itemId: null, startX: 0, startY: 0, currentX: 0, currentY: 0
-  });
-
-  const handleMouseDown = (e: React.MouseEvent, itemId: number) => {
-    e.preventDefault();
-    setDragState({
-      active: true,
-      itemId,
-      startX: e.clientX,
-      startY: e.clientY,
-      currentX: e.clientX,
-      currentY: e.clientY
-    });
-  };
-
-  const handleTouchStart = (e: React.TouchEvent, itemId: number) => {
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!dragState.active) return;
     const touch = e.touches[0];
-    setDragState({
-      active: true,
-      itemId,
-      startX: touch.clientX,
-      startY: touch.clientY,
-      currentX: touch.clientX,
-      currentY: touch.clientY
-    });
+    setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
+    if (e.cancelable) e.preventDefault();
   };
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!dragState.active) return;
-      setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
-    };
+  const handleMouseUp = async (e: MouseEvent | TouchEvent) => {
+    if (!dragState.active) return;
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!dragState.active) return;
-      const touch = e.touches[0];
-      setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
-      if (e.cancelable) e.preventDefault();
-    };
+    let clientX, clientY;
+    if ('changedTouches' in e) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = (e as MouseEvent).clientX;
+      clientY = (e as MouseEvent).clientY;
+    }
 
-    const handleMouseUp = async (e: MouseEvent | TouchEvent) => {
-      if (!dragState.active) return;
+    const elements = document.elementsFromPoint(clientX, clientY);
+    const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
 
-      let clientX, clientY;
-      if ('changedTouches' in e) {
-        clientX = e.changedTouches[0].clientX;
-        clientY = e.changedTouches[0].clientY;
-      } else {
-        clientX = (e as MouseEvent).clientX;
-        clientY = (e as MouseEvent).clientY;
-      }
+    if (slotElement && dragState.itemId) {
+      const slotId = slotElement.getAttribute('data-slot-id');
+      const quest = activeQuests?.find(q => q.id === dragState.itemId);
 
-      const elements = document.elementsFromPoint(clientX, clientY);
-      const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
-
-      if (slotElement && dragState.itemId) {
-        const slotId = slotElement.getAttribute('data-slot-id');
-        const quest = activeQuests?.find(q => q.id === dragState.itemId);
-
-        if (slotId && quest) {
+      if (slotId && quest) {
+        try {
+          let currentSlots: string[] = [];
           try {
-            let currentSlots: string[] = [];
-            try {
-              if (quest.plannedTimeSlot) {
-                const parsed = JSON.parse(quest.plannedTimeSlot);
-                if (Array.isArray(parsed)) currentSlots = parsed;
-                else if (typeof parsed === 'string') currentSlots = [parsed];
-              }
-            } catch {
-              if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
+            if (quest.plannedTimeSlot) {
+              const parsed = JSON.parse(quest.plannedTimeSlot);
+              if (Array.isArray(parsed)) currentSlots = parsed;
+              else if (typeof parsed === 'string') currentSlots = [parsed];
             }
-            if (!currentSlots.includes(slotId)) {
-              const newSlots = [...currentSlots, slotId];
-              await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
-              toast.success(`Planned for ${slotId}`);
-              refreshAll();
-            }
-          } catch (err) {
-            toast.error("Failed to plan");
+          } catch {
+            if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
           }
+          if (!currentSlots.includes(slotId)) {
+            const newSlots = [...currentSlots, slotId];
+            await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
+            toast.success(`Planned for ${slotId}`);
+            refreshAll();
+          }
+        } catch (err) {
+          toast.error("Failed to plan");
         }
       }
-      setDragState(prev => ({ ...prev, active: false, itemId: null }));
-    };
-
-    if (dragState.active) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      window.addEventListener('touchmove', handleTouchMove, { passive: false });
-      window.addEventListener('touchend', handleMouseUp);
     }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleMouseUp);
-    };
-  }, [dragState.active, dragState.itemId, activeQuests]);
+    setDragState(prev => ({ ...prev, active: false, itemId: null }));
+  };
 
-  const handleUnlink = async (questId: number, slotId: string) => {
-    const quest = activeQuests?.find(q => q.id === questId);
-    if (!quest) return;
+  if (dragState.active) {
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleMouseUp);
+  }
+  return () => {
+    window.removeEventListener('mousemove', handleMouseMove);
+    window.removeEventListener('mouseup', handleMouseUp);
+    window.removeEventListener('touchmove', handleTouchMove);
+    window.removeEventListener('touchend', handleMouseUp);
+  };
+}, [dragState.active, dragState.itemId, activeQuests]);
+
+const handleUnlink = async (questId: number, slotId: string) => {
+  const quest = activeQuests?.find(q => q.id === questId);
+  if (!quest) return;
+  try {
+    let currentSlots: string[] = [];
     try {
-      let currentSlots: string[] = [];
-      try {
-        if (quest.plannedTimeSlot) {
-          const parsed = JSON.parse(quest.plannedTimeSlot);
-          if (Array.isArray(parsed)) currentSlots = parsed;
-          else if (typeof parsed === 'string') currentSlots = [parsed];
-        }
-      } catch {
-        if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
+      if (quest.plannedTimeSlot) {
+        const parsed = JSON.parse(quest.plannedTimeSlot);
+        if (Array.isArray(parsed)) currentSlots = parsed;
+        else if (typeof parsed === 'string') currentSlots = [parsed];
       }
-      const newSlots = currentSlots.filter(s => s !== slotId);
-      const val = newSlots.length === 0 ? null : JSON.stringify(newSlots);
-      await updateQuest.mutateAsync({ questId, plannedTimeSlot: val });
-      toast.success("Link removed");
-      refreshAll();
-    } catch (err) {
-      toast.error("Failed to unlink");
+    } catch {
+      if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
     }
-  };
-
-  // SHELF LOGIC
-  const fixShelfQuests = unreceivedQuests?.filter(q => q.questType !== "Project" && q.questType !== "Relax") || []; // RELAX uses templates directly
-
-  // Project Shelf Logic (Now based on Templates)
-  const projectTemplates = templates?.filter(t => {
-    if (t.questType !== "Project") return false;
-    // Date Check
-    if (!t.startDate || !t.endDate) return true; // Show invalid ones too? No, should be valid.
-    // If start/end date present, check if now is within range.
-    const start = new Date(t.startDate);
-    const end = new Date(t.endDate);
-    end.setHours(23, 59, 59, 999);
-    start.setHours(0, 0, 0, 0);
-    return isAfter(now, start) && isBefore(now, end) || isEqual(now, start) || isEqual(now, end);
-  }) || [];
-
-  const nonFixTemplates = templates?.filter(t => {
-    const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
-      (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
-      (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
-    if (!isPool) return false;
-
-    // Filter out if quota met
-    if (!history) return true;
-    let periodStart = startOfWeek(now);
-    if (t.questType === "Monthly") periodStart = startOfMonth(now);
-    const doneCount = history.filter(h => h.templateId === t.id && (isAfter(new Date(h.recordedAt), periodStart) || isEqual(new Date(h.recordedAt), periodStart))).length;
-    return doneCount < (t.frequency || 1);
-  }) || [];
-
-  const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
-
-  const handleReceiveFix = async (questId: number) => { await updateStatus.mutateAsync({ questId, status: "accepted" }); toast.success("Received"); refreshAll(); };
-  const handleReceiveNonFix = async (template: any) => { await createQuest.mutateAsync({ questName: template.questName, questType: template.questType, difficulty: template.difficulty, templateId: template.id, status: "accepted" } as any); toast.success("Received"); refreshAll(); };
-
-  // Create Instance from Project Template
-  const handleReceiveProject = async (template: any) => {
-    await createQuest.mutateAsync({
-      questName: template.questName,
-      projectName: template.parentProjectName || template.projectName, // Use Parent Project Name
-      questType: "Project" as any,
-      difficulty: template.difficulty,
-      templateId: template.id,
-      status: "accepted"
-    } as any);
-    toast.success("Started Project Task");
+    const newSlots = currentSlots.filter(s => s !== slotId);
+    const val = newSlots.length === 0 ? null : JSON.stringify(newSlots);
+    await updateQuest.mutateAsync({ questId, plannedTimeSlot: val });
+    toast.success("Link removed");
     refreshAll();
-  };
+  } catch (err) {
+    toast.error("Failed to unlink");
+  }
+};
 
-  // RELAX: Create Instance
-  const handleReceiveRelax = async (template: any) => {
-    await createQuest.mutateAsync({
-      questName: template.questName,
-      questType: "Relax" as any,
-      difficulty: "1",
-      templateId: template.id,
-      status: "accepted"
-    } as any);
-    toast.success("Add Relax Mission");
-    refreshAll();
-  };
+// SHELF LOGIC
+const fixShelfQuests = unreceivedQuests?.filter(q => q.questType !== "Project" && q.questType !== "Relax") || []; // RELAX uses templates directly
 
-  const [editingRelaxTemplate, setEditingRelaxTemplate] = useState<any>(null);
+// Project Shelf Logic (Now based on Templates)
+const projectTemplates = templates?.filter(t => {
+  if (t.questType !== "Project") return false;
+  // Date Check
+  if (!t.startDate || !t.endDate) return true; // Show invalid ones too? No, should be valid.
+  // If start/end date present, check if now is within range.
+  const start = new Date(t.startDate);
+  const end = new Date(t.endDate);
+  end.setHours(23, 59, 59, 999);
+  start.setHours(0, 0, 0, 0);
+  return isAfter(now, start) && isBefore(now, end) || isEqual(now, start) || isEqual(now, end);
+}) || [];
 
-  if (authLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+const nonFixTemplates = templates?.filter(t => {
+  const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
+    (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
+    (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
+  if (!isPool) return false;
 
-  return (
-    <div className="min-h-screen bg-background text-foreground select-none" onClick={() => setIsRelaxOpen(false)}>
-      <main className="layout-container py-8 mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Quest Log</h1>
-          <div className="flex gap-4">
-            {progression?.currentStreak > 0 && <div className="flex items-center gap-1 text-orange-500 font-bold"><Flame className="fill-orange-500 w-5 h-5" /> {progression.currentStreak}</div>}
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
-              <QuestCreateDialog onCreated={refreshAll} />
-            </div>
+  // Filter out if quota met
+  if (!history) return true;
+  let periodStart = startOfWeek(now);
+  if (t.questType === "Monthly") periodStart = startOfMonth(now);
+  const doneCount = history.filter(h => h.templateId === t.id && (isAfter(new Date(h.recordedAt), periodStart) || isEqual(new Date(h.recordedAt), periodStart))).length;
+  return doneCount < (t.frequency || 1);
+}) || [];
+
+const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
+
+const handleReceiveFix = async (questId: number) => { await updateStatus.mutateAsync({ questId, status: "accepted" }); toast.success("Received"); refreshAll(); };
+const handleReceiveNonFix = async (template: any) => { await createQuest.mutateAsync({ questName: template.questName, questType: template.questType, difficulty: template.difficulty, templateId: template.id, status: "accepted" } as any); toast.success("Received"); refreshAll(); };
+
+// Create Instance from Project Template
+const handleReceiveProject = async (template: any) => {
+  await createQuest.mutateAsync({
+    questName: template.questName,
+    projectName: template.parentProjectName || template.projectName, // Use Parent Project Name
+    questType: "Project" as any,
+    difficulty: template.difficulty,
+    templateId: template.id,
+    status: "accepted"
+  } as any);
+  toast.success("Started Project Task");
+  refreshAll();
+};
+
+// RELAX: Create Instance
+const handleReceiveRelax = async (template: any) => {
+  await createQuest.mutateAsync({
+    questName: template.questName,
+    questType: "Relax" as any,
+    difficulty: "1",
+    templateId: template.id,
+    status: "accepted"
+  } as any);
+  toast.success("Add Relax Mission");
+  refreshAll();
+};
+
+const [editingRelaxTemplate, setEditingRelaxTemplate] = useState<any>(null);
+
+if (authLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+
+return (
+  <div className="min-h-screen bg-background text-foreground select-none" onClick={() => setIsRelaxOpen(false)}>
+    <main className="layout-container py-8 mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold tracking-tight">Quest Log</h1>
+        <div className="flex gap-4">
+          {progression?.currentStreak > 0 && <div className="flex items-center gap-1 text-orange-500 font-bold"><Flame className="fill-orange-500 w-5 h-5" /> {progression.currentStreak}</div>}
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
+            <QuestCreateDialog onCreated={refreshAll} />
           </div>
         </div>
+      </div>
 
-        <Tabs defaultValue="today" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="today">Today</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="today" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="today">Today</TabsTrigger>
+          <TabsTrigger value="calendar">Calendar</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="today" className="space-y-8 animate-fade-in">
+        <TabsContent value="today" className="space-y-8 animate-fade-in">
 
-            {/* SHELF 1: TODAY */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Today Planning</h2>
-                <span className="text-xs text-muted-foreground">{todayQuests.length} tasks</span>
-              </div>
-              <div className="relative">
-                {/* RELAX COLUMN (Absolute Overlay or Side Column?) Using flex to sit beside. */}
-                {/* 
+          {/* SHELF 1: TODAY */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Today Planning</h2>
+              <span className="text-xs text-muted-foreground">{todayQuests.length} tasks</span>
+            </div>
+            <div className="relative">
+              {/* RELAX COLUMN (Absolute Overlay or Side Column?) Using flex to sit beside. */}
+              {/* 
                    Requirement: 
                    RELAX列は デフォルトでは折りたたみ状態 
                    RELAXボタン（見出し）をタップすると：登録済みRELAXミッション一覧が展開される
                    画面外（サイド）をタップすると：RELAX列は再び折りたたまれる
                 */}
-                <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]">
-                  <ConnectionLines quests={todayQuests} parentRef={containerRef} templates={templates || []} onUnlink={handleUnlink} />
+              <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]">
+                <ConnectionLines quests={todayQuests} parentRef={containerRef} templates={templates || []} onUnlink={handleUnlink} />
 
-                  <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
-                    {todayQuests.map(q => (
-                      <div id={`source-${q.id}`} key={q.id} onMouseDown={(e) => handleMouseDown(e, q.id)} onTouchStart={(e) => handleTouchStart(e, q.id)} className="cursor-grab active:cursor-grabbing relative bg-background rounded-xl z-20 hover:scale-[1.02] transition-transform">
-                        <TodayItem quest={q} templates={templates || []} onStatusChange={() => refreshAll()} />
+                <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
+                  {todayQuests.map(q => (
+                    <div id={`source-${q.id}`} key={q.id} onMouseDown={(e) => handleMouseDown(e, q.id)} onTouchStart={(e) => handleTouchStart(e, q.id)} className="cursor-grab active:cursor-grabbing relative bg-background rounded-xl z-20 hover:scale-[1.02] transition-transform">
+                      <TodayItem quest={q} templates={templates || []} onStatusChange={() => refreshAll()} />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Right Log (Time Slots) */}
+                <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
+                  <div className="flex flex-col gap-1 w-full pb-10">
+                    <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
+                    {timeSlots.map(slot => (
+                      <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
+                        <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none">{slot.label}</div>
                       </div>
                     ))}
                   </div>
-
-                  {/* Right Log (Time Slots) */}
-                  <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
-                    <div className="flex flex-col gap-1 w-full pb-10">
-                      <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
-                      {timeSlots.map(slot => (
-                        <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
-                          <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none">{slot.label}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </div>
-            </section>
+            </div>
+          </section>
 
-            {dragState.active && dragState.itemId && (
-              <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
-                {(() => {
-                  const q = todayQuests.find(i => i.id === dragState.itemId);
-                  if (!q) return null;
-                  return <TodayItem quest={q} templates={templates || []} onStatusChange={() => { }} />;
-                })()}
+          {dragState.active && dragState.itemId && (
+            <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
+              {(() => {
+                const q = todayQuests.find(i => i.id === dragState.itemId);
+                if (!q) return null;
+                return <TodayItem quest={q} templates={templates || []} onStatusChange={() => { }} />;
+              })()}
+            </div>
+          )}
+
+          <div className="h-px bg-border/50 my-6" />
+
+          {/* SHELF 2: FIX (Scheduled) */}
+          <section>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h2 className="text-xs font-bold text-sky-500 uppercase tracking-wider">FIX (Scheduled)</h2>
+            </div>
+            {fixShelfQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No scheduled tasks.</div> : (
+              <div>{fixShelfQuests.map(q => {
+                const t = templates?.find(tp => tp.id === q.templateId);
+                return <FixItem key={q.id} quest={q} executedCount={t?.executedCount || 0} onReceive={() => handleReceiveFix(q.id)} />;
+              })}</div>
+            )}
+          </section>
+
+          <div className="h-px bg-border/50 my-6" />
+
+          {/* SHELF 3: NON-FIX (Pool) */}
+          <section>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h2 className="text-xs font-bold text-fuchsia-500 uppercase tracking-wider">Non-FIX (Pool)</h2>
+            </div>
+            {nonFixTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
+              <div>{nonFixTemplates.map(t => <NonFixItem key={t.id} template={t} history={history || []} onReceive={() => handleReceiveNonFix(t)} />)}</div>
+            )}
+          </section>
+
+          <div className="h-px bg-border/50 my-6" />
+
+          {/* SHELF 4: PROJECT */}
+          <section>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h2 className="text-xs font-bold text-indigo-500 uppercase tracking-wider">PROJECT</h2>
+            </div>
+            {projectTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active projects.</div> : (
+              <div className="space-y-2">
+                {projectTemplates.map(t => <ProjectTemplateItem key={t.id} template={t} onReceive={() => handleReceiveProject(t)} />)}
               </div>
             )}
+          </section>
 
-            <div className="h-px bg-border/50 my-6" />
+          <div className="h-px bg-border/50 my-6" />
 
-            {/* SHELF 2: FIX (Scheduled) */}
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-xs font-bold text-sky-500 uppercase tracking-wider">FIX (Scheduled)</h2>
+          {/* SHELF 5: RELAX (Collapsible) */}
+          <section>
+            <div
+              onClick={(e) => { e.stopPropagation(); setIsRelaxOpen(!isRelaxOpen); }}
+              className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors select-none"
+            >
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                  <span>🌱</span> RELAX
+                </h2>
+                <span className="text-[10px] text-muted-foreground bg-emerald-50 px-1.5 rounded-sm">Recover</span>
               </div>
-              {fixShelfQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No scheduled tasks.</div> : (
-                <div>{fixShelfQuests.map(q => {
-                  const t = templates?.find(tp => tp.id === q.templateId);
-                  return <FixItem key={q.id} quest={q} executedCount={t?.executedCount || 0} onReceive={() => handleReceiveFix(q.id)} />;
-                })}</div>
-              )}
-            </section>
-
-            <div className="h-px bg-border/50 my-6" />
-
-            {/* SHELF 3: NON-FIX (Pool) */}
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-xs font-bold text-fuchsia-500 uppercase tracking-wider">Non-FIX (Pool)</h2>
+              <div className="text-emerald-400">
+                {isRelaxOpen ? "▼" : "▶"}
               </div>
-              {nonFixTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
-                <div>{nonFixTemplates.map(t => <NonFixItem key={t.id} template={t} history={history || []} onReceive={() => handleReceiveNonFix(t)} />)}</div>
-              )}
-            </section>
+            </div>
 
-            <div className="h-px bg-border/50 my-6" />
-
-            {/* SHELF 4: PROJECT */}
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-xs font-bold text-indigo-500 uppercase tracking-wider">PROJECT</h2>
-              </div>
-              {projectTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active projects.</div> : (
-                <div className="space-y-2">
-                  {projectTemplates.map(t => <ProjectTemplateItem key={t.id} template={t} onReceive={() => handleReceiveProject(t)} />)}
-                </div>
-              )}
-            </section>
-
-            <div className="h-px bg-border/50 my-6" />
-
-            {/* SHELF 5: RELAX (Collapsible) */}
-            <section>
-              <div
-                onClick={(e) => { e.stopPropagation(); setIsRelaxOpen(!isRelaxOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors select-none"
-              >
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                    <span>🌱</span> RELAX
-                  </h2>
-                  <span className="text-[10px] text-muted-foreground bg-emerald-50 px-1.5 rounded-sm">Recover</span>
-                </div>
-                <div className="text-emerald-400">
-                  {isRelaxOpen ? "▼" : "▶"}
-                </div>
-              </div>
-
-              {isRelaxOpen && (
-                <div className="animate-in slide-in-from-top-2 fade-in duration-200">
-                  {relaxTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No relax missions.</div> : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {relaxTemplates.map(t => (
-                        <div
-                          key={t.id}
-                          onClick={() => handleReceiveRelax(t)}
-                          className="cursor-pointer group relative flex items-center gap-2 p-2 rounded-lg border border-emerald-200 bg-white hover:scale-[1.02] hover:shadow-sm transition-all shadow-sm"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors shrink-0">
-                            <Plus className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-bold text-emerald-900 truncate">{t.questName}</div>
-                            <div className="text-[9px] text-emerald-500">Recovery</div>
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="w-6 h-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100/50 text-emerald-400"
-                            onClick={(e) => { e.stopPropagation(); setEditingRelaxTemplate(t); }}
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </Button>
+            {isRelaxOpen && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                {relaxTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No relax missions.</div> : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {relaxTemplates.map(t => (
+                      <div
+                        key={t.id}
+                        onClick={() => handleReceiveRelax(t)}
+                        className="cursor-pointer group relative flex items-center gap-2 p-2 rounded-lg border border-emerald-200 bg-white hover:scale-[1.02] hover:shadow-sm transition-all shadow-sm"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors shrink-0">
+                          <Plus className="w-4 h-4" />
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-emerald-900 truncate">{t.questName}</div>
+                          <div className="text-[9px] text-emerald-500">Recovery</div>
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="w-6 h-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100/50 text-emerald-400"
+                          onClick={(e) => { e.stopPropagation(); setEditingRelaxTemplate(t); }}
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
-          </TabsContent>
+        </TabsContent>
 
-          <TabsContent value="calendar" className="animate-fade-in">
-            <CalendarView />
-          </TabsContent>
-        </Tabs>
+        <TabsContent value="calendar" className="animate-fade-in">
+          <CalendarView />
+        </TabsContent>
+      </Tabs>
 
-        {editingRelaxTemplate && (
-          <RelaxEditDialog
-            template={editingRelaxTemplate}
-            open={!!editingRelaxTemplate}
-            onOpenChange={(open) => !open && setEditingRelaxTemplate(null)}
-            onUpdated={refreshAll}
-          />
-        )}
-      </main>
-    </div>
-  );
+      {editingRelaxTemplate && (
+        <RelaxEditDialog
+          template={editingRelaxTemplate}
+          open={!!editingRelaxTemplate}
+          onOpenChange={(open) => !open && setEditingRelaxTemplate(null)}
+          onUpdated={refreshAll}
+        />
+      )}
+    </main>
+  </div>
+);
 }

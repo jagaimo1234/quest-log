@@ -26,18 +26,24 @@ export async function sendToSpreadsheet(payload: SheetPayload): Promise<boolean>
     try {
         // Fire and forget (don't wait for response too long or don't block main flow if called without await)
         // using await here but with strict timeout
-        const response = await axios.post(GAS_WEB_APP_URL, payload, {
-            headers: { "Content-Type": "application/json" },
-            timeout: 10000 // 10秒に緩和
-        });
+        headers: { "Content-Type": "application/json" },
+        timeout: 10000 // 10秒に緩和
+    });
+
+    // GAS returns 200 even on error, so check the content
+    if (response.data && response.data.result === "success") {
         console.log(`[Sheets] Successfully sent history: ${payload.questName} (${payload.progress}). Status: ${response.status}`);
         return true;
-    } catch (error) {
-        console.error("[Sheets] Failed to send to Spreadsheet:", error instanceof Error ? error.message : error);
-        if (axios.isAxiosError(error)) {
-            console.error("[Sheets] Axios Response:", error.response?.data);
-            console.error("[Sheets] Axios Code:", error.code);
-        }
+    } else {
+        console.error("[Sheets] GAS returned error:", response.data);
         return false;
     }
+} catch (error) {
+    console.error("[Sheets] Failed to send to Spreadsheet:", error instanceof Error ? error.message : error);
+    if (axios.isAxiosError(error)) {
+        console.error("[Sheets] Axios Response:", error.response?.data);
+        console.error("[Sheets] Axios Code:", error.code);
+    }
+    return false;
+}
 }
