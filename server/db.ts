@@ -1,4 +1,4 @@
-import { eq, and, desc, gte, lte, or, isNull, sql, isNotNull, ne } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, or, isNull, sql, isNotNull, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import { format } from "date-fns";
@@ -312,7 +312,7 @@ export async function getActiveQuests(userId: number): Promise<Quest[]> {
         )
       )
     )
-    .orderBy(desc(quests.createdAt));
+    .orderBy(asc(quests.displayOrder), desc(quests.createdAt));
 }
 
 /**
@@ -1377,4 +1377,22 @@ export async function fixInconsistentData(userId: number) {
         .where(eq(quests.id, quest.id));
     }
   }
+}
+
+/**
+ * クエストの並び順を更新
+ */
+export async function updateQuestOrder(userId: number, updates: { id: number, order: number }[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.transaction(async (tx: any) => {
+    for (const update of updates) {
+      await tx.update(quests)
+        .set({ displayOrder: update.order, updatedAt: new Date() })
+        .where(and(eq(quests.id, update.id), eq(quests.userId, userId)));
+    }
+  });
+
+  return true;
 }

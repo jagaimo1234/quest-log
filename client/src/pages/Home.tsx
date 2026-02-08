@@ -560,43 +560,28 @@ export default function Home() {
   };
 
 
+  /*
+   * Reordering Logic (Server Sync)
+   */
   const [orderedIds, setOrderedIds] = useState<number[]>([]);
+  const updateOrderMutation = trpc.quest.updateOrder.useMutation();
 
-  // Load order from local storage
+  // Initialize orderedIds from activeQuests (which are sorted by displayOrder from server)
   useEffect(() => {
-    const saved = localStorage.getItem("quest-order");
-    if (saved) {
-      try {
-        setOrderedIds(JSON.parse(saved));
-      } catch (e) { console.error("Failed to parse quest order", e); }
+    if (activeQuests) {
+      setOrderedIds(activeQuests.map(q => q.id));
     }
-  }, []);
-
-  // Sync order with activeQuests
-  useEffect(() => {
-    if (!activeQuests) return;
-    setOrderedIds(prev => {
-      const currentIds = new Set(prev);
-      const newIds = activeQuests.map(q => q.id).filter(id => !currentIds.has(id));
-      if (newIds.length === 0) return prev;
-      return [...prev, ...newIds];
-    });
   }, [activeQuests]);
 
-  // Save order
-  useEffect(() => {
-    if (orderedIds.length > 0) {
-      localStorage.setItem("quest-order", JSON.stringify(orderedIds));
-    }
-  }, [orderedIds]);
-
   const todayQuests = React.useMemo(() => {
+    // Filter active quests
     const filtered = activeQuests?.filter(q => ["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) || [];
-    // Sort by orderedIds
+
+    // Sort based on local orderedIds state (optimistic UI)
     return filtered.sort((a, b) => {
       const indexA = orderedIds.indexOf(a.id);
       const indexB = orderedIds.indexOf(b.id);
-      if (indexA === -1 && indexB === -1) return b.id - a.id; // Fallback
+      if (indexA === -1 && indexB === -1) return b.id - a.id;
       if (indexA === -1) return 1;
       if (indexB === -1) return -1;
       return indexA - indexB;
@@ -670,6 +655,11 @@ export default function Home() {
                 // Remove and insert
                 newOrder.splice(fromIndex, 1);
                 newOrder.splice(toIndex, 0, dragState.itemId!);
+
+                // Debounce server update? Or just trigger it on drop?
+                // For simpler implementation, let's trigger it on drop (MouseUp) to avoid spamming.
+                // But wait, MouseUp logic doesn't have reference to the new order easily unless we store it.
+                // Actually, 'orderedIds' state is updated here.
                 return newOrder;
               }
               return prev;
@@ -755,6 +745,13 @@ export default function Home() {
         }
       }
       setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
+
+      // Trigger server update if order changed
+      if (dragState.mode === 'sort') {
+        // Create updates array
+        const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
+        updateOrderMutation.mutate(updates);
+      }
     };
 
     if (dragState.active) {

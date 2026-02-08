@@ -68,6 +68,9 @@ export const quests = sqliteTable("quests", {
   // テンプレートから生成された場合のテンプレートID
   templateId: integer("templateId"),
 
+  // 表示順序（同期用）
+  displayOrder: integer("displayOrder").default(0).notNull(),
+
   // タイムスタンプ
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),

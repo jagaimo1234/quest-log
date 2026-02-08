@@ -34,6 +34,7 @@ import {
   deleteProject,
   migrateLegacyProjects,
   fixInconsistentData,
+  updateQuestOrder,
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 
@@ -263,6 +264,19 @@ export const appRouter = router({
       .input(z.object({ questId: z.number() }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return deleteQuest(input.questId, ctx.user!.id);
+      }),
+
+    /**
+     * クエストの並び順を更新
+     */
+    updateOrder: protectedProcedure
+      .input(z.array(z.object({
+        questId: z.number(),
+        order: z.number(),
+      })))
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        const updates = input.map((i: any) => ({ id: i.questId, order: i.order }));
+        return updateQuestOrder(ctx.user!.id, updates);
       }),
   }),
 
