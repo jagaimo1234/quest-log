@@ -948,12 +948,12 @@ export default function Home() {
                             <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
                             {!isUsed && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                <img src="/free_stamp.png" alt="free" className="w-16 opacity-20 -rotate-12 select-none" />
+                                <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
                               </div>
                             )}
                             {!isUsed && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                <img src="/free_stamp.png" alt="free" className="w-12 opacity-10 -rotate-12 select-none grayscale" />
+                                <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
                               </div>
                             )}
                           </div>
