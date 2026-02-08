@@ -930,11 +930,35 @@ export default function Home() {
                   <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
                     <div className="flex flex-col gap-1 w-full pb-10">
                       <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
-                      {timeSlots.map(slot => (
-                        <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
-                          <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none">{slot.label}</div>
-                        </div>
-                      ))}
+                      {timeSlots.map(slot => {
+                        // Check if slot is used
+                        const isUsed = todayQuests.some(q => {
+                          if (!q.plannedTimeSlot) return false;
+                          try {
+                            const parsed = JSON.parse(q.plannedTimeSlot);
+                            if (Array.isArray(parsed)) return parsed.includes(slot.id);
+                            return parsed === slot.id;
+                          } catch {
+                            return q.plannedTimeSlot === slot.id;
+                          }
+                        });
+
+                        return (
+                          <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
+                            <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
+                            {!isUsed && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-[10px] uppercase font-black text-muted-foreground/10 tracking-widest scale-150 select-none">free</span>
+                              </div>
+                            )}
+                            {!isUsed && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <span className="text-[9px] uppercase font-bold text-muted-foreground/40 tracking-widest select-none opacity-30">free</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
