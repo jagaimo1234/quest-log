@@ -111,12 +111,37 @@ function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
   );
 }
 
-function TodayItem({ quest, templates, onStatusChange }: { quest: any, templates: any[], onStatusChange: () => void }) {
+function TodayItem({
+  quest,
+  templates,
+  onStatusChange,
+  onDragStart
+}: {
+  quest: any,
+  templates: any[],
+  onStatusChange: () => void,
+  onDragStart: (e: React.MouseEvent | React.TouchEvent) => void
+}) {
   const updateStatus = trpc.quest.updateStatus.useMutation();
   const deleteQuest = trpc.quest.delete.useMutation();
   const template = templates.find(t => t.id === quest.templateId);
 
+  const isCompleted = quest.status === "cleared";
+  const isFailed = quest.status === "failed";
+  const isChallenging = quest.status === "challenging" || quest.status === "almost";
+  const isPending = updateStatus.isPending;
+
+  // 日付が変わっているか判定（深夜0時〜朝9時の間、前日の完了タスクを薄くする）
+  const isPreviousDay = React.useMemo(() => {
+    if (!isCompleted && !isFailed) return false;
+    const updatedAt = new Date(quest.updatedAt);
+    const now = new Date();
+    // 日付文字列で比較 (YYYY-MM-DD)
+    return updatedAt.toDateString() !== now.toDateString();
+  }, [quest.updatedAt, isCompleted, isFailed]);
+
   const handleNext = async () => {
+    if (isPreviousDay) return; // 過去分は操作不可
     if (updateStatus.isPending) return;
     if (quest.status === "failed" || quest.status === "cleared") return;
     const nextStatus = quest.status === "accepted" ? "challenging" : quest.status === "challenging" ? "cleared" : "cleared";
@@ -125,6 +150,7 @@ function TodayItem({ quest, templates, onStatusChange }: { quest: any, templates
   };
 
   const handleDelete = async () => {
+    if (isPreviousDay) return; // 過去分は操作不可
     if (confirm("Delete this quest?")) {
       await deleteQuest.mutateAsync({ id: quest.id });
       onStatusChange();
@@ -132,16 +158,12 @@ function TodayItem({ quest, templates, onStatusChange }: { quest: any, templates
   };
 
   const handleAbort = async () => {
+    if (isPreviousDay) return; // 過去分は操作不可
     if (confirm("Abort (Fail) this quest?")) {
       await updateStatus.mutateAsync({ questId: quest.id, status: "failed" });
       onStatusChange();
     }
   };
-
-  const isCompleted = quest.status === "cleared";
-  const isFailed = quest.status === "failed";
-  const isChallenging = quest.status === "challenging" || quest.status === "almost";
-  const isPending = updateStatus.isPending;
 
   let borderClass = "border-l-emerald-500";
   let bgClass = "bg-card/90";
@@ -173,18 +195,9 @@ function TodayItem({ quest, templates, onStatusChange }: { quest: any, templates
     bgClass = "bg-amber-50/80 dark:bg-amber-900/10";
   }
 
-  // 日付が変わっているか判定（深夜0時〜朝9時の間、前日の完了タスクを薄くする）
-  const isPreviousDay = React.useMemo(() => {
-    if (!isCompleted && !isFailed) return false;
-    const updatedAt = new Date(quest.updatedAt);
-    const now = new Date();
-    // 日付文字列で比較 (YYYY-MM-DD)
-    return updatedAt.toDateString() !== now.toDateString();
-  }, [quest.updatedAt, isCompleted, isFailed]);
-
-  // 過去分ならグレーアウトを強化
+  // 過去分ならグレーアウトを強化 ＆ 操作無効化クラス付与
   if (isPreviousDay) {
-    bgClass += " opacity-40 grayscale";
+    bgClass += " opacity-40 grayscale pointer-events-none"; // pointer-events-noneでクリックも無効化
   }
 
   let slotCount = 0;
@@ -199,7 +212,12 @@ function TodayItem({ quest, templates, onStatusChange }: { quest: any, templates
   }
 
   return (
-    <div className={`group relative flex items-center gap-2 p-2 rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}>
+    <div
+      className={`group relative flex items-center gap-2 p-2 rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
+      // 過去分でなければドラッグ開始イベントを有効にする
+      onMouseDown={!isPreviousDay ? onDragStart : undefined}
+      onTouchStart={!isPreviousDay ? onDragStart : undefined}
+    >
       <div
         onClick={(e) => { e.stopPropagation(); handleNext(); }}
         className={`w-4 h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors ${isCompleted ? 'bg-primary border-primary text-primary-foreground' :
@@ -772,8 +790,16 @@ export default function Home() {
 
                   <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
                     {todayQuests.map(q => (
-                      <div id={`source-${q.id}`} key={q.id} onMouseDown={(e) => handleMouseDown(e, q.id)} onTouchStart={(e) => handleTouchStart(e, q.id)} className="cursor-grab active:cursor-grabbing relative bg-background rounded-xl z-20 hover:scale-[1.02] transition-transform">
-                        <TodayItem quest={q} templates={templates || []} onStatusChange={() => refreshAll()} />
+                      <div id={`source-${q.id}`} key={q.id} className="cursor-grab active:cursor-grabbing relative bg-background rounded-xl z-20 hover:scale-[1.02] transition-transform">
+                        <TodayItem
+                          quest={q}
+                          templates={templates || []}
+                          onStatusChange={() => refreshAll()}
+                          onDragStart={(e) => {
+                            if ('touches' in e) handleTouchStart(e as any, q.id);
+                            else handleMouseDown(e as any, q.id);
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
@@ -798,7 +824,17 @@ export default function Home() {
                 {(() => {
                   const q = todayQuests.find(i => i.id === dragState.itemId);
                   if (!q) return null;
-                  return <TodayItem quest={q} templates={templates || []} onStatusChange={() => { }} />;
+                  return (
+                    <TodayItem
+                      quest={q}
+                      templates={templates || []}
+                      onStatusChange={refreshAll}
+                      onDragStart={(e) => {
+                        if ('touches' in e) handleTouchStart(e as any, q.id);
+                        else handleMouseDown(e as any, q.id);
+                      }}
+                    />
+                  );
                 })()}
               </div>
             )}
