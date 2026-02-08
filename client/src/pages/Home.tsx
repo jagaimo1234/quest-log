@@ -115,7 +115,8 @@ function TodayItem({
   quest,
   templates,
   onStatusChange,
-  onDragStart
+  onDragStart,
+  onReorderStart
 }: {
   quest: any,
   templates: any[],
