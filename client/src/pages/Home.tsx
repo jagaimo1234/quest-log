@@ -947,13 +947,13 @@ export default function Home() {
                           <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
                             <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
                             {!isUsed && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-[10px] uppercase font-black text-muted-foreground/10 tracking-widest scale-150 select-none">free</span>
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                                <img src="/free_stamp.png" alt="free" className="w-16 opacity-20 -rotate-12 select-none" />
                               </div>
                             )}
                             {!isUsed && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span className="text-[9px] uppercase font-bold text-muted-foreground/40 tracking-widest select-none opacity-30">free</span>
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                <img src="/free_stamp.png" alt="free" className="w-12 opacity-10 -rotate-12 select-none grayscale" />
                               </div>
                             )}
                           </div>
