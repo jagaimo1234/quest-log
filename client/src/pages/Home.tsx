@@ -574,8 +574,8 @@ export default function Home() {
   }, [activeQuests]);
 
   const todayQuests = React.useMemo(() => {
-    // Filter active quests
-    const filtered = activeQuests?.filter(q => ["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) || [];
+    // Filter active quests (Exclude 'failed' from list view, but keep them in DB/Log)
+    const filtered = activeQuests?.filter(q => ["accepted", "challenging", "almost", "cleared"].includes(q.status)) || [];
 
     // Sort based on local orderedIds state (optimistic UI)
     return filtered.sort((a, b) => {
@@ -928,9 +928,15 @@ export default function Home() {
                     <div className="flex flex-col gap-1 w-full pb-10">
                       <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
                       {timeSlots.map(slot => {
-                        // Check if slot is used
-                        const isUsed = todayQuests.some(q => {
+                        // Check if slot is used (use activeQuests to include failed/other statuses as "occupied" in log)
+                        const isUsed = activeQuests?.some(q => {
                           if (!q.plannedTimeSlot) return false;
+                          // If failed/cleared, only count if it was updated today?
+                          // activeQuests already filters for today logic in getActiveQuests
+                          if (["failed", "cleared"].includes(q.status)) {
+                            // Check update time? getActiveQuests logic handles it.
+                          }
+
                           try {
                             const parsed = JSON.parse(q.plannedTimeSlot);
                             if (Array.isArray(parsed)) return parsed.includes(slot.id);
@@ -938,7 +944,7 @@ export default function Home() {
                           } catch {
                             return q.plannedTimeSlot === slot.id;
                           }
-                        });
+                        }) || false;
 
                         return (
                           <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
