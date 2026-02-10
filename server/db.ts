@@ -1396,3 +1396,122 @@ export async function updateQuestOrder(userId: number, updates: { id: number, or
 
   return true;
 }
+
+/**
+ * 指定された日付のクエスト一覧を取得
+ * - 過去: questHistoryから取得 (RecordedDate一致)
+ * - 今日以降: questsから取得 (Todays logic or StartDate一致)
+ */
+export async function getDailyQuests(userId: number, dateStr: string): Promise<{ quests: Quest[], isHistory: boolean }> {
+  const db = await getDb();
+  if (!db) return { quests: [], isHistory: false };
+
+  // JST基準での日付処理
+  // dateStr is YYYY-MM-DD
+  const requestDate = new Date(dateStr);
+  const now = new Date();
+  const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const todayStr = jstNow.toISOString().split('T')[0];
+
+  // 過去かどうか判定 (文字列比較で十分)
+  // "2024-02-09" < "2024-02-10"
+  if (dateStr < todayStr) {
+    // 過去: Historyから取得
+    const history = await db.select()
+      .from(questHistory)
+      .where(and(
+        eq(questHistory.userId, userId),
+        eq(questHistory.recordedDate, dateStr)
+      ));
+
+    // Quest型に変換して返す (フロントエンド互換のため)
+    // 必須フィールドを埋める
+    const mapped: Quest[] = history.map((h: QuestHistory) => ({
+      id: h.questId, // Note: Use questId as ID for display, but be careful if editing (History shouldn't be edited)
+      userId: h.userId,
+      questName: h.questName,
+      projectName: h.projectName,
+      questType: h.questType as any,
+      difficulty: h.difficulty as any,
+      status: h.finalStatus as any, // cleared, failed, etc.
+      plannedTimeSlot: h.plannedTimeSlot,
+      startDate: null,
+      deadline: null,
+      moaiType: 1, // Dummy
+      templateId: h.templateId,
+      displayOrder: 0, // History has no order?
+      createdAt: h.recordedAt, // Use recorded time
+      updatedAt: h.recordedAt,
+      acceptedAt: null,
+      clearedAt: h.finalStatus === 'cleared' ? h.recordedAt : null,
+    }));
+
+    return { quests: mapped, isHistory: true };
+  } else {
+    // 今日または未来
+    const isToday = dateStr === todayStr;
+
+    // ベースのクエリ
+    // 今日: 既存のgetActiveQuestsロジック相当 + startDate考慮
+    // 未来: startDateがその日のもの
+
+    // JST 0:00 (of the requested date) -> UTC
+    // dateStr "2024-02-11" -> JST 00:00 -> UTC 2/10 15:00
+    const targetJst = new Date(requestDate);
+    targetJst.setUTCHours(0, 0, 0, 0); // Treat as local logic, but we need strictly day range?
+    // start date logic in `quests` table is timestamp.
+
+    // Simplification:
+    // Future (startDate == date)
+    // Today (Active pool + startDate <= today)
+
+    if (isToday) {
+      // Use existing getActiveQuests logic effectively
+      // But we need to ensure we don't show "Future" quests (startDate > today)
+      // And we might need to verify startDate logic for "Today" specifically if user set it.
+
+      // Re-use logic for "Active" but filter out future startDate 
+      const active = await getActiveQuests(userId);
+
+      const filtered = active.filter((q: Quest) => {
+        if (!q.startDate) return true; // No start date = available now
+        const sd = new Date(q.startDate);
+        const sdStr = new Date(sd.getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+        return sdStr <= todayStr;
+      });
+
+      return { quests: filtered, isHistory: false };
+    } else {
+      // 未来: 指定日に開始するクエストのみ表示
+      // startDate matches dateStr
+      // We need range check for timestamp
+      // requestDate is UTC 00:00 of parsing? "2024-02-12" -> UTC 2024-02-12 00:00
+      // We stored startDate probably as Date object.
+      // Let's rely on string comparison logic in JS for simplicity after fetching?
+      // Or range query.
+
+      // JST Start: dateStr 00:00
+      // JST End: dateStr 23:59:59
+
+      // Parse dateStr manually to avoid UTC shifts issues locally
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const startJst = new Date(Date.UTC(y, m - 1, d, -9, 0, 0)); // 00:00 JST = -9h UTC
+      const endJst = new Date(Date.UTC(y, m - 1, d, 14, 59, 59, 999)); // 23:59:59 JST = +15h (really?)
+      // Wait: 00:00 JST = previous day 15:00 UTC.
+      // 23:59 JST = today 14:59 UTC.
+
+      const startUtc = new Date(startJst);
+      const endUtc = new Date(startJst.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+      const futureQuests = await db.select()
+        .from(quests)
+        .where(and(
+          eq(quests.userId, userId),
+          gte(quests.startDate, startUtc),
+          lte(quests.startDate, endUtc)
+        ));
+
+      return { quests: futureQuests, isHistory: false };
+    }
+  }
+}

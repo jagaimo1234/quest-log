@@ -35,6 +35,7 @@ import {
   migrateLegacyProjects,
   fixInconsistentData,
   updateQuestOrder,
+  getDailyQuests,
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 
@@ -277,6 +278,17 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         const updates = input.map((i: any) => ({ id: i.questId, order: i.order }));
         return updateQuestOrder(ctx.user!.id, updates);
+      }),
+
+    /**
+     * 指定日のクエスト一覧を取得
+     */
+    getDailyList: protectedProcedure
+      .input(z.object({
+        date: z.string(), // YYYY-MM-DD
+      }))
+      .query(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return getDailyQuests(ctx.user!.id, input.date);
       }),
   }),
 
