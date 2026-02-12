@@ -134,14 +134,6 @@ function TodayItem({
   const isPending = updateStatus.isPending;
 
   // 日付が変わっているか判定（深夜0時〜朝9時の間、前日の完了タスクを薄くする）
-  // ＆ 表示中の日付が過去かどうかも考慮
-  // isPreviousDay = "This quest is from a previous day relative to Today" OR "We are viewing a past log"
-  // Actually, if we are viewing a past log, EVERYTHING is "Previous Day" effectively.
-  // But the visual style should probably be "Log style" (read only but clearly visible).
-
-  // Let's rely on parent's disabled state for interactions.
-  // Visuals: If it's a past date view, maybe don't fade them out? Just show them as they were.
-
   const isPreviousDay = React.useMemo(() => {
     if (!isCompleted && !isFailed) return false;
     const updatedAt = new Date(quest.updatedAt);
@@ -149,13 +141,6 @@ function TodayItem({
     // 日付文字列で比較 (YYYY-MM-DD)
     return updatedAt.toDateString() !== now.toDateString();
   }, [quest.updatedAt, isCompleted, isFailed]);
-
-  // Read-only logic check (passed from parent context or implied?)
-  // We can check if `onDragStart` is undefined, but better to check date context if we had it.
-  // For now, let's assume if it is History Object (no id matching standard?), handle clicks carefully.
-  // Actually, getDailyQuests returns standard Quest objects for History too.
-
-  // If we are in "Past View" (handled by Home), interactions should be disabled there.
 
   const handleNext = async () => {
     if (isPreviousDay) return; // 過去分は操作不可
@@ -637,9 +622,7 @@ export default function Home() {
   };
 
   const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
-    if (isPast) return; // Disable DnD in past
     const touch = e.touches[0];
-    // ...
     e.stopPropagation();
     setDragState({
       active: true,
