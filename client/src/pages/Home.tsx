@@ -152,9 +152,9 @@ function TodayItem({
   };
 
   const handleDelete = async () => {
-    if (isPreviousDay) return; // 過去分は操作不可
+    // Delete allowed anytime (even for past quests) to clean up list
     if (confirm("Delete this quest?")) {
-      await deleteQuest.mutateAsync({ id: quest.id });
+      await deleteQuest.mutateAsync({ questId: quest.id });
       onStatusChange();
     }
   };
@@ -258,10 +258,12 @@ function TodayItem({
         </div>
       )}
 
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-        <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
-          <XCircle className="w-3 h-3" />
-        </button>
+      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
+        {!isPreviousDay && (
+          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
+            <XCircle className="w-3 h-3" />
+          </button>
+        )}
         <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="p-1 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
           <Trash2 className="w-3 h-3" />
         </button>
