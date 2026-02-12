@@ -574,8 +574,8 @@ export default function Home() {
   }, [activeQuests]);
 
   const todayQuests = React.useMemo(() => {
-    // Filter active quests (Exclude 'failed' from list view, but keep them in DB/Log)
-    const filtered = activeQuests?.filter(q => ["accepted", "challenging", "almost", "cleared"].includes(q.status)) || [];
+    // Filter active quests (Show 'failed' as gray, exclude others like 'cancelled' if any)
+    const filtered = activeQuests?.filter(q => ["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) || [];
 
     // Sort based on local orderedIds state (optimistic UI)
     return filtered.sort((a, b) => {
