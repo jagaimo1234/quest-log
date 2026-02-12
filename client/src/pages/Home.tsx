@@ -151,17 +151,17 @@ function TodayItem({
     onStatusChange();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (skipConfirm = false) => {
     // Delete allowed anytime (even for past quests) to clean up list
-    if (confirm("Delete this quest?")) {
+    if (skipConfirm || confirm("Delete this quest?")) {
       await deleteQuest.mutateAsync({ questId: quest.id });
       onStatusChange();
     }
   };
 
-  const handleAbort = async () => {
+  const handleAbort = async (skipConfirm = false) => {
     if (isPreviousDay) return; // 過去分は操作不可
-    if (confirm("Abort (Fail) this quest?")) {
+    if (skipConfirm || confirm("Abort (Fail) this quest?")) {
       await updateStatus.mutateAsync({ questId: quest.id, status: "failed" });
       onStatusChange();
     }
@@ -244,12 +244,12 @@ function TodayItem({
   // Dialog Actions
   const onAbort = async () => {
     setIsMenuOpen(false);
-    await handleAbort();
+    await handleAbort(true);
   };
 
   const onDelete = async () => {
     setIsMenuOpen(false);
-    await handleDelete();
+    await handleDelete(true);
   };
 
   return (
