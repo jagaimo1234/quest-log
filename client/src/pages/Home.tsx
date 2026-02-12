@@ -228,18 +228,9 @@ function TodayItem({
         <GripVertical className="w-4 h-4" />
       </div>
       <div
+        className={`flex-1 min-w-0 z-10 cursor-pointer pl-1`}
         onClick={(e) => { e.stopPropagation(); handleNext(); }}
-        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors ${isCompleted ? 'bg-primary border-primary text-primary-foreground' :
-          isFailed ? 'bg-destructive border-destructive text-destructive-foreground' :
-            isChallenging ? 'border-amber-500 text-amber-600 bg-amber-100 dark:bg-amber-900/30' :
-              'border-muted-foreground/30 hover:border-primary'
-          } ${isPending ? 'pointer-events-none' : ''}`}
       >
-        {isCompleted && <CheckCircle2 className="w-3 h-3" />}
-        {isFailed && <XCircle className="w-3 h-3" />}
-        {isChallenging && <PlayCircle className="w-3 h-3 fill-current" />}
-      </div>
-      <div className="flex-1 min-w-0 z-10">
         <div className={`font-bold text-xs truncate ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
@@ -247,6 +238,7 @@ function TodayItem({
           <span className="opacity-80 uppercase tracking-tighter">{QUEST_TYPE_LABELS[quest.questType]}</span>
           {isChallenging && <span className="text-amber-600 font-bold bg-amber-100 px-1 rounded animate-pulse">RUNNING</span>}
           {slotCount > 0 && <span className="text-primary font-bold bg-primary/10 px-1 rounded">x{slotCount}</span>}
+          {isCompleted && <span className="text-emerald-600 font-bold flex items-center gap-0.5"><CheckCircle2 className="w-3 h-3" />DONE</span>}
         </div>
       </div>
 
@@ -258,13 +250,13 @@ function TodayItem({
         </div>
       )}
 
-      <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
+      <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 pointer-events-auto pl-1">
         {!isPreviousDay && (
-          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} className="p-2 sm:p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
+          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} className="p-1 sm:p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
             <XCircle className="w-4 h-4 sm:w-3 sm:h-3" />
           </button>
         )}
-        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="p-2 sm:p-1 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="p-1 sm:p-0.5 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
           <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
         </button>
       </div>
