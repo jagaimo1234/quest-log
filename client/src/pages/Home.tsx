@@ -215,7 +215,7 @@ function TodayItem({
 
   return (
     <div
-      className={`group relative flex items-center gap-2 p-2 rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
+      className={`group relative flex items-center gap-2 p-1.5 rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
       // 過去分でなければドラッグ開始イベントを有効にする
       onMouseDown={!isPreviousDay ? onDragStart : undefined}
       onTouchStart={!isPreviousDay ? onDragStart : undefined}
@@ -230,6 +230,7 @@ function TodayItem({
       <div
         className={`flex-1 min-w-0 z-10 cursor-pointer pl-1`}
         onClick={(e) => { e.stopPropagation(); handleNext(); }}
+        onTouchStart={(e) => { e.stopPropagation(); }} /* Prevent drag start on text tap */
       >
         <div className={`font-bold text-xs truncate ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
@@ -252,11 +253,11 @@ function TodayItem({
 
       <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 pointer-events-auto pl-1">
         {!isPreviousDay && (
-          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} className="p-1 sm:p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
+          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} onTouchStart={(e) => e.stopPropagation()} className="p-1 sm:p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
             <XCircle className="w-4 h-4 sm:w-3 sm:h-3" />
           </button>
         )}
-        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="p-1 sm:p-0.5 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} onTouchStart={(e) => e.stopPropagation()} className="p-1 sm:p-0.5 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
           <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
         </button>
       </div>
