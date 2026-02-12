@@ -213,12 +213,66 @@ function TodayItem({
     if (quest.plannedTimeSlot) slotCount = 1;
   }
 
+  // Long Press Logic
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = useRef(false);
+
+  const startPress = () => {
+    isLongPress.current = false;
+    timerRef.current = setTimeout(() => {
+      isLongPress.current = true;
+      setIsMenuOpen(true);
+      if (window.navigator.vibrate) window.navigator.vibrate(50); // Haptic feedback
+    }, 500);
+  };
+
+  const endPress = (e: React.MouseEvent | React.TouchEvent) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const cancelPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  // Close menu when clicking outside (handled by parent or self-click if open)
+  useEffect(() => {
+    const closeMenu = () => setIsMenuOpen(false);
+    if (isMenuOpen) {
+      window.addEventListener('click', closeMenu);
+      return () => window.removeEventListener('click', closeMenu);
+    }
+  }, [isMenuOpen]);
+
   return (
     <div
-      className={`group relative flex items-center gap-2 p-1.5 rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
+      className={`group relative flex items-center gap-2 p-2 rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
       // 過去分でなければドラッグ開始イベントを有効にする
-      onMouseDown={!isPreviousDay ? onDragStart : undefined}
-      onTouchStart={!isPreviousDay ? onDragStart : undefined}
+      // Long press triggers menu, but we also need to allow drag if it's not a long press?
+      // Actually, if we touch start, we start drag AND long press timer?
+      // If drag moves, we cancel long press.
+      onMouseDown={(e) => {
+        if (!isPreviousDay) {
+          startPress();
+          onDragStart(e);
+        }
+      }}
+      onTouchStart={(e) => {
+        if (!isPreviousDay) {
+          startPress();
+          onDragStart(e);
+        }
+      }}
+      onMouseUp={endPress}
+      onTouchEnd={endPress}
+      onMouseLeave={cancelPress}
+      onTouchMove={cancelPress} // Cancel long press if moving (dragging)
     >
       <div
         className={`shrink-0 cursor-grab text-muted-foreground/50 hover:text-foreground active:cursor-grabbing p-1 -ml-1 ${isPreviousDay ? 'hidden' : ''}`}
@@ -228,10 +282,18 @@ function TodayItem({
         <GripVertical className="w-4 h-4" />
       </div>
       <div
-        className={`flex-1 min-w-0 z-10 cursor-pointer pl-1`}
         onClick={(e) => { e.stopPropagation(); handleNext(); }}
-        onTouchStart={(e) => { e.stopPropagation(); }} /* Prevent drag start on text tap */
+        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors ${isCompleted ? 'bg-primary border-primary text-primary-foreground' :
+          isFailed ? 'bg-destructive border-destructive text-destructive-foreground' :
+            isChallenging ? 'border-amber-500 text-amber-600 bg-amber-100 dark:bg-amber-900/30' :
+              'border-muted-foreground/30 hover:border-primary'
+          } ${isPending ? 'pointer-events-none' : ''}`}
       >
+        {isCompleted && <CheckCircle2 className="w-3 h-3" />}
+        {isFailed && <XCircle className="w-3 h-3" />}
+        {isChallenging && <PlayCircle className="w-3 h-3 fill-current" />}
+      </div>
+      <div className="flex-1 min-w-0 z-10">
         <div className={`font-bold text-xs truncate ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
@@ -239,7 +301,6 @@ function TodayItem({
           <span className="opacity-80 uppercase tracking-tighter">{QUEST_TYPE_LABELS[quest.questType]}</span>
           {isChallenging && <span className="text-amber-600 font-bold bg-amber-100 px-1 rounded animate-pulse">RUNNING</span>}
           {slotCount > 0 && <span className="text-primary font-bold bg-primary/10 px-1 rounded">x{slotCount}</span>}
-          {isCompleted && <span className="text-emerald-600 font-bold flex items-center gap-0.5"><CheckCircle2 className="w-3 h-3" />DONE</span>}
         </div>
       </div>
 
@@ -251,14 +312,14 @@ function TodayItem({
         </div>
       )}
 
-      <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 pointer-events-auto pl-1">
+      <div className={`flex gap-1 transition-opacity z-20 pointer-events-auto ${isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
         {!isPreviousDay && (
-          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} onTouchStart={(e) => e.stopPropagation()} className="p-3 sm:p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
-            <XCircle className="w-5 h-5 sm:w-3 sm:h-3" />
+          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
+            <XCircle className="w-3 h-3" />
           </button>
         )}
-        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} onTouchStart={(e) => e.stopPropagation()} className="p-3 sm:p-0.5 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
-          <Trash2 className="w-5 h-5 sm:w-3 sm:h-3" />
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="p-1 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
+          <Trash2 className="w-3 h-3" />
         </button>
       </div>
     </div>
@@ -603,9 +664,6 @@ export default function Home() {
   });
 
   const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
-    // Prevent drag if clicking a button
-    if ((e.target as HTMLElement).closest('button')) return;
-
     e.preventDefault();
     e.stopPropagation(); // Stop propagation to prevent conflict
     setDragState({
@@ -620,9 +678,6 @@ export default function Home() {
   };
 
   const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
-    // Prevent drag if touching a button
-    if ((e.target as HTMLElement).closest('button')) return;
-
     const touch = e.touches[0];
     e.stopPropagation();
     setDragState({
