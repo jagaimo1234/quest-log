@@ -253,12 +253,12 @@ function TodayItem({
 
       <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 pointer-events-auto pl-1">
         {!isPreviousDay && (
-          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} onTouchStart={(e) => e.stopPropagation()} className="p-1 sm:p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
-            <XCircle className="w-4 h-4 sm:w-3 sm:h-3" />
+          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} onTouchStart={(e) => e.stopPropagation()} className="p-3 sm:p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
+            <XCircle className="w-5 h-5 sm:w-3 sm:h-3" />
           </button>
         )}
-        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} onTouchStart={(e) => e.stopPropagation()} className="p-1 sm:p-0.5 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
-          <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} onTouchStart={(e) => e.stopPropagation()} className="p-3 sm:p-0.5 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
+          <Trash2 className="w-5 h-5 sm:w-3 sm:h-3" />
         </button>
       </div>
     </div>
@@ -603,6 +603,9 @@ export default function Home() {
   });
 
   const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
+    // Prevent drag if clicking a button
+    if ((e.target as HTMLElement).closest('button')) return;
+
     e.preventDefault();
     e.stopPropagation(); // Stop propagation to prevent conflict
     setDragState({
@@ -617,6 +620,9 @@ export default function Home() {
   };
 
   const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
+    // Prevent drag if touching a button
+    if ((e.target as HTMLElement).closest('button')) return;
+
     const touch = e.touches[0];
     e.stopPropagation();
     setDragState({
