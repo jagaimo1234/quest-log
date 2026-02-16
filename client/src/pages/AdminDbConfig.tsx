@@ -20,7 +20,7 @@ import {
     DialogTitle,
     DialogFooter,
 } from "../components/ui/dialog";
-import { Loader2, Trash2, Edit, RefreshCw } from "lucide-react";
+import { Loader2, Trash2, Edit, RefreshCw, ExternalLink } from "lucide-react";
 import { cn } from "../lib/utils";
 
 export default function AdminDbConfig() {
@@ -115,11 +115,16 @@ export default function AdminDbConfig() {
             }
         });
 
-        await updateMutation.mutateAsync({
-            tableName: selectedTable,
-            id: editRow.id,
-            data: dataToSend
-        });
+        try {
+            await updateMutation.mutateAsync({
+                tableName: selectedTable,
+                id: editRow.id,
+                data: dataToSend
+            });
+        } catch (error: any) {
+            console.error("Failed to update record:", error);
+            alert(`Failed to save: ${error.message || "Unknown error"}`);
+        }
     };
 
     const renderCell = (key: string, value: any) => {
@@ -272,6 +277,15 @@ export default function AdminDbConfig() {
                         </div>
                     </div>
                     <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                            onClick={() => window.open('https://turso.tech', '_blank')}
+                        >
+                            <span className="mr-2">Turso DB</span>
+                            <ExternalLink className="w-3 h-3" />
+                        </Button>
                         <Button onClick={() => setIsCreateOpen(true)} size="sm" className="bg-green-600 hover:bg-green-700 text-white">
                             New Record
                         </Button>
