@@ -132,6 +132,12 @@ function TodayItem({
   const isFailed = quest.status === "failed";
   const isChallenging = quest.status === "challenging" || quest.status === "almost";
   const isPending = updateStatus.isPending;
+  const updateQuest = trpc.quest.update.useMutation();
+  const [note, setNote] = useState(quest.note || "");
+
+  useEffect(() => {
+    setNote(quest.note || "");
+  }, [quest.note]);
 
   // 日付が変わっているか判定（深夜0時〜朝9時の間、前日の完了タスクを薄くする）
   const isPreviousDay = React.useMemo(() => {
@@ -252,6 +258,20 @@ function TodayItem({
     await handleDelete(true);
   };
 
+  const handleSaveNote = async () => {
+    try {
+      await updateQuest.mutateAsync({
+        questId: quest.id,
+        note: note
+      });
+      setIsMenuOpen(false);
+      toast.success("Note saved");
+      onStatusChange(); // Validate list update
+    } catch (e) {
+      toast.error("Failed to save note");
+    }
+  };
+
   return (
     <div
       className={`group relative flex items-center gap-2 p-2 rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
@@ -333,7 +353,23 @@ function TodayItem({
               {quest.questName}
             </DialogTitle>
           </DialogHeader>
+
           <div className="flex flex-col gap-4 mt-4">
+            <div className="space-y-2">
+              <Label>Description / Note</Label>
+              <textarea
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="e.g. Read 'Atomic Habits'"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <Button onClick={handleSaveNote} disabled={updateQuest.isPending} className="w-full">
+                {updateQuest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Note
+              </Button>
+            </div>
+
+            <div className="h-px bg-border my-2" />
             <Button
               variant="outline"
               size="lg"

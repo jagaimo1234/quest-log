@@ -56,6 +56,9 @@ export const quests = sqliteTable("quests", {
   // Time Slot (Intention Log): e.g. "06:00-07:00"
   plannedTimeSlot: text("plannedTimeSlot"),
 
+  // メモ（詳細内容など、例：読んだ本のタイトル）
+  note: text("note"),
+
   // 開始日（任意）- クエストをいつから始めるか
   startDate: integer("startDate", { mode: "timestamp" }),
 

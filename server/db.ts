@@ -240,7 +240,10 @@ export async function createQuest(
     deadline?: Date | null;
     templateId?: number | null;
     autoDeadline?: boolean;
+    templateId?: number | null;
+    autoDeadline?: boolean;
     status?: "unreceived" | "accepted"; // Allow immediate accept
+    note?: string | null;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -265,8 +268,11 @@ export async function createQuest(
     startDate: input.startDate || null,
     deadline: deadline,
     moaiType: getRandomMoaiType(),
+    deadline: deadline,
+    moaiType: getRandomMoaiType(),
     templateId: input.templateId || null,
     acceptedAt: input.status === "accepted" ? new Date() : null,
+    note: input.note || null,
   };
 
   const result = await db.insert(quests).values(values).returning();
@@ -447,7 +453,9 @@ export async function updateQuest(
     questType?: "Daily" | "Weekly" | "Monthly" | "Yearly" | "Free" | "Project" | "Relax";
     difficulty?: "1" | "2" | "3";
     deadline?: Date | null;
+    deadline?: Date | null;
     plannedTimeSlot?: string | null;
+    note?: string | null;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -462,7 +470,9 @@ export async function updateQuest(
   if (input.questType !== undefined) updateData.questType = input.questType;
   if (input.difficulty !== undefined) updateData.difficulty = input.difficulty;
   if (input.plannedTimeSlot !== undefined) updateData.plannedTimeSlot = input.plannedTimeSlot;
+  if (input.plannedTimeSlot !== undefined) updateData.plannedTimeSlot = input.plannedTimeSlot;
   if (input.deadline !== undefined) updateData.deadline = input.deadline;
+  if (input.note !== undefined) updateData.note = input.note;
 
   await db.update(quests)
     .set(updateData)
@@ -838,7 +848,10 @@ export async function addToHistory(
     finalStatus: "cleared" | "paused" | "cancelled" | "incomplete" | "failed";
     xpEarned?: number;
     templateId?: number | null;
+    xpEarned?: number;
+    templateId?: number | null;
     plannedTimeSlot?: string | null;
+    note?: string | null;
   }
 ): Promise<QuestHistory> {
   const db = await getDb();
@@ -858,7 +871,9 @@ export async function addToHistory(
     xpEarned: input.xpEarned || 0,
     recordedDate,
     templateId: input.templateId || null,
+    templateId: input.templateId || null,
     plannedTimeSlot: input.plannedTimeSlot || null,
+    note: input.note || null,
   };
 
   const result = await db.insert(questHistory).values(values).returning();

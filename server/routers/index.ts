@@ -198,7 +198,9 @@ export const appRouter = router({
             finalStatus: "cleared",
             xpEarned: xpReward,
             templateId: quest.templateId,
+            templateId: quest.templateId,
             plannedTimeSlot: quest.plannedTimeSlot,
+            note: quest.note,
           });
 
           // スプレッドシートに送信
@@ -218,7 +220,9 @@ export const appRouter = router({
             finalStatus: input.status,
             xpEarned: 0,
             templateId: quest.templateId,
+            templateId: quest.templateId,
             plannedTimeSlot: quest.plannedTimeSlot,
+            note: quest.note,
           });
 
           const payload = await preparePayload(input.status, 0);
@@ -254,7 +258,9 @@ export const appRouter = router({
         questType: z.enum(["Daily", "Weekly", "Monthly", "Yearly", "Free", "Relax"]).optional(),
         difficulty: z.enum(["1", "2", "3"]).optional(),
         deadline: z.date().optional().nullable(),
+        deadline: z.date().optional().nullable(),
         plannedTimeSlot: z.string().optional().nullable(),
+        note: z.string().optional().nullable(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return updateQuest(input.questId, ctx.user!.id, input);
