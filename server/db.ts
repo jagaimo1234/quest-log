@@ -479,7 +479,6 @@ export async function updateQuest(
     questType?: "Daily" | "Weekly" | "Monthly" | "Yearly" | "Free" | "Project" | "Relax";
     difficulty?: "1" | "2" | "3";
     deadline?: Date | null;
-    deadline?: Date | null;
     plannedTimeSlot?: string | null;
     note?: string | null;
   }
