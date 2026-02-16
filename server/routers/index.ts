@@ -37,6 +37,9 @@ import {
   updateQuestOrder,
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
+import { getDb } from "../db.js";
+import { eq, and, desc } from "drizzle-orm";
+import { questHistory } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
 
@@ -283,6 +286,38 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         const updates = input.map((i: any) => ({ id: i.questId, order: i.order }));
         return updateQuestOrder(ctx.user!.id, updates);
+      }),
+
+    getQuestHistory: protectedProcedure
+      .input(z.object({
+        type: z.enum(["Daily", "Weekly", "Monthly", "Yearly", "Free", "Relax"]).optional(),
+        limit: z.number().optional().default(20),
+      }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const historyItems = await db.query.questHistory.findMany({
+          where: and(
+            eq(questHistory.userId, ctx.user!.id),
+            input.type ? eq(questHistory.questType, input.type) : undefined
+          ),
+          orderBy: [desc(questHistory.recordedAt)],
+          limit: 100,
+        });
+
+        const seen = new Set();
+        const uniqueItems = [];
+        for (const item of historyItems) {
+          if (!item.questName) continue;
+          if (!seen.has(item.questName)) {
+            seen.add(item.questName);
+            uniqueItems.push(item);
+            if (uniqueItems.length >= input.limit) break;
+          }
+        }
+
+        return uniqueItems;
       }),
   }),
 

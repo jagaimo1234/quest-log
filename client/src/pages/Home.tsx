@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -991,6 +991,20 @@ export default function Home() {
   };
 
   const [editingRelaxTemplate, setEditingRelaxTemplate] = useState<any>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const { data: historyItems } = trpc.quest.getQuestHistory.useQuery({ type: "Free", limit: 20 });
+
+  const handleRestoreHistory = async (item: any) => {
+    await createQuest.mutateAsync({
+      questName: item.questName,
+      questType: "Free",
+      difficulty: "1",
+      status: "accepted",
+      note: item.note,
+    } as any);
+    toast.success("Task Restored");
+    refreshAll();
+  };
 
   if (authLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
@@ -1209,6 +1223,50 @@ export default function Home() {
                             onClick={(e) => { e.stopPropagation(); setEditingRelaxTemplate(t); }}
                           >
                             <Pencil className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
+            <div className="h-px bg-border/50 my-6" />
+
+            {/* SHELF 6: HISTORY (Collapsible) */}
+            <section>
+              <div
+                onClick={(e) => { e.stopPropagation(); setIsHistoryOpen(!isHistoryOpen); }}
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-slate-50/50 rounded-md py-1 transition-colors select-none"
+              >
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                    <History className="w-3 h-3" /> HISTORY
+                  </h2>
+                  <span className="text-[10px] text-muted-foreground bg-slate-100 px-1.5 rounded-sm">One-off</span>
+                </div>
+                <div className="text-slate-400">
+                  {isHistoryOpen ? "▼" : "▶"}
+                </div>
+              </div>
+
+              {isHistoryOpen && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                  {!historyItems?.length ? <div className="text-xs text-muted-foreground px-1 italic">No history available.</div> : (
+                    <div className="space-y-1">
+                      {historyItems.map((item: any) => (
+                        <div
+                          key={item.id}
+                          onClick={() => handleRestoreHistory(item)}
+                          className="cursor-pointer group flex items-center justify-between p-2 rounded-lg border border-slate-100 bg-white hover:bg-slate-50 transition-all shadow-sm"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-medium text-slate-700 truncate">{item.questName}</div>
+                            {item.note && <div className="text-[10px] text-slate-400 truncate">{item.note}</div>}
+                          </div>
+                          <Button size="icon" variant="ghost" className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-400">
+                            <Plus className="w-3 h-3" />
                           </Button>
                         </div>
                       ))}
