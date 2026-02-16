@@ -167,6 +167,9 @@ export const questHistory = sqliteTable("quest_history", {
 
   // 時間枠ログ（分析用）
   plannedTimeSlot: text("plannedTimeSlot"),
+
+  // メモ（完了時の記録）
+  note: text("note"),
 });
 
 export type QuestHistory = typeof questHistory.$inferSelect;
