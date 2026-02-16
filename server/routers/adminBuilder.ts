@@ -113,7 +113,7 @@ export const adminRouter = router({
         .input(z.object({
             tableName: z.string(),
             id: z.number(),
-            data: z.record(z.any())
+            data: z.any()
         }))
         .mutation(async ({ input }) => {
             const db = await getDb();
@@ -127,7 +127,8 @@ export const adminRouter = router({
             }
 
             // Filter out ID from data to prevent changing PK
-            const { id, ...updateData } = input.data;
+            // Use 'as any' for input.data to access properties safely after z.any()
+            const { id, ...updateData } = input.data as any;
 
             const processedData: any = { ...updateData };
 
@@ -154,7 +155,7 @@ export const adminRouter = router({
     createRecord: protectedProcedure
         .input(z.object({
             tableName: z.string(),
-            data: z.record(z.any())
+            data: z.any()
         }))
         .mutation(async ({ input }) => {
             const db = await getDb();
