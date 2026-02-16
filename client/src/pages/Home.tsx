@@ -13,12 +13,13 @@ import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
 
 const QUEST_TYPE_LABELS: Record<string, string> = {
-  Daily: "Daily",
-  Weekly: "Weekly",
-  Monthly: "Monthly",
-  Yearly: "Yearly",
-  Free: "One-off",
-  Project: "Project",
+  Daily: "D",
+  Weekly: "W",
+  Monthly: "M",
+  Yearly: "Y",
+  Free: "F",
+  Project: "P",
+  Relax: "R",
 };
 
 const LINE_COLORS = [
@@ -325,7 +326,6 @@ function TodayItem({
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
           {isChallenging && <span className="text-amber-600 font-bold bg-amber-100 px-1 rounded animate-pulse">RUNNING</span>}
-          {slotCount > 0 && <span className="text-primary font-bold bg-primary/10 px-1 rounded">x{slotCount}</span>}
         </div>
       </div>
 
