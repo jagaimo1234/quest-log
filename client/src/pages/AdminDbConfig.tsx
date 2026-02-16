@@ -39,8 +39,7 @@ export default function AdminDbConfig() {
 
     const { data: tables } = trpc.admin.getTables.useQuery();
     const { data: tableData, isLoading, refetch } = trpc.admin.getTableData.useQuery(
-        { tableName: selectedTable, limit, offset: page * limit },
-        { keepPreviousData: true }
+        { tableName: selectedTable, limit, offset: page * limit }
     );
 
     const updateMutation = trpc.admin.updateRecord.useMutation({
@@ -255,8 +254,8 @@ export default function AdminDbConfig() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSave} disabled={updateMutation.isLoading}>
-                            {updateMutation.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                            {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save Changes
                         </Button>
                     </DialogFooter>
