@@ -320,7 +320,10 @@ function TodayItem({
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
         <div className="text-[9px] text-muted-foreground flex gap-1 items-center leading-none mt-0.5">
-          <span className="opacity-80 uppercase tracking-tighter">{QUEST_TYPE_LABELS[quest.questType]}</span>
+          <span className="opacity-80 uppercase tracking-tighter">
+            {quest.note ? <span className="mr-2 font-normal text-foreground/80">{quest.note}</span> : null}
+            {QUEST_TYPE_LABELS[quest.questType]}
+          </span>
           {isChallenging && <span className="text-amber-600 font-bold bg-amber-100 px-1 rounded animate-pulse">RUNNING</span>}
           {slotCount > 0 && <span className="text-primary font-bold bg-primary/10 px-1 rounded">x{slotCount}</span>}
         </div>
