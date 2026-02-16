@@ -320,11 +320,15 @@ function TodayItem({
         <div className={`font-bold text-xs truncate ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
-        <div className="text-[9px] text-muted-foreground flex gap-1 items-center leading-none mt-0.5">
-          <span className="opacity-80 uppercase tracking-tighter">
-            {quest.note ? <span className="mr-2 font-normal text-foreground/80">{quest.note}</span> : null}
+        <div className="text-[9px] text-muted-foreground flex gap-1.5 items-center leading-none mt-1">
+          {quest.note && (
+            <span className="font-medium text-foreground/70 truncate max-w-[120px]">{quest.note}</span>
+          )}
+
+          <span className={`px-1.5 py-0.5 rounded-[4px] border text-[8px] font-bold uppercase tracking-wider ${QUEST_TYPE_STYLES[quest.questType] || "bg-gray-100 text-gray-600"}`}>
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
+
           {isChallenging && <span className="text-amber-600 font-bold bg-amber-100 px-1 rounded animate-pulse">RUNNING</span>}
         </div>
       </div>
