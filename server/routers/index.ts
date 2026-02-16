@@ -287,45 +287,6 @@ export const appRouter = router({
   }),
 
   // ============================================
-      .input(z.object({
-    name: z.string(),
-    description: z.string().optional().nullable(),
-    startDate: z.string().optional().nullable(), // ISO string from frontend
-    endDate: z.string().optional().nullable(),
-  }))
-    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
-      return createProject(ctx.user!.id, {
-        ...input,
-        startDate: input.startDate ? new Date(input.startDate) : null,
-        endDate: input.endDate ? new Date(input.endDate) : null,
-      });
-    }),
-
-  update: protectedProcedure
-    .input(z.object({
-      projectId: z.number(),
-      name: z.string().optional(),
-      description: z.string().optional().nullable(),
-      startDate: z.string().optional().nullable(),
-      endDate: z.string().optional().nullable(),
-      status: z.enum(["active", "archived"]).optional(),
-    }))
-    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
-      return updateProject(input.projectId, ctx.user!.id, {
-        ...input,
-        startDate: input.startDate ? new Date(input.startDate) : null,
-        endDate: input.endDate ? new Date(input.endDate) : null,
-      });
-    }),
-
-  delete: protectedProcedure
-    .input(z.object({ projectId: z.number() }))
-    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
-      return deleteProject(input.projectId, ctx.user!.id);
-    }),
-}),
-
-  // ============================================
   // テンプレート管理
   // ============================================
   template: router({
@@ -410,43 +371,43 @@ export const appRouter = router({
       }),
   }),
 
-    // ============================================
-    // 履歴管理
-    // ============================================
-    history: router({
-      /**
-       * 履歴を取得
-       * 
-       * 要求仕様:
-       * - 日付＋曜日ごとの表示
-       */
-      list: protectedProcedure
-        .input(z.object({
-          startDate: z.string().optional(),
-          endDate: z.string().optional(),
-        }).optional())
-        .query(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
-          return getQuestHistoryByDate(
-            ctx.user!.id,
-            input?.startDate,
-            input?.endDate
-          );
-        }),
-    }),
-
-      // ============================================
-      // ユーザー進行状況管理
-      // ============================================
-      progression: router({
-        /**
-         * 進行状況を取得
-         */
-        get: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
-          // ストリークリセットチェック
-          await resetStreakIfNeeded(ctx.user!.id);
-          return getUserProgression(ctx.user!.id);
-        }),
+  // ============================================
+  // 履歴管理
+  // ============================================
+  history: router({
+    /**
+     * 履歴を取得
+     * 
+     * 要求仕様:
+     * - 日付＋曜日ごとの表示
+     */
+    list: protectedProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return getQuestHistoryByDate(
+          ctx.user!.id,
+          input?.startDate,
+          input?.endDate
+        );
       }),
+  }),
+
+  // ============================================
+  // ユーザー進行状況管理
+  // ============================================
+  progression: router({
+    /**
+     * 進行状況を取得
+     */
+    get: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
+      // ストリークリセットチェック
+      await resetStreakIfNeeded(ctx.user!.id);
+      return getUserProgression(ctx.user!.id);
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
