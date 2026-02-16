@@ -673,415 +673,410 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRelaxOpen, setIsRelaxOpen] = useState(false);
 
-  export default function Home() {
-    const { isAuthenticated, loading: authLoading } = useAuth();
-    const [activeTab, setActiveTab] = useState("today");
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [isRelaxOpen, setIsRelaxOpen] = useState(false);
+  // Date Navigation State
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-    // Date Navigation State
-    const [currentDate, setCurrentDate] = useState(new Date());
+  // Data Fetching: Switch to getByDate
+  const dateStr = format(currentDate, 'yyyy-MM-dd');
+  const { data: activeQuests, refetch: refetchQuests } = trpc.quest.getByDate.useQuery({ date: dateStr }, { enabled: isAuthenticated });
 
-    // Data Fetching: Switch to getByDate
-    const dateStr = format(currentDate, 'yyyy-MM-dd');
-    const { data: activeQuests, refetch: refetchQuests } = trpc.quest.getByDate.useQuery({ date: dateStr }, { enabled: isAuthenticated });
+  const { data: templates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: progression, refetch: refetchProgression } = trpc.progression.get.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: unreceivedQuests } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
 
-    const { data: templates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
-    const { data: progression, refetch: refetchProgression } = trpc.progression.get.useQuery(undefined, { enabled: isAuthenticated });
-    const { data: unreceivedQuests } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
+  const now = new Date();
+  const startRange = format(startOfWeek(startOfMonth(now)), 'yyyy-MM-dd');
+  const endRange = format(endOfWeek(endOfMonth(now)), 'yyyy-MM-dd');
+  const { data: history, refetch: refetchHistory } = trpc.history.list.useQuery({ startDate: startRange, endDate: endRange }, { enabled: isAuthenticated });
 
-    const now = new Date();
-    const startRange = format(startOfWeek(startOfMonth(now)), 'yyyy-MM-dd');
-    const endRange = format(endOfWeek(endOfMonth(now)), 'yyyy-MM-dd');
-    const { data: history, refetch: refetchHistory } = trpc.history.list.useQuery({ startDate: startRange, endDate: endRange }, { enabled: isAuthenticated });
+  const updateStatus = trpc.quest.updateStatus.useMutation();
+  const createQuest = trpc.quest.create.useMutation();
+  const generateFromTemplates = trpc.template.generate.useMutation();
+  const updateQuest = trpc.quest.update.useMutation();
 
-    const updateStatus = trpc.quest.updateStatus.useMutation();
-    const createQuest = trpc.quest.create.useMutation();
-    const generateFromTemplates = trpc.template.generate.useMutation();
-    const updateQuest = trpc.quest.update.useMutation();
+  useEffect(() => {
+    if (isAuthenticated) generateFromTemplates.mutateAsync().then(() => refetchQuests());
+  }, [isAuthenticated]);
 
-    useEffect(() => {
-      if (isAuthenticated) generateFromTemplates.mutateAsync().then(() => refetchQuests());
-    }, [isAuthenticated]);
-
-    const refreshAll = () => {
-      refetchQuests();
-      refetchHistory();
-      refetchProgression();
-    };
+  const refreshAll = () => {
+    refetchQuests();
+    refetchHistory();
+    refetchProgression();
+  };
 
 
-    /*
-     * Reordering Logic (Server Sync)
-     */
-    const [orderedIds, setOrderedIds] = useState<number[]>([]);
-    const updateOrderMutation = trpc.quest.updateOrder.useMutation();
+  /*
+   * Reordering Logic (Server Sync)
+   */
+  const [orderedIds, setOrderedIds] = useState<number[]>([]);
+  const updateOrderMutation = trpc.quest.updateOrder.useMutation();
 
-    // Initialize orderedIds from activeQuests (which are sorted by displayOrder from server)
-    useEffect(() => {
-      if (activeQuests) {
-        setOrderedIds(activeQuests.map(q => q.id));
-      }
-    }, [activeQuests]);
+  // Initialize orderedIds from activeQuests (which are sorted by displayOrder from server)
+  useEffect(() => {
+    if (activeQuests) {
+      setOrderedIds(activeQuests.map(q => q.id));
+    }
+  }, [activeQuests]);
 
-    const todayQuests = React.useMemo(() => {
-      // Filter active quests (Show 'failed' as gray, exclude others like 'cancelled' if any)
-      const filtered = activeQuests?.filter(q => ["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) || [];
+  const todayQuests = React.useMemo(() => {
+    // Filter active quests (Show 'failed' as gray, exclude others like 'cancelled' if any)
+    const filtered = activeQuests?.filter(q => ["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) || [];
 
-      // Sort based on local orderedIds state (optimistic UI)
-      return filtered.sort((a, b) => {
-        const indexA = orderedIds.indexOf(a.id);
-        const indexB = orderedIds.indexOf(b.id);
-        if (indexA === -1 && indexB === -1) return b.id - a.id;
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
-      });
-    }, [activeQuests, orderedIds]);
-
-    const timeSlots = Array.from({ length: 18 }, (_, i) => {
-      const hour = i + 6;
-      const label = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
-      return { id: label, label };
+    // Sort based on local orderedIds state (optimistic UI)
+    return filtered.sort((a, b) => {
+      const indexA = orderedIds.indexOf(a.id);
+      const indexB = orderedIds.indexOf(b.id);
+      if (indexA === -1 && indexB === -1) return b.id - a.id;
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
     });
+  }, [activeQuests, orderedIds]);
+
+  const timeSlots = Array.from({ length: 18 }, (_, i) => {
+    const hour = i + 6;
+    const label = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
+    return { id: label, label };
+  });
 
 
-    const [dragState, setDragState] = useState<{
-      active: boolean,
-      itemId: number | null,
-      mode: 'plan' | 'sort', // 'plan' = time slot, 'sort' = reorder
-      startX: number,
-      startY: number,
-      currentX: number,
-      currentY: number
-    }>({
-      active: false, itemId: null, mode: 'plan', startX: 0, startY: 0, currentX: 0, currentY: 0
+  const [dragState, setDragState] = useState<{
+    active: boolean,
+    itemId: number | null,
+    mode: 'plan' | 'sort', // 'plan' = time slot, 'sort' = reorder
+    startX: number,
+    startY: number,
+    currentX: number,
+    currentY: number
+  }>({
+    active: false, itemId: null, mode: 'plan', startX: 0, startY: 0, currentX: 0, currentY: 0
+  });
+
+  const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
+    e.preventDefault();
+    e.stopPropagation(); // Stop propagation to prevent conflict
+    setDragState({
+      active: true,
+      itemId,
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      currentX: e.clientX,
+      currentY: e.clientY
     });
+  };
 
-    const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
-      e.preventDefault();
-      e.stopPropagation(); // Stop propagation to prevent conflict
-      setDragState({
-        active: true,
-        itemId,
-        mode,
-        startX: e.clientX,
-        startY: e.clientY,
-        currentX: e.clientX,
-        currentY: e.clientY
-      });
-    };
+  const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
+    const touch = e.touches[0];
+    e.stopPropagation();
+    setDragState({
+      active: true,
+      itemId,
+      mode,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      currentX: touch.clientX,
+      currentY: touch.clientY
+    });
+  };
 
-    const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
-      const touch = e.touches[0];
-      e.stopPropagation();
-      setDragState({
-        active: true,
-        itemId,
-        mode,
-        startX: touch.clientX,
-        startY: touch.clientY,
-        currentX: touch.clientX,
-        currentY: touch.clientY
-      });
-    };
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragState.active) return;
+      setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
 
-    useEffect(() => {
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!dragState.active) return;
-        setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
+      // Reorder Logic (Swiss Swap)
+      if (dragState.mode === 'sort' && dragState.itemId) {
+        const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+        const sortTarget = elementUnder?.closest('[data-sort-id]');
+        if (sortTarget) {
+          const targetId = Number(sortTarget.getAttribute('data-sort-id'));
+          if (targetId && targetId !== dragState.itemId) {
+            setOrderedIds(prev => {
+              const newOrder = [...prev];
+              const fromIndex = newOrder.indexOf(dragState.itemId!);
+              const toIndex = newOrder.indexOf(targetId);
+              if (fromIndex !== -1 && toIndex !== -1) {
+                // Remove and insert
+                newOrder.splice(fromIndex, 1);
+                newOrder.splice(toIndex, 0, dragState.itemId!);
 
-        // Reorder Logic (Swiss Swap)
-        if (dragState.mode === 'sort' && dragState.itemId) {
-          const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
-          const sortTarget = elementUnder?.closest('[data-sort-id]');
-          if (sortTarget) {
-            const targetId = Number(sortTarget.getAttribute('data-sort-id'));
-            if (targetId && targetId !== dragState.itemId) {
-              setOrderedIds(prev => {
-                const newOrder = [...prev];
-                const fromIndex = newOrder.indexOf(dragState.itemId!);
-                const toIndex = newOrder.indexOf(targetId);
-                if (fromIndex !== -1 && toIndex !== -1) {
-                  // Remove and insert
-                  newOrder.splice(fromIndex, 1);
-                  newOrder.splice(toIndex, 0, dragState.itemId!);
-
-                  // Debounce server update? Or just trigger it on drop?
-                  // For simpler implementation, let's trigger it on drop (MouseUp) to avoid spamming.
-                  // But wait, MouseUp logic doesn't have reference to the new order easily unless we store it.
-                  // Actually, 'orderedIds' state is updated here.
-                  return newOrder;
-                }
-                return prev;
-              });
-            }
-          }
-        }
-      };
-
-      const handleTouchMove = (e: TouchEvent) => {
-        if (!dragState.active) return;
-        const touch = e.touches[0];
-        setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
-        if (e.cancelable) e.preventDefault();
-
-        // Reorder Logic (Swiss Swap) - Touch
-        if (dragState.mode === 'sort' && dragState.itemId) {
-          const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
-          const sortTarget = elementUnder?.closest('[data-sort-id]');
-          if (sortTarget) {
-            const targetId = Number(sortTarget.getAttribute('data-sort-id'));
-            if (targetId && targetId !== dragState.itemId) {
-              setOrderedIds(prev => {
-                const newOrder = [...prev];
-                const fromIndex = newOrder.indexOf(dragState.itemId!);
-                const toIndex = newOrder.indexOf(targetId);
-                if (fromIndex !== -1 && toIndex !== -1) {
-                  newOrder.splice(fromIndex, 1);
-                  newOrder.splice(toIndex, 0, dragState.itemId!);
-                  return newOrder;
-                }
-                return prev;
-              });
-            }
-          }
-        }
-      };
-
-      const handleMouseUp = async (e: MouseEvent | TouchEvent) => {
-        if (!dragState.active) return;
-
-        let clientX, clientY;
-        if ('changedTouches' in e) {
-          clientX = e.changedTouches[0].clientX;
-          clientY = e.changedTouches[0].clientY;
-        } else {
-          clientX = (e as MouseEvent).clientX;
-          clientY = (e as MouseEvent).clientY;
-        }
-
-        if (dragState.mode === 'plan') {
-          // ... (existing planing logic)
-          const elements = document.elementsFromPoint(clientX, clientY);
-          const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
-          const slotElementInDrag = slotElement; // renaming for clarity
-
-          if (slotElementInDrag && dragState.itemId) {
-            const slotId = slotElementInDrag.getAttribute('data-slot-id');
-            const quest = activeQuests?.find(q => q.id === dragState.itemId);
-
-            if (slotId && quest) {
-              try {
-                let currentSlots: string[] = [];
-                try {
-                  if (quest.plannedTimeSlot) {
-                    const parsed = JSON.parse(quest.plannedTimeSlot);
-                    if (Array.isArray(parsed)) currentSlots = parsed;
-                    else if (typeof parsed === 'string') currentSlots = [parsed];
-                  }
-                } catch {
-                  if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
-                }
-                if (!currentSlots.includes(slotId)) {
-                  const newSlots = [...currentSlots, slotId];
-                  await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
-                  toast.success(`Planned for ${slotId}`);
-                  refreshAll();
-                }
-              } catch (err) {
-                toast.error("Failed to plan");
+                // Debounce server update? Or just trigger it on drop?
+                // For simpler implementation, let's trigger it on drop (MouseUp) to avoid spamming.
+                // But wait, MouseUp logic doesn't have reference to the new order easily unless we store it.
+                // Actually, 'orderedIds' state is updated here.
+                return newOrder;
               }
+              return prev;
+            });
+          }
+        }
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!dragState.active) return;
+      const touch = e.touches[0];
+      setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
+      if (e.cancelable) e.preventDefault();
+
+      // Reorder Logic (Swiss Swap) - Touch
+      if (dragState.mode === 'sort' && dragState.itemId) {
+        const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+        const sortTarget = elementUnder?.closest('[data-sort-id]');
+        if (sortTarget) {
+          const targetId = Number(sortTarget.getAttribute('data-sort-id'));
+          if (targetId && targetId !== dragState.itemId) {
+            setOrderedIds(prev => {
+              const newOrder = [...prev];
+              const fromIndex = newOrder.indexOf(dragState.itemId!);
+              const toIndex = newOrder.indexOf(targetId);
+              if (fromIndex !== -1 && toIndex !== -1) {
+                newOrder.splice(fromIndex, 1);
+                newOrder.splice(toIndex, 0, dragState.itemId!);
+                return newOrder;
+              }
+              return prev;
+            });
+          }
+        }
+      }
+    };
+
+    const handleMouseUp = async (e: MouseEvent | TouchEvent) => {
+      if (!dragState.active) return;
+
+      let clientX, clientY;
+      if ('changedTouches' in e) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      } else {
+        clientX = (e as MouseEvent).clientX;
+        clientY = (e as MouseEvent).clientY;
+      }
+
+      if (dragState.mode === 'plan') {
+        // ... (existing planing logic)
+        const elements = document.elementsFromPoint(clientX, clientY);
+        const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
+        const slotElementInDrag = slotElement; // renaming for clarity
+
+        if (slotElementInDrag && dragState.itemId) {
+          const slotId = slotElementInDrag.getAttribute('data-slot-id');
+          const quest = activeQuests?.find(q => q.id === dragState.itemId);
+
+          if (slotId && quest) {
+            try {
+              let currentSlots: string[] = [];
+              try {
+                if (quest.plannedTimeSlot) {
+                  const parsed = JSON.parse(quest.plannedTimeSlot);
+                  if (Array.isArray(parsed)) currentSlots = parsed;
+                  else if (typeof parsed === 'string') currentSlots = [parsed];
+                }
+              } catch {
+                if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
+              }
+              if (!currentSlots.includes(slotId)) {
+                const newSlots = [...currentSlots, slotId];
+                await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
+                toast.success(`Planned for ${slotId}`);
+                refreshAll();
+              }
+            } catch (err) {
+              toast.error("Failed to plan");
             }
           }
         }
-        setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
-
-        // Trigger server update if order changed
-        if (dragState.mode === 'sort') {
-          // Create updates array
-          const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
-          updateOrderMutation.mutate(updates);
-        }
-      };
-
-      if (dragState.active) {
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-        window.addEventListener('touchmove', handleTouchMove, { passive: false });
-        window.addEventListener('touchend', handleMouseUp);
       }
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-        window.removeEventListener('touchmove', handleTouchMove);
-        window.removeEventListener('touchend', handleMouseUp);
-      };
-    }, [dragState.active, dragState.itemId, activeQuests]);
+      setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
 
-    const handleUnlink = async (questId: number, slotId: string) => {
-      const quest = activeQuests?.find(q => q.id === questId);
-      if (!quest) return;
+      // Trigger server update if order changed
+      if (dragState.mode === 'sort') {
+        // Create updates array
+        const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
+        updateOrderMutation.mutate(updates);
+      }
+    };
+
+    if (dragState.active) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  }, [dragState.active, dragState.itemId, activeQuests]);
+
+  const handleUnlink = async (questId: number, slotId: string) => {
+    const quest = activeQuests?.find(q => q.id === questId);
+    if (!quest) return;
+    try {
+      let currentSlots: string[] = [];
       try {
-        let currentSlots: string[] = [];
-        try {
-          if (quest.plannedTimeSlot) {
-            const parsed = JSON.parse(quest.plannedTimeSlot);
-            if (Array.isArray(parsed)) currentSlots = parsed;
-            else if (typeof parsed === 'string') currentSlots = [parsed];
-          }
-        } catch {
-          if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
+        if (quest.plannedTimeSlot) {
+          const parsed = JSON.parse(quest.plannedTimeSlot);
+          if (Array.isArray(parsed)) currentSlots = parsed;
+          else if (typeof parsed === 'string') currentSlots = [parsed];
         }
-        const newSlots = currentSlots.filter(s => s !== slotId);
-        const val = newSlots.length === 0 ? null : JSON.stringify(newSlots);
-        await updateQuest.mutateAsync({ questId, plannedTimeSlot: val });
-        toast.success("Link removed");
-        refreshAll();
-      } catch (err) {
-        toast.error("Failed to unlink");
+      } catch {
+        if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
       }
-    };
-
-    // SHELF LOGIC
-    const fixShelfQuests = unreceivedQuests?.filter(q => q.questType !== "Project" && q.questType !== "Relax") || []; // RELAX uses templates directly
-
-    // Project Shelf Logic (Now based on Templates)
-    const projectTemplates = templates?.filter(t => {
-      if (t.questType !== "Project") return false;
-      // Date Check
-      if (!t.startDate || !t.endDate) return true; // Show invalid ones too? No, should be valid.
-      // If start/end date present, check if now is within range.
-      const start = new Date(t.startDate);
-      const end = new Date(t.endDate);
-      end.setHours(23, 59, 59, 999);
-      start.setHours(0, 0, 0, 0);
-      return isAfter(now, start) && isBefore(now, end) || isEqual(now, start) || isEqual(now, end);
-    }) || [];
-
-    const nonFixTemplates = templates?.filter(t => {
-      const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
-        (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
-        (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
-      if (!isPool) return false;
-
-      // Filter out if quota met
-      if (!history) return true;
-      let periodStart = startOfWeek(now);
-      if (t.questType === "Monthly") periodStart = startOfMonth(now);
-      const doneCount = history.filter(h => h.templateId === t.id && (isAfter(new Date(h.recordedAt), periodStart) || isEqual(new Date(h.recordedAt), periodStart))).length;
-      return doneCount < (t.frequency || 1);
-    }) || [];
-
-    const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
-
-    const handleReceiveFix = async (questId: number) => { await updateStatus.mutateAsync({ questId, status: "accepted" }); toast.success("Received"); refreshAll(); };
-    const handleReceiveNonFix = async (template: any) => { await createQuest.mutateAsync({ questName: template.questName, questType: template.questType, difficulty: template.difficulty, templateId: template.id, status: "accepted" } as any); toast.success("Received"); refreshAll(); };
-
-    // Create Instance from Project Template
-    const handleReceiveProject = async (template: any) => {
-      await createQuest.mutateAsync({
-        questName: template.questName,
-        projectName: template.parentProjectName || template.projectName, // Use Parent Project Name
-        questType: "Project" as any,
-        difficulty: template.difficulty,
-        templateId: template.id,
-        status: "accepted"
-      } as any);
-      toast.success("Started Project Task");
+      const newSlots = currentSlots.filter(s => s !== slotId);
+      const val = newSlots.length === 0 ? null : JSON.stringify(newSlots);
+      await updateQuest.mutateAsync({ questId, plannedTimeSlot: val });
+      toast.success("Link removed");
       refreshAll();
-    };
+    } catch (err) {
+      toast.error("Failed to unlink");
+    }
+  };
 
-    // RELAX: Create Instance
-    const handleReceiveRelax = async (template: any) => {
-      await createQuest.mutateAsync({
-        questName: template.questName,
-        questType: "Relax" as any,
-        difficulty: "1",
-        templateId: template.id,
-        status: "accepted"
-      } as any);
-      toast.success("Add Relax Mission");
-      refreshAll();
-    };
+  // SHELF LOGIC
+  const fixShelfQuests = unreceivedQuests?.filter(q => q.questType !== "Project" && q.questType !== "Relax") || []; // RELAX uses templates directly
 
-    const handleDragOver = (e: React.DragEvent) => {
-      e.preventDefault();
-    };
+  // Project Shelf Logic (Now based on Templates)
+  const projectTemplates = templates?.filter(t => {
+    if (t.questType !== "Project") return false;
+    // Date Check
+    if (!t.startDate || !t.endDate) return true; // Show invalid ones too? No, should be valid.
+    // If start/end date present, check if now is within range.
+    const start = new Date(t.startDate);
+    const end = new Date(t.endDate);
+    end.setHours(23, 59, 59, 999);
+    start.setHours(0, 0, 0, 0);
+    return isAfter(now, start) && isBefore(now, end) || isEqual(now, start) || isEqual(now, end);
+  }) || [];
 
-    const isToday = format(currentDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-    // Past if earlier than today's 00:00:00?
-    // Simply compare date strings.
-    const isPast = format(currentDate, 'yyyy-MM-dd') < format(new Date(), 'yyyy-MM-dd');
+  const nonFixTemplates = templates?.filter(t => {
+    const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
+      (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
+      (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
+    if (!isPool) return false;
 
-    // Future if later than today
-    const isFuture = format(currentDate, 'yyyy-MM-dd') > format(new Date(), 'yyyy-MM-dd');
+    // Filter out if quota met
+    if (!history) return true;
+    let periodStart = startOfWeek(now);
+    if (t.questType === "Monthly") periodStart = startOfMonth(now);
+    const doneCount = history.filter(h => h.templateId === t.id && (isAfter(new Date(h.recordedAt), periodStart) || isEqual(new Date(h.recordedAt), periodStart))).length;
+    return doneCount < (t.frequency || 1);
+  }) || [];
 
-    // Navigation Handlers
-    const goPrev = () => setCurrentDate(d => {
-      const newDate = new Date(d);
-      newDate.setDate(d.getDate() - 1);
-      return newDate;
-    });
-    const goNext = () => setCurrentDate(d => {
-      const newDate = new Date(d);
-      newDate.setDate(d.getDate() + 1);
-      return newDate;
-    });
-    const goToday = () => setCurrentDate(new Date());
+  const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
 
-    const [editingRelaxTemplate, setEditingRelaxTemplate] = useState<any>(null);
+  const handleReceiveFix = async (questId: number) => { await updateStatus.mutateAsync({ questId, status: "accepted" }); toast.success("Received"); refreshAll(); };
+  const handleReceiveNonFix = async (template: any) => { await createQuest.mutateAsync({ questName: template.questName, questType: template.questType, difficulty: template.difficulty, templateId: template.id, status: "accepted" } as any); toast.success("Received"); refreshAll(); };
 
-    if (authLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  // Create Instance from Project Template
+  const handleReceiveProject = async (template: any) => {
+    await createQuest.mutateAsync({
+      questName: template.questName,
+      projectName: template.parentProjectName || template.projectName, // Use Parent Project Name
+      questType: "Project" as any,
+      difficulty: template.difficulty,
+      templateId: template.id,
+      status: "accepted"
+    } as any);
+    toast.success("Started Project Task");
+    refreshAll();
+  };
 
-    return (
-      <div className="flex h-screen bg-background overflow-hidden relative" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}>
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 relative z-0">
-          <header className="flex-none p-4 flex items-center justify-between border-b bg-background/95 backdrop-blur z-20">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold tracking-tight">QUEST LOG</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setIsRelaxOpen(true)}>
-                <div className="relative">
-                  <Flame className="w-5 h-5 text-emerald-500" />
-                  <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-emerald-600 text-[8px] text-white">
-                    R
-                  </span>
-                </div>
-              </Button>
-              <div className="flex items-center gap-1 bg-muted rounded-md p-1">
-                <span className="text-xs font-mono px-2 text-muted-foreground">LV.{progression?.level || 1}</span>
-                <div className="h-4 w-px bg-border mx-1" />
-                <div className="flex items-center gap-1 px-2">
-                  <Flame className={`w-3 h-3 ${progression?.currentStreak ? 'text-orange-500 fill-orange-500' : 'text-muted-foreground'}`} />
-                  <span className="text-xs font-bold">{progression?.currentStreak || 0}</span>
-                </div>
+  // RELAX: Create Instance
+  const handleReceiveRelax = async (template: any) => {
+    await createQuest.mutateAsync({
+      questName: template.questName,
+      questType: "Relax" as any,
+      difficulty: "1",
+      templateId: template.id,
+      status: "accepted"
+    } as any);
+    toast.success("Add Relax Mission");
+    refreshAll();
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const isToday = format(currentDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+  // Past if earlier than today's 00:00:00?
+  // Simply compare date strings.
+  const isPast = format(currentDate, 'yyyy-MM-dd') < format(new Date(), 'yyyy-MM-dd');
+
+  // Future if later than today
+  const isFuture = format(currentDate, 'yyyy-MM-dd') > format(new Date(), 'yyyy-MM-dd');
+
+  // Navigation Handlers
+  const goPrev = () => setCurrentDate(d => {
+    const newDate = new Date(d);
+    newDate.setDate(d.getDate() - 1);
+    return newDate;
+  });
+  const goNext = () => setCurrentDate(d => {
+    const newDate = new Date(d);
+    newDate.setDate(d.getDate() + 1);
+    return newDate;
+  });
+  const goToday = () => setCurrentDate(new Date());
+
+  const [editingRelaxTemplate, setEditingRelaxTemplate] = useState<any>(null);
+
+  if (authLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+
+  return (
+    <div className="flex h-screen bg-background overflow-hidden relative" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 relative z-0">
+        <header className="flex-none p-4 flex items-center justify-between border-b bg-background/95 backdrop-blur z-20">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold tracking-tight">QUEST LOG</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setIsRelaxOpen(true)}>
+              <div className="relative">
+                <Flame className="w-5 h-5 text-emerald-500" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-emerald-600 text-[8px] text-white">
+                  R
+                </span>
               </div>
-
-              <div className="flex items-center gap-2 ml-4">
-                <Button variant="outline" size="icon" onClick={goPrev}><ArrowRight className="w-4 h-4 rotate-180" /></Button>
-                <div className="flex flex-col items-center min-w-[100px]">
-                  <span className="font-bold">{format(currentDate, 'yyyy-MM-dd')}</span>
-                  <span className="text-xs text-muted-foreground font-bold">{format(currentDate, 'EEE')}</span>
-                </div>
-                <Button variant="outline" size="icon" onClick={goNext}><ArrowRight className="w-4 h-4" /></Button>
-                {!isToday && <Button variant="ghost" size="sm" onClick={goToday}>Today</Button>}
+            </Button>
+            <div className="flex items-center gap-1 bg-muted rounded-md p-1">
+              <span className="text-xs font-mono px-2 text-muted-foreground">LV.{progression?.level || 1}</span>
+              <div className="h-4 w-px bg-border mx-1" />
+              <div className="flex items-center gap-1 px-2">
+                <Flame className={`w-3 h-3 ${progression?.currentStreak ? 'text-orange-500 fill-orange-500' : 'text-muted-foreground'}`} />
+                <span className="text-xs font-bold">{progression?.currentStreak || 0}</span>
               </div>
-
-              <QuestCreateDialog onCreated={refetchQuests} defaultDate={isFuture ? currentDate : undefined} />
             </div>
-          </header>
+
+            <div className="flex items-center gap-2 ml-4">
+              <Button variant="outline" size="icon" onClick={goPrev}><ArrowRight className="w-4 h-4 rotate-180" /></Button>
+              <div className="flex flex-col items-center min-w-[100px]">
+                <span className="font-bold">{format(currentDate, 'yyyy-MM-dd')}</span>
+                <span className="text-xs text-muted-foreground font-bold">{format(currentDate, 'EEE')}</span>
+              </div>
+              <Button variant="outline" size="icon" onClick={goNext}><ArrowRight className="w-4 h-4" /></Button>
+              {!isToday && <Button variant="ghost" size="sm" onClick={goToday}>Today</Button>}
+            </div>
+
+            <QuestCreateDialog onCreated={refetchQuests} defaultDate={isFuture ? currentDate : undefined} />
+          </div>
+        </header>
+      </div>
+
+      <Tabs defaultValue="today" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+        <div className="px-4 py-2 border-b flex items-center justify-between bg-muted/30">
+          <TabsList className="grid w-[200px] grid-cols-2">
+            <TabsTrigger value="today">TODAY</TabsTrigger>
+            <TabsTrigger value="calendar">CALENDAR</TabsTrigger>
+          </TabsList>
         </div>
-
-        <Tabs defaultValue="today" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <div className="px-4 py-2 border-b flex items-center justify-between bg-muted/30">
-            <TabsList className="grid w-[200px] grid-cols-2">
-              <TabsTrigger value="today">TODAY</TabsTrigger>
-              <TabsTrigger value="calendar">CALENDAR</TabsTrigger>
-            </TabsList>
-          </div>TabsContent value="today" className="space-y-8 animate-fade-in">
+        <TabsContent value="today" className="space-y-8 animate-fade-in">
 
           {/* SHELF 1: TODAY */}
           <section className="space-y-4 h-full flex flex-col">
@@ -1268,17 +1263,16 @@ export default function Home() {
         </TabsContent>
       </Tabs>
 
-        {
-      editingRelaxTemplate && (
-        <RelaxEditDialog
-          template={editingRelaxTemplate}
-          open={!!editingRelaxTemplate}
-          onOpenChange={(open) => !open && setEditingRelaxTemplate(null)}
-          onUpdated={refreshAll}
-        />
-      )
-    }
-      </main>
-    </div>
+      {
+        editingRelaxTemplate && (
+          <RelaxEditDialog
+            template={editingRelaxTemplate}
+            open={!!editingRelaxTemplate}
+            onOpenChange={(open) => !open && setEditingRelaxTemplate(null)}
+            onUpdated={refreshAll}
+          />
+        )
+      }
+    </div >
   );
-  }
+}
