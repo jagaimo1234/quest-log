@@ -768,7 +768,16 @@ export default function Home() {
 
   const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
     const touch = e.touches[0];
+    const target = e.target as HTMLElement;
+    // Allow scrolling if not long-press or handle drag?
+    // Current implementation assumes direct drag.
+
+    // Prevent default to stop scrolling IF we want to drag immediately.
+    // However, usually we want press-and-hold or specific handle.
+    // Here we just set state.
+    // e.stopPropagation(); // Removed to be safe with scrolling if needed, but logic says stop prop.
     e.stopPropagation();
+
     setDragState({
       active: true,
       itemId,
@@ -780,125 +789,128 @@ export default function Home() {
     });
   };
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!dragState.active) return;
-      setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent, itemId: number) => {
+    if ('touches' in e) {
+      handleTouchStart(e as React.TouchEvent, itemId, 'plan');
+    } else {
+      handleMouseDown(e as React.MouseEvent, itemId, 'plan');
+    }
+  };
 
-      // Reorder Logic (Swiss Swap)
-      if (dragState.mode === 'sort' && dragState.itemId) {
-        const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
-        const sortTarget = elementUnder?.closest('[data-sort-id]');
-        if (sortTarget) {
-          const targetId = Number(sortTarget.getAttribute('data-sort-id'));
-          if (targetId && targetId !== dragState.itemId) {
-            setOrderedIds(prev => {
-              const newOrder = [...prev];
-              const fromIndex = newOrder.indexOf(dragState.itemId!);
-              const toIndex = newOrder.indexOf(targetId);
-              if (fromIndex !== -1 && toIndex !== -1) {
-                // Remove and insert
-                newOrder.splice(fromIndex, 1);
-                newOrder.splice(toIndex, 0, dragState.itemId!);
+  const handleMouseMove = (e: any) => {
+    if (!dragState.active) return;
+    setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
 
-                // Debounce server update? Or just trigger it on drop?
-                // For simpler implementation, let's trigger it on drop (MouseUp) to avoid spamming.
-                // But wait, MouseUp logic doesn't have reference to the new order easily unless we store it.
-                // Actually, 'orderedIds' state is updated here.
-                return newOrder;
-              }
-              return prev;
-            });
-          }
-        }
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!dragState.active) return;
-      const touch = e.touches[0];
-      setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
-      if (e.cancelable) e.preventDefault();
-
-      // Reorder Logic (Swiss Swap) - Touch
-      if (dragState.mode === 'sort' && dragState.itemId) {
-        const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
-        const sortTarget = elementUnder?.closest('[data-sort-id]');
-        if (sortTarget) {
-          const targetId = Number(sortTarget.getAttribute('data-sort-id'));
-          if (targetId && targetId !== dragState.itemId) {
-            setOrderedIds(prev => {
-              const newOrder = [...prev];
-              const fromIndex = newOrder.indexOf(dragState.itemId!);
-              const toIndex = newOrder.indexOf(targetId);
-              if (fromIndex !== -1 && toIndex !== -1) {
-                newOrder.splice(fromIndex, 1);
-                newOrder.splice(toIndex, 0, dragState.itemId!);
-                return newOrder;
-              }
-              return prev;
-            });
-          }
-        }
-      }
-    };
-
-    const handleMouseUp = async (e: MouseEvent | TouchEvent) => {
-      if (!dragState.active) return;
-
-      let clientX, clientY;
-      if ('changedTouches' in e) {
-        clientX = e.changedTouches[0].clientX;
-        clientY = e.changedTouches[0].clientY;
-      } else {
-        clientX = (e as MouseEvent).clientX;
-        clientY = (e as MouseEvent).clientY;
-      }
-
-      if (dragState.mode === 'plan') {
-        // ... (existing planing logic)
-        const elements = document.elementsFromPoint(clientX, clientY);
-        const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
-        const slotElementInDrag = slotElement; // renaming for clarity
-
-        if (slotElementInDrag && dragState.itemId) {
-          const slotId = slotElementInDrag.getAttribute('data-slot-id');
-          const quest = activeQuests?.find(q => q.id === dragState.itemId);
-
-          if (slotId && quest) {
-            try {
-              let currentSlots: string[] = [];
-              try {
-                if (quest.plannedTimeSlot) {
-                  const parsed = JSON.parse(quest.plannedTimeSlot);
-                  if (Array.isArray(parsed)) currentSlots = parsed;
-                  else if (typeof parsed === 'string') currentSlots = [parsed];
-                }
-              } catch {
-                if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
-              }
-              if (!currentSlots.includes(slotId)) {
-                const newSlots = [...currentSlots, slotId];
-                await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
-                toast.success(`Planned for ${slotId}`);
-                refreshAll();
-              }
-            } catch (err) {
-              toast.error("Failed to plan");
+    // Reorder Logic (Swiss Swap)
+    if (dragState.mode === 'sort' && dragState.itemId) {
+      const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+      const sortTarget = elementUnder?.closest('[data-sort-id]');
+      if (sortTarget) {
+        const targetId = Number(sortTarget.getAttribute('data-sort-id'));
+        if (targetId && targetId !== dragState.itemId) {
+          setOrderedIds(prev => {
+            const newOrder = [...prev];
+            const fromIndex = newOrder.indexOf(dragState.itemId!);
+            const toIndex = newOrder.indexOf(targetId);
+            if (fromIndex !== -1 && toIndex !== -1) {
+              // Remove and insert
+              newOrder.splice(fromIndex, 1);
+              newOrder.splice(toIndex, 0, dragState.itemId!);
+              return newOrder;
             }
+            return prev;
+          });
+        }
+      }
+    }
+  };
+
+  const handleTouchMove = (e: any) => {
+    if (!dragState.active) return;
+    const touch = e.touches[0];
+    setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
+    if (e.cancelable) e.preventDefault();
+
+    // Reorder Logic (Swiss Swap) - Touch
+    if (dragState.mode === 'sort' && dragState.itemId) {
+      const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+      const sortTarget = elementUnder?.closest('[data-sort-id]');
+      if (sortTarget) {
+        const targetId = Number(sortTarget.getAttribute('data-sort-id'));
+        if (targetId && targetId !== dragState.itemId) {
+          setOrderedIds(prev => {
+            const newOrder = [...prev];
+            const fromIndex = newOrder.indexOf(dragState.itemId!);
+            const toIndex = newOrder.indexOf(targetId);
+            if (fromIndex !== -1 && toIndex !== -1) {
+              newOrder.splice(fromIndex, 1);
+              newOrder.splice(toIndex, 0, dragState.itemId!);
+              return newOrder;
+            }
+            return prev;
+          });
+        }
+      }
+    }
+  };
+
+  const handleMouseUp = async (e: any) => {
+    if (!dragState.active) return;
+
+    let clientX, clientY;
+    if ('changedTouches' in e) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = (e as MouseEvent).clientX;
+      clientY = (e as MouseEvent).clientY;
+    }
+
+    if (dragState.mode === 'plan') {
+      // ... (existing planing logic)
+      const elements = document.elementsFromPoint(clientX, clientY);
+      const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
+      const slotElementInDrag = slotElement; // renaming for clarity
+
+      if (slotElementInDrag && dragState.itemId) {
+        const slotId = slotElementInDrag.getAttribute('data-slot-id');
+        const quest = activeQuests?.find(q => q.id === dragState.itemId);
+
+        if (slotId && quest) {
+          try {
+            let currentSlots: string[] = [];
+            try {
+              if (quest.plannedTimeSlot) {
+                const parsed = JSON.parse(quest.plannedTimeSlot);
+                if (Array.isArray(parsed)) currentSlots = parsed;
+                else if (typeof parsed === 'string') currentSlots = [parsed];
+              }
+            } catch {
+              if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
+            }
+            if (!currentSlots.includes(slotId)) {
+              const newSlots = [...currentSlots, slotId];
+              await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
+              toast.success(`Planned for ${slotId}`);
+              refreshAll();
+            }
+          } catch (err) {
+            toast.error("Failed to plan");
           }
         }
       }
-      setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
+    }
+    setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
 
-      // Trigger server update if order changed
-      if (dragState.mode === 'sort') {
-        // Create updates array
-        const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
-        updateOrderMutation.mutate(updates);
-      }
-    };
+    // Trigger server update if order changed
+    if (dragState.mode === 'sort') {
+      // Create updates array
+      const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
+      updateOrderMutation.mutate(updates);
+    }
+  };
 
+  useEffect(() => {
     if (dragState.active) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -911,7 +923,7 @@ export default function Home() {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleMouseUp);
     };
-  }, [dragState.active, dragState.itemId, activeQuests]);
+  });
 
   const handleUnlink = async (questId: number, slotId: string) => {
     const quest = activeQuests?.find(q => q.id === questId);
@@ -1096,8 +1108,6 @@ export default function Home() {
                         className={`flex items-start h-[120px] border-t border-border/50 text-xs text-muted-foreground relative group`}
                         data-slot-id={slot.id}
                         onDragOver={handleDragOver}
-                        onDrop={(e) => isToday && handleDrop(e, slot.id)}
-                        onTouchEnd={(e) => isToday && handleTouchDrop(e, slot.id)}
                       >
                         <span className="bg-background pr-2 -mt-2.5 z-20 select-none font-mono opacity-50 group-hover:opacity-100 transition-opacity">
                           {slot.label.split('-')[0]}
