@@ -297,14 +297,13 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database not available");
 
-        const historyItems = await db.query.questHistory.findMany({
-          where: and(
+        const historyItems = await db.select().from(questHistory)
+          .where(and(
             eq(questHistory.userId, ctx.user!.id),
             input.type ? eq(questHistory.questType, input.type) : undefined
-          ),
-          orderBy: [desc(questHistory.recordedAt)],
-          limit: 100,
-        });
+          ))
+          .orderBy(desc(questHistory.recordedAt))
+          .limit(100);
 
         const seen = new Set();
         const uniqueItems = [];
