@@ -11,7 +11,7 @@ import {
     projects,
     userProgression
 } from "../../drizzle/schema.js";
-import { eq, desc, asc, sql, and } from "drizzle-orm";
+import { eq, desc, asc, sql, and, getTableColumns } from "drizzle-orm";
 
 // Map of available tables (Allowed for admin access)
 const tables = {
@@ -32,6 +32,25 @@ export const adminRouter = router({
     getTables: protectedProcedure.query(() => {
         return Object.keys(tables);
     }),
+
+    /**
+     * Get table schema for building forms
+     */
+    getTableSchema: protectedProcedure
+        .input(z.object({ tableName: z.string() }))
+        .query(async ({ input }) => {
+            const tableName = input.tableName as TableName;
+            const table = tables[tableName];
+            if (!table) throw new Error(`Table ${input.tableName} not found`);
+
+            const columns = getTableColumns(table as any);
+            return Object.entries(columns).map(([key, col]: [string, any]) => ({
+                name: key,
+                type: col.dataType,
+                notNull: col.notNull,
+                hasDefault: col.hasDefault,
+            }));
+        }),
 
     /**
      * Get raw data from a table
@@ -125,6 +144,42 @@ export const adminRouter = router({
             await db.update(table)
                 .set(processedData)
                 .where(eq(table.id, input.id));
+
+            return { success: true };
+        }),
+
+    /**
+     * Create a new record
+     */
+    createRecord: protectedProcedure
+        .input(z.object({
+            tableName: z.string(),
+            data: z.record(z.any())
+        }))
+        .mutation(async ({ input }) => {
+            const db = await getDb();
+            if (!db) throw new Error("Database not available");
+
+            const tableName = input.tableName as TableName;
+            const table = tables[tableName];
+
+            if (!table) {
+                throw new Error(`Table ${input.tableName} not found`);
+            }
+
+            const processedData: any = { ...input.data };
+
+            // Simple heuristic for date fields
+            for (const key of Object.keys(processedData)) {
+                if (key.endsWith('At') || key.endsWith('Date') || key === 'deadline') {
+                    const val = processedData[key];
+                    if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        processedData[key] = new Date(val);
+                    }
+                }
+            }
+
+            await db.insert(table).values(processedData);
 
             return { success: true };
         }),
