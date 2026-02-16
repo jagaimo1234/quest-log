@@ -198,7 +198,6 @@ export const appRouter = router({
             finalStatus: "cleared",
             xpEarned: xpReward,
             templateId: quest.templateId,
-            templateId: quest.templateId,
             plannedTimeSlot: quest.plannedTimeSlot,
             note: quest.note,
           });
@@ -219,7 +218,6 @@ export const appRouter = router({
             difficulty: quest.difficulty,
             finalStatus: input.status,
             xpEarned: 0,
-            templateId: quest.templateId,
             templateId: quest.templateId,
             plannedTimeSlot: quest.plannedTimeSlot,
             note: quest.note,
@@ -257,7 +255,6 @@ export const appRouter = router({
         projectName: z.string().optional().nullable(),
         questType: z.enum(["Daily", "Weekly", "Monthly", "Yearly", "Free", "Relax"]).optional(),
         difficulty: z.enum(["1", "2", "3"]).optional(),
-        deadline: z.date().optional().nullable(),
         deadline: z.date().optional().nullable(),
         plannedTimeSlot: z.string().optional().nullable(),
         note: z.string().optional().nullable(),

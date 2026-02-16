@@ -240,8 +240,6 @@ export async function createQuest(
     deadline?: Date | null;
     templateId?: number | null;
     autoDeadline?: boolean;
-    templateId?: number | null;
-    autoDeadline?: boolean;
     status?: "unreceived" | "accepted"; // Allow immediate accept
     note?: string | null;
   }
@@ -266,8 +264,6 @@ export async function createQuest(
     difficulty: input.difficulty || "1",
     status: input.status || "unreceived",
     startDate: input.startDate || null,
-    deadline: deadline,
-    moaiType: getRandomMoaiType(),
     deadline: deadline,
     moaiType: getRandomMoaiType(),
     templateId: input.templateId || null,
@@ -469,7 +465,6 @@ export async function updateQuest(
   if (input.projectName !== undefined) updateData.projectName = input.projectName;
   if (input.questType !== undefined) updateData.questType = input.questType;
   if (input.difficulty !== undefined) updateData.difficulty = input.difficulty;
-  if (input.plannedTimeSlot !== undefined) updateData.plannedTimeSlot = input.plannedTimeSlot;
   if (input.plannedTimeSlot !== undefined) updateData.plannedTimeSlot = input.plannedTimeSlot;
   if (input.deadline !== undefined) updateData.deadline = input.deadline;
   if (input.note !== undefined) updateData.note = input.note;
@@ -848,8 +843,6 @@ export async function addToHistory(
     finalStatus: "cleared" | "paused" | "cancelled" | "incomplete" | "failed";
     xpEarned?: number;
     templateId?: number | null;
-    xpEarned?: number;
-    templateId?: number | null;
     plannedTimeSlot?: string | null;
     note?: string | null;
   }
@@ -870,7 +863,6 @@ export async function addToHistory(
     finalStatus: input.finalStatus,
     xpEarned: input.xpEarned || 0,
     recordedDate,
-    templateId: input.templateId || null,
     templateId: input.templateId || null,
     plannedTimeSlot: input.plannedTimeSlot || null,
     note: input.note || null,
