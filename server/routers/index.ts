@@ -38,8 +38,11 @@ import {
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 
+import { adminRouter } from "./adminBuilder.js";
+
 export const appRouter = router({
   system: systemRouter,
+  admin: adminRouter,
   auth: router({
     me: publicProcedure.query(({ ctx }) => ctx.user),
     logout: publicProcedure.mutation(({ ctx }: { ctx: TrpcContext }) => {
