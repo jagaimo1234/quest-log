@@ -159,7 +159,7 @@ export default function AdminDbConfig() {
     if (!user) return <div className="p-8 text-center text-muted-foreground">Please log in to access admin tools.</div>;
 
     return (
-        <Layout title="DB Admin">
+        <Layout>
             <div className="space-y-4">
                 <div className="flex justify-between items-center overflow-x-auto pb-2 gap-2">
                     <div className="flex gap-2">
