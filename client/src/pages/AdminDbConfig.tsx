@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { trpc } from "../lib/trpc";
 import { useAuth } from "../_core/hooks/useAuth";
-import { DashboardLayout as Layout } from "../components/DashboardLayout";
+import Layout from "../components/DashboardLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
