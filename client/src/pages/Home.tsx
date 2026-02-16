@@ -53,7 +53,7 @@ const TIME_SLOT_WIDTH = "w-20";
 // COMPONENTS
 // ------------------------------------------------------------------
 
-function QuestCreateDialog({ onCreated, defaultDate }: { onCreated: () => void, defaultDate?: Date }) {
+function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const createQuest = trpc.quest.create.useMutation();
 
@@ -80,9 +80,6 @@ function QuestCreateDialog({ onCreated, defaultDate }: { onCreated: () => void, 
         questType: type as any,
         difficulty: formData.get("difficulty") as any,
         status: status,
-        startDate: defaultDate, // Set default startDate if provided (future)
-        // If today, startDate is technically optional but we can set it explicitly or leave null.
-        // For future planning, we WANT it set.
       });
     }
     setOpen(false);
@@ -673,13 +670,7 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRelaxOpen, setIsRelaxOpen] = useState(false);
 
-  // Date Navigation State
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  // Data Fetching: Switch to getByDate
-  const dateStr = format(currentDate, 'yyyy-MM-dd');
-  const { data: activeQuests, refetch: refetchQuests } = trpc.quest.getByDate.useQuery({ date: dateStr }, { enabled: isAuthenticated });
-
+  const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, { enabled: isAuthenticated });
   const { data: templates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
   const { data: progression, refetch: refetchProgression } = trpc.progression.get.useQuery(undefined, { enabled: isAuthenticated });
   const { data: unreceivedQuests } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
@@ -768,16 +759,7 @@ export default function Home() {
 
   const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
     const touch = e.touches[0];
-    const target = e.target as HTMLElement;
-    // Allow scrolling if not long-press or handle drag?
-    // Current implementation assumes direct drag.
-
-    // Prevent default to stop scrolling IF we want to drag immediately.
-    // However, usually we want press-and-hold or specific handle.
-    // Here we just set state.
-    // e.stopPropagation(); // Removed to be safe with scrolling if needed, but logic says stop prop.
     e.stopPropagation();
-
     setDragState({
       active: true,
       itemId,
@@ -789,128 +771,125 @@ export default function Home() {
     });
   };
 
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent, itemId: number) => {
-    if ('touches' in e) {
-      handleTouchStart(e as React.TouchEvent, itemId, 'plan');
-    } else {
-      handleMouseDown(e as React.MouseEvent, itemId, 'plan');
-    }
-  };
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragState.active) return;
+      setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
 
-  const handleMouseMove = (e: any) => {
-    if (!dragState.active) return;
-    setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
+      // Reorder Logic (Swiss Swap)
+      if (dragState.mode === 'sort' && dragState.itemId) {
+        const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+        const sortTarget = elementUnder?.closest('[data-sort-id]');
+        if (sortTarget) {
+          const targetId = Number(sortTarget.getAttribute('data-sort-id'));
+          if (targetId && targetId !== dragState.itemId) {
+            setOrderedIds(prev => {
+              const newOrder = [...prev];
+              const fromIndex = newOrder.indexOf(dragState.itemId!);
+              const toIndex = newOrder.indexOf(targetId);
+              if (fromIndex !== -1 && toIndex !== -1) {
+                // Remove and insert
+                newOrder.splice(fromIndex, 1);
+                newOrder.splice(toIndex, 0, dragState.itemId!);
 
-    // Reorder Logic (Swiss Swap)
-    if (dragState.mode === 'sort' && dragState.itemId) {
-      const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
-      const sortTarget = elementUnder?.closest('[data-sort-id]');
-      if (sortTarget) {
-        const targetId = Number(sortTarget.getAttribute('data-sort-id'));
-        if (targetId && targetId !== dragState.itemId) {
-          setOrderedIds(prev => {
-            const newOrder = [...prev];
-            const fromIndex = newOrder.indexOf(dragState.itemId!);
-            const toIndex = newOrder.indexOf(targetId);
-            if (fromIndex !== -1 && toIndex !== -1) {
-              // Remove and insert
-              newOrder.splice(fromIndex, 1);
-              newOrder.splice(toIndex, 0, dragState.itemId!);
-              return newOrder;
-            }
-            return prev;
-          });
-        }
-      }
-    }
-  };
-
-  const handleTouchMove = (e: any) => {
-    if (!dragState.active) return;
-    const touch = e.touches[0];
-    setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
-    if (e.cancelable) e.preventDefault();
-
-    // Reorder Logic (Swiss Swap) - Touch
-    if (dragState.mode === 'sort' && dragState.itemId) {
-      const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
-      const sortTarget = elementUnder?.closest('[data-sort-id]');
-      if (sortTarget) {
-        const targetId = Number(sortTarget.getAttribute('data-sort-id'));
-        if (targetId && targetId !== dragState.itemId) {
-          setOrderedIds(prev => {
-            const newOrder = [...prev];
-            const fromIndex = newOrder.indexOf(dragState.itemId!);
-            const toIndex = newOrder.indexOf(targetId);
-            if (fromIndex !== -1 && toIndex !== -1) {
-              newOrder.splice(fromIndex, 1);
-              newOrder.splice(toIndex, 0, dragState.itemId!);
-              return newOrder;
-            }
-            return prev;
-          });
-        }
-      }
-    }
-  };
-
-  const handleMouseUp = async (e: any) => {
-    if (!dragState.active) return;
-
-    let clientX, clientY;
-    if ('changedTouches' in e) {
-      clientX = e.changedTouches[0].clientX;
-      clientY = e.changedTouches[0].clientY;
-    } else {
-      clientX = (e as MouseEvent).clientX;
-      clientY = (e as MouseEvent).clientY;
-    }
-
-    if (dragState.mode === 'plan') {
-      // ... (existing planing logic)
-      const elements = document.elementsFromPoint(clientX, clientY);
-      const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
-      const slotElementInDrag = slotElement; // renaming for clarity
-
-      if (slotElementInDrag && dragState.itemId) {
-        const slotId = slotElementInDrag.getAttribute('data-slot-id');
-        const quest = activeQuests?.find(q => q.id === dragState.itemId);
-
-        if (slotId && quest) {
-          try {
-            let currentSlots: string[] = [];
-            try {
-              if (quest.plannedTimeSlot) {
-                const parsed = JSON.parse(quest.plannedTimeSlot);
-                if (Array.isArray(parsed)) currentSlots = parsed;
-                else if (typeof parsed === 'string') currentSlots = [parsed];
+                // Debounce server update? Or just trigger it on drop?
+                // For simpler implementation, let's trigger it on drop (MouseUp) to avoid spamming.
+                // But wait, MouseUp logic doesn't have reference to the new order easily unless we store it.
+                // Actually, 'orderedIds' state is updated here.
+                return newOrder;
               }
-            } catch {
-              if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
-            }
-            if (!currentSlots.includes(slotId)) {
-              const newSlots = [...currentSlots, slotId];
-              await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
-              toast.success(`Planned for ${slotId}`);
-              refreshAll();
-            }
-          } catch (err) {
-            toast.error("Failed to plan");
+              return prev;
+            });
           }
         }
       }
-    }
-    setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
+    };
 
-    // Trigger server update if order changed
-    if (dragState.mode === 'sort') {
-      // Create updates array
-      const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
-      updateOrderMutation.mutate(updates);
-    }
-  };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!dragState.active) return;
+      const touch = e.touches[0];
+      setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
+      if (e.cancelable) e.preventDefault();
 
-  useEffect(() => {
+      // Reorder Logic (Swiss Swap) - Touch
+      if (dragState.mode === 'sort' && dragState.itemId) {
+        const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+        const sortTarget = elementUnder?.closest('[data-sort-id]');
+        if (sortTarget) {
+          const targetId = Number(sortTarget.getAttribute('data-sort-id'));
+          if (targetId && targetId !== dragState.itemId) {
+            setOrderedIds(prev => {
+              const newOrder = [...prev];
+              const fromIndex = newOrder.indexOf(dragState.itemId!);
+              const toIndex = newOrder.indexOf(targetId);
+              if (fromIndex !== -1 && toIndex !== -1) {
+                newOrder.splice(fromIndex, 1);
+                newOrder.splice(toIndex, 0, dragState.itemId!);
+                return newOrder;
+              }
+              return prev;
+            });
+          }
+        }
+      }
+    };
+
+    const handleMouseUp = async (e: MouseEvent | TouchEvent) => {
+      if (!dragState.active) return;
+
+      let clientX, clientY;
+      if ('changedTouches' in e) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      } else {
+        clientX = (e as MouseEvent).clientX;
+        clientY = (e as MouseEvent).clientY;
+      }
+
+      if (dragState.mode === 'plan') {
+        // ... (existing planing logic)
+        const elements = document.elementsFromPoint(clientX, clientY);
+        const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
+        const slotElementInDrag = slotElement; // renaming for clarity
+
+        if (slotElementInDrag && dragState.itemId) {
+          const slotId = slotElementInDrag.getAttribute('data-slot-id');
+          const quest = activeQuests?.find(q => q.id === dragState.itemId);
+
+          if (slotId && quest) {
+            try {
+              let currentSlots: string[] = [];
+              try {
+                if (quest.plannedTimeSlot) {
+                  const parsed = JSON.parse(quest.plannedTimeSlot);
+                  if (Array.isArray(parsed)) currentSlots = parsed;
+                  else if (typeof parsed === 'string') currentSlots = [parsed];
+                }
+              } catch {
+                if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
+              }
+              if (!currentSlots.includes(slotId)) {
+                const newSlots = [...currentSlots, slotId];
+                await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
+                toast.success(`Planned for ${slotId}`);
+                refreshAll();
+              }
+            } catch (err) {
+              toast.error("Failed to plan");
+            }
+          }
+        }
+      }
+      setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
+
+      // Trigger server update if order changed
+      if (dragState.mode === 'sort') {
+        // Create updates array
+        const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
+        updateOrderMutation.mutate(updates);
+      }
+    };
+
     if (dragState.active) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -923,7 +902,7 @@ export default function Home() {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleMouseUp);
     };
-  });
+  }, [dragState.active, dragState.itemId, activeQuests]);
 
   const handleUnlink = async (questId: number, slotId: string) => {
     const quest = activeQuests?.find(q => q.id === questId);
@@ -1011,278 +990,250 @@ export default function Home() {
     refreshAll();
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const isToday = format(currentDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-  // Past if earlier than today's 00:00:00?
-  // Simply compare date strings.
-  const isPast = format(currentDate, 'yyyy-MM-dd') < format(new Date(), 'yyyy-MM-dd');
-
-  // Future if later than today
-  const isFuture = format(currentDate, 'yyyy-MM-dd') > format(new Date(), 'yyyy-MM-dd');
-
-  // Navigation Handlers
-  const goPrev = () => setCurrentDate(d => {
-    const newDate = new Date(d);
-    newDate.setDate(d.getDate() - 1);
-    return newDate;
-  });
-  const goNext = () => setCurrentDate(d => {
-    const newDate = new Date(d);
-    newDate.setDate(d.getDate() + 1);
-    return newDate;
-  });
-  const goToday = () => setCurrentDate(new Date());
-
   const [editingRelaxTemplate, setEditingRelaxTemplate] = useState<any>(null);
 
-  if (authLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  if (authLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}>
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative z-0">
-        <header className="flex-none p-4 flex items-center justify-between border-b bg-background/95 backdrop-blur z-20">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold tracking-tight">QUEST LOG</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setIsRelaxOpen(true)}>
-              <div className="relative">
-                <Flame className="w-5 h-5 text-emerald-500" />
-                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-emerald-600 text-[8px] text-white">
-                  R
-                </span>
-              </div>
-            </Button>
-            <div className="flex items-center gap-1 bg-muted rounded-md p-1">
-              <span className="text-xs font-mono px-2 text-muted-foreground">LV.{progression?.level || 1}</span>
-              <div className="h-4 w-px bg-border mx-1" />
-              <div className="flex items-center gap-1 px-2">
-                <Flame className={`w-3 h-3 ${progression?.currentStreak ? 'text-orange-500 fill-orange-500' : 'text-muted-foreground'}`} />
-                <span className="text-xs font-bold">{progression?.currentStreak || 0}</span>
-              </div>
+    <div className="min-h-screen bg-background text-foreground select-none" onClick={() => setIsRelaxOpen(false)}>
+      <main className="layout-container py-8 mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold tracking-tight">Quest Log</h1>
+          <div className="flex gap-4">
+            {progression?.currentStreak > 0 && <div className="flex items-center gap-1 text-orange-500 font-bold"><Flame className="fill-orange-500 w-5 h-5" /> {progression.currentStreak}</div>}
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"}><Database className="w-4 h-4 mr-1" /> DB</Button>
+              <QuestCreateDialog onCreated={refreshAll} />
             </div>
-
-            <div className="flex items-center gap-2 ml-4">
-              <Button variant="outline" size="icon" onClick={goPrev}><ArrowRight className="w-4 h-4 rotate-180" /></Button>
-              <div className="flex flex-col items-center min-w-[100px]">
-                <span className="font-bold">{format(currentDate, 'yyyy-MM-dd')}</span>
-                <span className="text-xs text-muted-foreground font-bold">{format(currentDate, 'EEE')}</span>
-              </div>
-              <Button variant="outline" size="icon" onClick={goNext}><ArrowRight className="w-4 h-4" /></Button>
-              {!isToday && <Button variant="ghost" size="sm" onClick={goToday}>Today</Button>}
-            </div>
-
-            <QuestCreateDialog onCreated={refetchQuests} defaultDate={isFuture ? currentDate : undefined} />
           </div>
-        </header>
-      </div>
-
-      <Tabs defaultValue="today" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-        <div className="px-4 py-2 border-b flex items-center justify-between bg-muted/30">
-          <TabsList className="grid w-[200px] grid-cols-2">
-            <TabsTrigger value="today">TODAY</TabsTrigger>
-            <TabsTrigger value="calendar">CALENDAR</TabsTrigger>
-          </TabsList>
         </div>
-        <TabsContent value="today" className="space-y-8 animate-fade-in">
 
-          {/* SHELF 1: TODAY */}
-          <section className="space-y-4 h-full flex flex-col">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Today Planning</h2>
-            </div>
+        <Tabs defaultValue="today" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="today">Today</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          </TabsList>
 
-            {/* Time Slots & Quests */}
-            <div className="flex-1 relative min-h-0 overflow-y-auto overflow-x-hidden border rounded-lg bg-background/50">
-              <div className="absolute inset-0 p-4">
-                <div className="flex gap-4 min-h-full">
-                  {/* Time Labels Column */}
-                  <div className={`flex-none ${TIME_SLOT_WIDTH} flex flex-col pt-2 relative z-10`}>
-                    {timeSlots.map((slot) => (
+          <TabsContent value="today" className="space-y-8 animate-fade-in">
+
+            {/* SHELF 1: TODAY */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Today Planning</h2>
+                <span className="text-xs text-muted-foreground">{todayQuests.length} tasks</span>
+              </div>
+              <div className="relative">
+                {/* RELAX COLUMN (Absolute Overlay or Side Column?) Using flex to sit beside. */}
+                {/* 
+                   Requirement: 
+                   RELAX列は デフォルトでは折りたたみ状態 
+                   RELAXボタン（見出し）をタップすると：登録済みRELAXミッション一覧が展開される
+                   画面外（サイド）をタップすると：RELAX列は再び折りたたまれる
+                */}
+                <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]">
+                  <ConnectionLines quests={todayQuests} parentRef={containerRef} templates={templates || []} onUnlink={handleUnlink} />
+
+                  <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
+                    {todayQuests.map(q => (
                       <div
-                        key={slot.id}
-                        className={`flex items-start h-[120px] border-t border-border/50 text-xs text-muted-foreground relative group`}
-                        data-slot-id={slot.id}
-                        onDragOver={handleDragOver}
+                        id={`source-${q.id}`}
+                        key={q.id}
+                        data-sort-id={q.id}
+                        className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${dragState.itemId === q.id && dragState.mode === 'sort' ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary' : 'hover:scale-[1.02]'}`}
                       >
-                        <span className="bg-background pr-2 -mt-2.5 z-20 select-none font-mono opacity-50 group-hover:opacity-100 transition-opacity">
-                          {slot.label.split('-')[0]}
-                        </span>
+                        <TodayItem
+                          quest={q}
+                          templates={templates || []}
+                          onStatusChange={() => refreshAll()}
+                          onDragStart={(e) => {
+                            if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
+                            else handleMouseDown(e as any, q.id, 'plan');
+                          }}
+                          onReorderStart={(e) => {
+                            if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
+                            else handleMouseDown(e as any, q.id, 'sort');
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
 
-                  {/* Quest Cards Column (No Grid/Snap, just list) */}
-                  <div className="flex-1 min-w-0 pb-32">
-                    {/* Unplanned (Header) */}
-                    <div className="mb-6">
-                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                        Incoming Missions
-                        {/* Future Warning */}
-                        {isFuture && <span className="ml-2 text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded text-[10px]">FUTURE PLAN (Scheduled)</span>}
-                        {isPast && <span className="ml-2 text-muted-foreground bg-muted px-2 py-0.5 rounded text-[10px]">PAST LOG</span>}
-                      </h3>
-                      <div className="flex flex-col gap-2">
-                        {todayQuests.map((quest) => (
-                          <div key={quest.id} id={`source-${quest.id}`}>
-                            <TodayItem
-                              quest={quest}
-                              onStatusChange={refetchQuests}
-                              isPreviousDay={isPast}
-                              template={templates?.find(t => t.id === quest.templateId)}
-                              onDragStart={(e) => handleDragStart(e, quest.id)}
-                              onReorderStart={(e: any) => isToday && handleMouseDown(e, quest.id, 'sort')}
-                            />
+                  {/* Right Log (Time Slots) */}
+                  <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
+                    <div className="flex flex-col gap-1 w-full pb-10">
+                      <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
+                      {timeSlots.map(slot => {
+                        // Check if slot is used (use activeQuests to include failed/other statuses as "occupied" in log)
+                        const isUsed = activeQuests?.some(q => {
+                          if (!q.plannedTimeSlot) return false;
+                          // If failed/cleared, only count if it was updated today?
+                          // activeQuests already filters for today logic in getActiveQuests
+                          if (["failed", "cleared"].includes(q.status)) {
+                            // Check update time? getActiveQuests logic handles it.
+                          }
+
+                          try {
+                            const parsed = JSON.parse(q.plannedTimeSlot);
+                            if (Array.isArray(parsed)) return parsed.includes(slot.id);
+                            return parsed === slot.id;
+                          } catch {
+                            return q.plannedTimeSlot === slot.id;
+                          }
+                        }) || false;
+
+                        return (
+                          <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
+                            <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
+                            {!isUsed && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                                <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
+                              </div>
+                            )}
+                            {!isUsed && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
+                              </div>
+                            )}
                           </div>
-                        ))}
-                        {todayQuests.length === 0 && (
-                          <div className="text-sm text-muted-foreground italic p-4 border border-dashed rounded-lg text-center">
-                            No missions {isFuture ? 'scheduled yet' : 'found'}
-                          </div>
-                        )}
-                      </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
               </div>
-              <ConnectionLines quests={todayQuests} parentRef={containerRef} templates={templates || []} onUnlink={handleUnlink} />
-            </div>
-          </section>
+            </section>
 
-          {dragState.active && dragState.itemId && (
-            <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
-              {(() => {
-                const q = todayQuests.find(i => i.id === dragState.itemId);
-                if (!q) return null;
-                return (
-                  <TodayItem
-                    quest={q}
-                    templates={templates || []}
-                    onStatusChange={refreshAll}
-                    onDragStart={(e) => {
-                      if ('touches' in e) handleTouchStart(e as any, q.id);
-                      else handleMouseDown(e as any, q.id);
-                    }}
-                  />
-                );
-              })()}
-            </div>
-          )}
-
-          <div className="h-px bg-border/50 my-6" />
-
-          {/* SHELF 2: FIX (Scheduled) */}
-          <section>
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h2 className="text-xs font-bold text-sky-500 uppercase tracking-wider">FIX (Scheduled)</h2>
-            </div>
-            {fixShelfQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No scheduled tasks.</div> : (
-              <div>{fixShelfQuests.map(q => {
-                const t = templates?.find(tp => tp.id === q.templateId);
-                return <FixItem key={q.id} quest={q} executedCount={t?.executedCount || 0} onReceive={() => handleReceiveFix(q.id)} />;
-              })}</div>
-            )}
-          </section>
-
-          <div className="h-px bg-border/50 my-6" />
-
-          {/* SHELF 3: NON-FIX (Pool) */}
-          <section>
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h2 className="text-xs font-bold text-fuchsia-500 uppercase tracking-wider">Non-FIX (Pool)</h2>
-            </div>
-            {nonFixTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
-              <div>{nonFixTemplates.map(t => <NonFixItem key={t.id} template={t} history={history || []} onReceive={() => handleReceiveNonFix(t)} />)}</div>
-            )}
-          </section>
-
-          <div className="h-px bg-border/50 my-6" />
-
-          {/* SHELF 4: PROJECT */}
-          <section>
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h2 className="text-xs font-bold text-indigo-500 uppercase tracking-wider">PROJECT</h2>
-            </div>
-            {projectTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active projects.</div> : (
-              <div className="space-y-2">
-                {projectTemplates.map(t => <ProjectTemplateItem key={t.id} template={t} onReceive={() => handleReceiveProject(t)} />)}
+            {dragState.active && dragState.itemId && (
+              <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
+                {(() => {
+                  const q = todayQuests.find(i => i.id === dragState.itemId);
+                  if (!q) return null;
+                  return (
+                    <TodayItem
+                      quest={q}
+                      templates={templates || []}
+                      onStatusChange={refreshAll}
+                      onDragStart={(e) => {
+                        if ('touches' in e) handleTouchStart(e as any, q.id);
+                        else handleMouseDown(e as any, q.id);
+                      }}
+                    />
+                  );
+                })()}
               </div>
             )}
-          </section>
 
-          <div className="h-px bg-border/50 my-6" />
+            <div className="h-px bg-border/50 my-6" />
 
-          {/* SHELF 5: RELAX (Collapsible) */}
-          <section>
-            <div
-              onClick={(e) => { e.stopPropagation(); setIsRelaxOpen(!isRelaxOpen); }}
-              className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors select-none"
-            >
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                  <span>🌱</span> RELAX
-                </h2>
-                <span className="text-[10px] text-muted-foreground bg-emerald-50 px-1.5 rounded-sm">Recover</span>
+            {/* SHELF 2: FIX (Scheduled) */}
+            <section>
+              <div className="flex items-center justify-between mb-3 px-1">
+                <h2 className="text-xs font-bold text-sky-500 uppercase tracking-wider">FIX (Scheduled)</h2>
               </div>
-              <div className="text-emerald-400">
-                {isRelaxOpen ? "▼" : "▶"}
-              </div>
-            </div>
+              {fixShelfQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No scheduled tasks.</div> : (
+                <div>{fixShelfQuests.map(q => {
+                  const t = templates?.find(tp => tp.id === q.templateId);
+                  return <FixItem key={q.id} quest={q} executedCount={t?.executedCount || 0} onReceive={() => handleReceiveFix(q.id)} />;
+                })}</div>
+              )}
+            </section>
 
-            {isRelaxOpen && (
-              <div className="animate-in slide-in-from-top-2 fade-in duration-200">
-                {relaxTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No relax missions.</div> : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {relaxTemplates.map(t => (
-                      <div
-                        key={t.id}
-                        onClick={() => handleReceiveRelax(t)}
-                        className="cursor-pointer group relative flex items-center gap-2 p-2 rounded-lg border border-emerald-200 bg-white hover:scale-[1.02] hover:shadow-sm transition-all shadow-sm"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors shrink-0">
-                          <Plus className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-bold text-emerald-900 truncate">{t.questName}</div>
-                          <div className="text-[9px] text-emerald-500">Recovery</div>
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="w-6 h-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100/50 text-emerald-400"
-                          onClick={(e) => { e.stopPropagation(); setEditingRelaxTemplate(t); }}
+            <div className="h-px bg-border/50 my-6" />
+
+            {/* SHELF 3: NON-FIX (Pool) */}
+            <section>
+              <div className="flex items-center justify-between mb-3 px-1">
+                <h2 className="text-xs font-bold text-fuchsia-500 uppercase tracking-wider">Non-FIX (Pool)</h2>
+              </div>
+              {nonFixTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
+                <div>{nonFixTemplates.map(t => <NonFixItem key={t.id} template={t} history={history || []} onReceive={() => handleReceiveNonFix(t)} />)}</div>
+              )}
+            </section>
+
+            <div className="h-px bg-border/50 my-6" />
+
+            {/* SHELF 4: PROJECT */}
+            <section>
+              <div className="flex items-center justify-between mb-3 px-1">
+                <h2 className="text-xs font-bold text-indigo-500 uppercase tracking-wider">PROJECT</h2>
+              </div>
+              {projectTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active projects.</div> : (
+                <div className="space-y-2">
+                  {projectTemplates.map(t => <ProjectTemplateItem key={t.id} template={t} onReceive={() => handleReceiveProject(t)} />)}
+                </div>
+              )}
+            </section>
+
+            <div className="h-px bg-border/50 my-6" />
+
+            {/* SHELF 5: RELAX (Collapsible) */}
+            <section>
+              <div
+                onClick={(e) => { e.stopPropagation(); setIsRelaxOpen(!isRelaxOpen); }}
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors select-none"
+              >
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                    <span>🌱</span> RELAX
+                  </h2>
+                  <span className="text-[10px] text-muted-foreground bg-emerald-50 px-1.5 rounded-sm">Recover</span>
+                </div>
+                <div className="text-emerald-400">
+                  {isRelaxOpen ? "▼" : "▶"}
+                </div>
+              </div>
+
+              {isRelaxOpen && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                  {relaxTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No relax missions.</div> : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {relaxTemplates.map(t => (
+                        <div
+                          key={t.id}
+                          onClick={() => handleReceiveRelax(t)}
+                          className="cursor-pointer group relative flex items-center gap-2 p-2 rounded-lg border border-emerald-200 bg-white hover:scale-[1.02] hover:shadow-sm transition-all shadow-sm"
                         >
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors shrink-0">
+                            <Plus className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-bold text-emerald-900 truncate">{t.questName}</div>
+                            <div className="text-[9px] text-emerald-500">Recovery</div>
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="w-6 h-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100/50 text-emerald-400"
+                            onClick={(e) => { e.stopPropagation(); setEditingRelaxTemplate(t); }}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
 
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="calendar" className="animate-fade-in">
-          <CalendarView />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="calendar" className="animate-fade-in">
+            <CalendarView />
+          </TabsContent>
+        </Tabs>
 
-      {
-        editingRelaxTemplate && (
+        {editingRelaxTemplate && (
           <RelaxEditDialog
             template={editingRelaxTemplate}
             open={!!editingRelaxTemplate}
             onOpenChange={(open) => !open && setEditingRelaxTemplate(null)}
             onUpdated={refreshAll}
           />
-        )
-      }
-    </div >
+        )}
+      </main>
+    </div>
   );
 }

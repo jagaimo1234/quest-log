@@ -287,6 +287,55 @@ export const appRouter = router({
   }),
 
   // ============================================
+  // プロジェクト管理 (Hierarchy)
+  // ============================================
+  project: router({
+    list: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
+      // Auto-migrate legacy projects on access
+      await migrateLegacyProjects(ctx.user!.id);
+      return getProjects(ctx.user!.id);
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        description: z.string().optional().nullable(),
+        startDate: z.string().optional().nullable(), // ISO string from frontend
+        endDate: z.string().optional().nullable(),
+      }))
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return createProject(ctx.user!.id, {
+          ...input,
+          startDate: input.startDate ? new Date(input.startDate) : null,
+          endDate: input.endDate ? new Date(input.endDate) : null,
+        });
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        name: z.string().optional(),
+        description: z.string().optional().nullable(),
+        startDate: z.string().optional().nullable(),
+        endDate: z.string().optional().nullable(),
+        status: z.enum(["active", "archived"]).optional(),
+      }))
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return updateProject(input.projectId, ctx.user!.id, {
+          ...input,
+          startDate: input.startDate ? new Date(input.startDate) : null,
+          endDate: input.endDate ? new Date(input.endDate) : null,
+        });
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        return deleteProject(input.projectId, ctx.user!.id);
+      }),
+  }),
+
+  // ============================================
   // テンプレート管理
   // ============================================
   template: router({
