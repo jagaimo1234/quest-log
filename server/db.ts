@@ -359,6 +359,36 @@ export async function getUnreceivedQuests(userId: number): Promise<Quest[]> {
 }
 
 /**
+ * 指定日の予定クエストを取得
+ * startDateが指定日と一致するクエスト
+ */
+export async function getScheduledQuests(userId: number, dateStr: string): Promise<Quest[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Parse YYYY-MM-DD to Date range (JST considered via string comparison if stored as Date? No, stored as Date object)
+  // schema: startDate is timestamp (Date)
+  // We need to match the "date" part in JST.
+  // Ideally, inputs should be handled carefully.
+  // Assuming dateStr is "YYYY-MM-DD"
+
+  // Create range for that day in JST
+  const startOfDay = new Date(`${dateStr}T00:00:00+09:00`);
+  const endOfDay = new Date(`${dateStr}T23:59:59.999+09:00`);
+
+  return db.select()
+    .from(quests)
+    .where(
+      and(
+        eq(quests.userId, userId),
+        gte(quests.startDate, startOfDay),
+        lte(quests.startDate, endOfDay)
+      )
+    )
+    .orderBy(asc(quests.displayOrder), desc(quests.createdAt));
+}
+
+/**
  * クエストを取得
  */
 export async function getQuestById(questId: number, userId: number): Promise<Quest | null> {
