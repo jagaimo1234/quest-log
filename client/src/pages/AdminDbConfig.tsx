@@ -84,20 +84,36 @@ export default function AdminDbConfig() {
     const handleSave = async () => {
         if (!editRow) return;
 
-        const dataToSend = { ...formData };
+        const dataToSend: Record<string, any> = {};
 
-        for (const key of Object.keys(dataToSend)) {
-            if (typeof editRow[key] === 'object' && editRow[key] !== null && !(editRow[key] instanceof Date)) {
-                try {
-                    if (typeof dataToSend[key] === 'string') {
-                        dataToSend[key] = JSON.parse(dataToSend[key]);
+        // Use schema to filter and convert data
+        tableSchema?.forEach((col: any) => {
+            if (col.name === 'id' || col.name === 'createdAt' || col.name === 'updatedAt') return;
+
+            if (col.name in formData) {
+                let value = formData[col.name];
+
+                // Type conversion
+                if (col.type === 'boolean') {
+                    value = String(value) === 'true';
+                } else if (col.type === 'number') {
+                    value = Number(value);
+                } else if (col.type === 'json' && typeof value === 'string') {
+                    try {
+                        value = JSON.parse(value);
+                    } catch (e) {
+                        alert(`Invalid JSON for field ${col.name}`);
+                        throw e;
                     }
-                } catch (e) {
-                    alert(`Invalid JSON for field ${key}`);
-                    return;
                 }
+
+                // Date handling (basic string to Date via server or here?)
+                // Drizzle on server handles Date object or ISO string usually.
+                // adminBuilder handles string date heuristic.
+
+                dataToSend[col.name] = value;
             }
-        }
+        });
 
         await updateMutation.mutateAsync({
             tableName: selectedTable,
