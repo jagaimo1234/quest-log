@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -965,6 +965,7 @@ export default function Home() {
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"}><Database className="w-4 h-4 mr-1" /> DB</Button>
               <QuestCreateDialog onCreated={refreshAll} />
             </div>
           </div>
