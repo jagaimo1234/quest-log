@@ -1084,99 +1084,68 @@ export default function Home() {
           </div>TabsContent value="today" className="space-y-8 animate-fade-in">
 
           {/* SHELF 1: TODAY */}
-          <section className="space-y-4">
+          <section className="space-y-4 h-full flex flex-col">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Today Planning</h2>
-              <div className="relative">
-                {/* RELAX COLUMN (Absolute Overlay or Side Column?) Using flex to sit beside. */}
-                {/* 
-                   Requirement: 
-                   RELAX列は デフォルトでは折りたたみ状態 
-                   RELAXボタン（見出し）をタップすると：登録済みRELAXミッション一覧が展開される
-                   画面外（サイド）をタップすると：RELAX列は再び折りたたまれる
-                */}
-                <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]">
-                  <ConnectionLines quests={todayQuests} parentRef={containerRef} templates={templates || []} onUnlink={handleUnlink} />
+            </div>
 
-                  <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
-                    {todayQuests.map(q => (
+            {/* Time Slots & Quests */}
+            <div className="flex-1 relative min-h-0 overflow-y-auto overflow-x-hidden border rounded-lg bg-background/50">
+              <div className="absolute inset-0 p-4">
+                <div className="flex gap-4 min-h-full">
+                  {/* Time Labels Column */}
+                  <div className={`flex-none ${TIME_SLOT_WIDTH} flex flex-col pt-2 relative z-10`}>
+                    {timeSlots.map((slot) => (
                       <div
-                        id={`source-${q.id}`}
-                        key={q.id}
-                        data-sort-id={q.id}
-                        className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${dragState.itemId                {/* Time Slots & Quests */}
-                <div className="flex-1 relative min-h-0 overflow-y-auto overflow-x-hidden">
-                  <div className="absolute inset-0 p-4">
-                    <div className="flex gap-4 min-h-full">
-                      {/* Time Labels Column */}
-                      <div className={`flex-none ${TIME_SLOT_WIDTH} flex flex-col pt-2 relative z-10`}>
-                        {timeSlots.map((slot) => (
-                          <div
-                            key={slot.id}
-                            className={`flex items-start h-[120px] border-t border-border/50 text-xs text-muted-foreground relative group`}
-                            data-slot-id={slot.id}
-                            onDragOver={handleDragOver}
-                            onDrop={(e) => isToday && handleDrop(e, slot.id)}
-                            onTouchEnd={(e) => isToday && handleTouchDrop(e, slot.id)}
-                          >
-                            <span className="bg-background pr-2 -mt-2.5 z-20 select-none font-mono opacity-50 group-hover:opacity-100 transition-opacity">
-                              {slot.label.split('-')[0]}
-                            </span>
+                        key={slot.id}
+                        className={`flex items-start h-[120px] border-t border-border/50 text-xs text-muted-foreground relative group`}
+                        data-slot-id={slot.id}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => isToday && handleDrop(e, slot.id)}
+                        onTouchEnd={(e) => isToday && handleTouchDrop(e, slot.id)}
+                      >
+                        <span className="bg-background pr-2 -mt-2.5 z-20 select-none font-mono opacity-50 group-hover:opacity-100 transition-opacity">
+                          {slot.label.split('-')[0]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Quest Cards Column (No Grid/Snap, just list) */}
+                  <div className="flex-1 min-w-0 pb-32">
+                    {/* Unplanned (Header) */}
+                    <div className="mb-6">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                        Incoming Missions
+                        {/* Future Warning */}
+                        {isFuture && <span className="ml-2 text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded text-[10px]">FUTURE PLAN (Scheduled)</span>}
+                        {isPast && <span className="ml-2 text-muted-foreground bg-muted px-2 py-0.5 rounded text-[10px]">PAST LOG</span>}
+                      </h3>
+                      <div className="flex flex-col gap-2">
+                        {todayQuests.map((quest) => (
+                          <div key={quest.id} id={`source-${quest.id}`}>
+                            <TodayItem
+                              quest={quest}
+                              onStatusChange={refetchQuests}
+                              isPreviousDay={isPast}
+                              template={templates?.find(t => t.id === quest.templateId)}
+                              onDragStart={(e) => handleDragStart(e, quest.id)}
+                              onReorderStart={(e: any) => isToday && handleMouseDown(e, quest.id, 'sort')}
+                            />
                           </div>
                         ))}
-                      </div>
-
-                      {/* Quest Cards Column (No Grid/Snap, just list) */}
-                      <div className="flex-1 min-w-0 pb-32">
-                        {/* Unplanned (Header) */}
-                        <div className="mb-6">
-                            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                              Incoming Missions
-                              {/* Future Warning */}
-                              {isFuture && <span className="ml-2 text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded text-[10px]">FUTURE PLAN (Scheduled)</span>}
-                              {isPast && <span className="ml-2 text-muted-foreground bg-muted px-2 py-0.5 rounded text-[10px]">PAST LOG</span>}
-                            </h3>
-                            <div className="flex flex-col gap-2">
-                                {todayQuests.map((quest) => (
-                                    <div key={quest.id} id={`source-${quest.id}`}>
-                                      <TodayItem
-                                        quest={quest}
-                                        onStatusChange={refetchQuests}
-                                        isPreviousDay={isPast} // Use isPast instead of isPreviousDay prop calculation
-                                        template={templates?.find(t => t.id === quest.templateId)}
-                                        onDragStart={(e) => handleDragStart(e, quest.id)}
-                                        onReorderStart={(e: any) => isToday && handleMouseDown(e, quest.id, 'sort')} // Reorder only today
-                                      />
-                                    </div>
-                                ))}
-                                {todayQuests.length === 0 && (
-                                    <div className="text-sm text-muted-foreground italic p-4 border border-dashed rounded-lg text-center">
-                                        No missions {isFuture ? 'scheduled yet' : 'found'}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>              <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
-                            <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
-                            {!isUsed && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
-                              </div>
-                            )}
-                            {!isUsed && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
-                              </div>
-                            )}
+                        {todayQuests.length === 0 && (
+                          <div className="text-sm text-muted-foreground italic p-4 border border-dashed rounded-lg text-center">
+                            No missions {isFuture ? 'scheduled yet' : 'found'}
                           </div>
-                        );
-                      })}
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+              <ConnectionLines quests={todayQuests} parentRef={containerRef} templates={templates || []} onUnlink={handleUnlink} />
+            </div>
           </section>
 
           {dragState.active && dragState.itemId && (
