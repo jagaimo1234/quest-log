@@ -55,6 +55,7 @@ const TIME_SLOT_WIDTH = "w-20";
 
 function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
+  const [questType, setQuestType] = useState("Free");
   const createQuest = trpc.quest.create.useMutation();
 
   const createTemplate = trpc.template.create.useMutation();
@@ -75,12 +76,17 @@ function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
     } else {
       // Normal One-off -> Create Quest
       const status = type === "Free" ? "accepted" : "unreceived";
+      const startDateStr = formData.get("startDate") as string;
+      const deadlineStr = formData.get("deadline") as string;
       await createQuest.mutateAsync({
         questName: formData.get("questName") as string,
         questType: type as any,
         difficulty: formData.get("difficulty") as any,
         status: status,
-      });
+        startDate: startDateStr ? new Date(startDateStr) : undefined,
+        deadline: deadlineStr ? new Date(deadlineStr) : undefined,
+        autoDeadline: false,
+      } as any);
     }
     setOpen(false);
     onCreated();
@@ -96,7 +102,7 @@ function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div><Label>Name</Label><Input name="questName" required /></div>
           <div><Label>Type</Label>
-            <Select name="questType" defaultValue="Free">
+            <Select name="questType" defaultValue="Free" value={questType} onValueChange={setQuestType}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Free">One-off (Today)</SelectItem>
@@ -104,6 +110,18 @@ function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
               </SelectContent>
             </Select>
           </div>
+          {questType === "Free" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Start Date</Label>
+                <Input name="startDate" type="date" className="text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Deadline</Label>
+                <Input name="deadline" type="date" className="text-xs" />
+              </div>
+            </div>
+          )}
           <input type="hidden" name="difficulty" value="1" />
           <Button type="submit">Create</Button>
         </form>
