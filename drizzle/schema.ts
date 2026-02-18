@@ -235,6 +235,7 @@ export const memos = sqliteTable("memos", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("userId").notNull(),
   content: text("content").notNull(),
+  done: integer("done", { mode: "boolean" }).default(false).notNull(),
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
 

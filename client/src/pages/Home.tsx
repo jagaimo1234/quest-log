@@ -1029,6 +1029,7 @@ export default function Home() {
   const { data: memoList, refetch: refetchMemos } = trpc.memo.list.useQuery();
   const createMemo = trpc.memo.create.useMutation();
   const deleteMemo = trpc.memo.delete.useMutation();
+  const toggleMemo = trpc.memo.toggle.useMutation();
   const handleSaveMemo = async () => {
     if (!memoInput.trim()) return;
     await createMemo.mutateAsync({ content: memoInput.trim() });
@@ -1038,6 +1039,10 @@ export default function Home() {
   };
   const handleDeleteMemo = async (id: number) => {
     await deleteMemo.mutateAsync({ id });
+    refetchMemos();
+  };
+  const handleToggleMemo = async (id: number, currentDone: boolean) => {
+    await toggleMemo.mutateAsync({ id, done: !currentDone });
     refetchMemos();
   };
 
@@ -1359,9 +1364,15 @@ export default function Home() {
                   {!memoList?.length ? <div className="text-xs text-muted-foreground px-1 italic">No memos yet.</div> : (
                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
                       {memoList.map((memo: any) => (
-                        <div key={memo.id} className="group flex items-start justify-between p-2 rounded-lg border border-amber-100 bg-white text-xs">
+                        <div key={memo.id} className={`group flex items-start gap-2 p-2 rounded-lg border ${memo.done ? 'border-emerald-100 bg-emerald-50/30' : 'border-amber-100 bg-white'} text-xs`}>
+                          <button
+                            onClick={() => handleToggleMemo(memo.id, memo.done)}
+                            className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${memo.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-amber-400'}`}
+                          >
+                            {memo.done && <CheckCircle2 className="w-3 h-3" />}
+                          </button>
                           <div className="min-w-0 flex-1">
-                            <div className="text-slate-700 whitespace-pre-wrap">{memo.content}</div>
+                            <div className={`text-slate-700 whitespace-pre-wrap ${memo.done ? 'line-through opacity-50' : ''}`}>{memo.content}</div>
                             <div className="text-[9px] text-slate-300 mt-1">{new Date(memo.createdAt).toLocaleDateString()}</div>
                           </div>
                           <Button

@@ -527,6 +527,17 @@ export const appRouter = router({
         );
         return { success: true };
       }),
+
+    toggle: protectedProcedure
+      .input(z.object({ id: z.number(), done: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.update(memos)
+          .set({ done: input.done })
+          .where(and(eq(memos.id, input.id), eq(memos.userId, ctx.user!.id)));
+        return { success: true };
+      }),
   }),
 });
 
