@@ -228,3 +228,15 @@ export const projects = sqliteTable("projects", {
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
 
+/**
+ * 改善メモテーブル
+ */
+export const memos = sqliteTable("memos", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  content: text("content").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type Memo = typeof memos.$inferSelect;
+export type InsertMemo = typeof memos.$inferInsert;

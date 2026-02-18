@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -1023,6 +1023,24 @@ export default function Home() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const { data: historyItems } = trpc.quest.getQuestHistory.useQuery({ type: "Free", limit: 20 });
 
+  // Memo
+  const [isMemoOpen, setIsMemoOpen] = useState(false);
+  const [memoInput, setMemoInput] = useState("");
+  const { data: memoList, refetch: refetchMemos } = trpc.memo.list.useQuery();
+  const createMemo = trpc.memo.create.useMutation();
+  const deleteMemo = trpc.memo.delete.useMutation();
+  const handleSaveMemo = async () => {
+    if (!memoInput.trim()) return;
+    await createMemo.mutateAsync({ content: memoInput.trim() });
+    setMemoInput("");
+    refetchMemos();
+    toast.success("Memo saved");
+  };
+  const handleDeleteMemo = async (id: number) => {
+    await deleteMemo.mutateAsync({ id });
+    refetchMemos();
+  };
+
   const handleRestoreHistory = async (item: any) => {
     await createQuest.mutateAsync({
       questName: item.questName,
@@ -1296,6 +1314,63 @@ export default function Home() {
                           </div>
                           <Button size="icon" variant="ghost" className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-400">
                             <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
+            <div className="h-px bg-border/50 my-6" />
+
+            {/* SHELF 7: KAIZEN MEMO (Collapsible) */}
+            <section>
+              <div
+                onClick={(e) => { e.stopPropagation(); setIsMemoOpen(!isMemoOpen); }}
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-amber-50/50 rounded-md py-1 transition-colors select-none"
+              >
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
+                    <MessageSquarePlus className="w-3 h-3" /> KAIZEN MEMO
+                  </h2>
+                  <span className="text-[10px] text-muted-foreground bg-amber-50 px-1.5 rounded-sm">Improvements</span>
+                </div>
+                <div className="text-amber-400">
+                  {isMemoOpen ? "▼" : "▶"}
+                </div>
+              </div>
+
+              {isMemoOpen && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      value={memoInput}
+                      onChange={(e) => setMemoInput(e.target.value)}
+                      placeholder="改善アイデアを入力..."
+                      className="text-xs flex-1"
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveMemo(); } }}
+                    />
+                    <Button size="sm" onClick={handleSaveMemo} disabled={createMemo.isPending || !memoInput.trim()} className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3">
+                      Save
+                    </Button>
+                  </div>
+                  {!memoList?.length ? <div className="text-xs text-muted-foreground px-1 italic">No memos yet.</div> : (
+                    <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                      {memoList.map((memo: any) => (
+                        <div key={memo.id} className="group flex items-start justify-between p-2 rounded-lg border border-amber-100 bg-white text-xs">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-slate-700 whitespace-pre-wrap">{memo.content}</div>
+                            <div className="text-[9px] text-slate-300 mt-1">{new Date(memo.createdAt).toLocaleDateString()}</div>
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="w-5 h-5 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-destructive shrink-0 ml-1"
+                            onClick={() => handleDeleteMemo(memo.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       ))}

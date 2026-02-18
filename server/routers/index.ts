@@ -39,7 +39,7 @@ import {
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
 import { eq, and, desc } from "drizzle-orm";
-import { questHistory } from "../../drizzle/schema.js";
+import { questHistory, memos } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
 
@@ -490,6 +490,43 @@ export const appRouter = router({
       await resetStreakIfNeeded(ctx.user!.id);
       return getUserProgression(ctx.user!.id);
     }),
+  }),
+
+  // ============================================
+  // 改善メモ管理
+  // ============================================
+  memo: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      return db.select().from(memos)
+        .where(eq(memos.userId, ctx.user!.id))
+        .orderBy(desc(memos.createdAt))
+        .limit(50);
+    }),
+
+    create: protectedProcedure
+      .input(z.object({ content: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const result = await db.insert(memos).values({
+          userId: ctx.user!.id,
+          content: input.content,
+        }).returning();
+        return result[0];
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(memos).where(
+          and(eq(memos.id, input.id), eq(memos.userId, ctx.user!.id))
+        );
+        return { success: true };
+      }),
   }),
 });
 
