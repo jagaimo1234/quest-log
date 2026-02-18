@@ -728,8 +728,19 @@ export default function Home() {
   }, [activeQuests]);
 
   const todayQuests = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     // Filter active quests (Show 'failed' as gray, exclude others like 'cancelled' if any)
-    const filtered = activeQuests?.filter(q => ["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) || [];
+    // Also exclude quests whose startDate is in the future
+    const filtered = activeQuests?.filter(q => {
+      if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
+      if (q.startDate) {
+        const start = new Date(q.startDate);
+        start.setHours(0, 0, 0, 0);
+        if (start > today) return false; // Not yet started
+      }
+      return true;
+    }) || [];
 
     // Sort based on local orderedIds state (optimistic UI)
     return filtered.sort((a, b) => {
