@@ -751,16 +751,19 @@ export default function Home() {
     // Filter active quests for the selected planning date
     const filtered = activeQuests?.filter(q => {
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
-      if (q.startDate) {
+      if (planningDayOffset > 0) {
+        // Tomorrow view: only show quests whose startDate is the target date
+        if (!q.startDate) return false;
         const start = new Date(q.startDate);
         start.setHours(0, 0, 0, 0);
-        if (start > targetDate) return false; // Not yet started by target date
-      }
-      // When viewing tomorrow, hide quests that have a deadline before tomorrow
-      if (planningDayOffset > 0 && q.deadline) {
-        const dl = new Date(q.deadline);
-        dl.setHours(23, 59, 59, 999);
-        if (dl < targetDate) return false; // Deadline already passed by target date
+        if (start.getTime() !== targetDate.getTime()) return false;
+      } else {
+        // Today view: hide quests with future startDate
+        if (q.startDate) {
+          const start = new Date(q.startDate);
+          start.setHours(0, 0, 0, 0);
+          if (start > targetDate) return false;
+        }
       }
       return true;
     }) || [];
