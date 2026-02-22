@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -690,6 +690,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("today");
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRelaxOpen, setIsRelaxOpen] = useState(false);
+  const [planningDayOffset, setPlanningDayOffset] = useState(0); // 0=today, 1=tomorrow
 
   const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, { enabled: isAuthenticated });
   const { data: templates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
@@ -742,16 +743,24 @@ export default function Home() {
   }, [activeQuests]);
 
   const todayQuests = React.useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    // Filter active quests (Show 'failed' as gray, exclude others like 'cancelled' if any)
-    // Also exclude quests whose startDate is in the future
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + planningDayOffset);
+    targetDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    // Filter active quests for the selected planning date
     const filtered = activeQuests?.filter(q => {
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
       if (q.startDate) {
         const start = new Date(q.startDate);
         start.setHours(0, 0, 0, 0);
-        if (start > today) return false; // Not yet started
+        if (start > targetDate) return false; // Not yet started by target date
+      }
+      // When viewing tomorrow, hide quests that have a deadline before tomorrow
+      if (planningDayOffset > 0 && q.deadline) {
+        const dl = new Date(q.deadline);
+        dl.setHours(23, 59, 59, 999);
+        if (dl < targetDate) return false; // Deadline already passed by target date
       }
       return true;
     }) || [];
@@ -765,7 +774,7 @@ export default function Home() {
       if (indexB === -1) return -1;
       return indexA - indexB;
     });
-  }, [activeQuests, orderedIds]);
+  }, [activeQuests, orderedIds, planningDayOffset]);
 
   const timeSlots = Array.from({ length: 18 }, (_, i) => {
     const hour = i + 6;
@@ -1106,8 +1115,26 @@ export default function Home() {
 
             {/* SHELF 1: TODAY */}
             <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Today Planning</h2>
+              <div className="flex items-center gap-2 px-1">
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                  {planningDayOffset === 0 ? "Today" : "Tomorrow"} Planning
+                </h2>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setPlanningDayOffset(Math.max(0, planningDayOffset - 1))}
+                    disabled={planningDayOffset === 0}
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-20 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  <button
+                    onClick={() => setPlanningDayOffset(Math.min(1, planningDayOffset + 1))}
+                    disabled={planningDayOffset === 1}
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-20 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
                 <span className="text-xs text-muted-foreground">{todayQuests.length} tasks</span>
               </div>
               <div className="relative">
