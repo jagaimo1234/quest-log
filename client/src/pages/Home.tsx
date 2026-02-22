@@ -1051,18 +1051,48 @@ export default function Home() {
 
   const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
 
-  const handleReceiveFix = async (questId: number) => { await updateStatus.mutateAsync({ questId, status: "accepted" }); toast.success("Received"); refreshAll(); };
-  const handleReceiveNonFix = async (template: any) => { await createQuest.mutateAsync({ questName: template.questName, questType: template.questType, difficulty: template.difficulty, templateId: template.id, status: "accepted" } as any); toast.success("Received"); refreshAll(); };
+  // Helper: compute startDate for planning offset
+  const getPlanningStartDate = () => {
+    if (planningDayOffset <= 0) return undefined;
+    const d = new Date();
+    d.setDate(d.getDate() + planningDayOffset);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const handleReceiveFix = async (questId: number) => {
+    await updateStatus.mutateAsync({ questId, status: "accepted" });
+    // If planning for tomorrow, set startDate
+    const sd = getPlanningStartDate();
+    if (sd) {
+      await updateQuest.mutateAsync({ questId, startDate: sd });
+    }
+    toast.success("Received");
+    refreshAll();
+  };
+  const handleReceiveNonFix = async (template: any) => {
+    await createQuest.mutateAsync({
+      questName: template.questName,
+      questType: template.questType,
+      difficulty: template.difficulty,
+      templateId: template.id,
+      status: "accepted",
+      startDate: getPlanningStartDate(),
+    } as any);
+    toast.success("Received");
+    refreshAll();
+  };
 
   // Create Instance from Project Template
   const handleReceiveProject = async (template: any) => {
     await createQuest.mutateAsync({
       questName: template.questName,
-      projectName: template.parentProjectName || template.projectName, // Use Parent Project Name
+      projectName: template.parentProjectName || template.projectName,
       questType: "Project" as any,
       difficulty: template.difficulty,
       templateId: template.id,
-      status: "accepted"
+      status: "accepted",
+      startDate: getPlanningStartDate(),
     } as any);
     toast.success("Started Project Task");
     refreshAll();
@@ -1075,7 +1105,8 @@ export default function Home() {
       questType: "Relax" as any,
       difficulty: "1",
       templateId: template.id,
-      status: "accepted"
+      status: "accepted",
+      startDate: getPlanningStartDate(),
     } as any);
     toast.success("Add Relax Mission");
     refreshAll();

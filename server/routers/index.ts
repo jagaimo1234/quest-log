@@ -258,6 +258,7 @@ export const appRouter = router({
         projectName: z.string().optional().nullable(),
         questType: z.enum(["Daily", "Weekly", "Monthly", "Yearly", "Free", "Relax"]).optional(),
         difficulty: z.enum(["1", "2", "3"]).optional(),
+        startDate: z.date().optional().nullable(),
         deadline: z.date().optional().nullable(),
         plannedTimeSlot: z.string().optional().nullable(),
         note: z.string().optional().nullable(),

@@ -448,7 +448,7 @@ export async function updateQuest(
     projectName?: string | null;
     questType?: "Daily" | "Weekly" | "Monthly" | "Yearly" | "Free" | "Project" | "Relax";
     difficulty?: "1" | "2" | "3";
-    deadline?: Date | null;
+    startDate?: Date | null;
     deadline?: Date | null;
     plannedTimeSlot?: string | null;
     note?: string | null;
@@ -466,6 +466,7 @@ export async function updateQuest(
   if (input.questType !== undefined) updateData.questType = input.questType;
   if (input.difficulty !== undefined) updateData.difficulty = input.difficulty;
   if (input.plannedTimeSlot !== undefined) updateData.plannedTimeSlot = input.plannedTimeSlot;
+  if (input.startDate !== undefined) updateData.startDate = input.startDate;
   if (input.deadline !== undefined) updateData.deadline = input.deadline;
   if (input.note !== undefined) updateData.note = input.note;
 
