@@ -724,9 +724,20 @@ export default function Home() {
   const updateOrderMutation = trpc.quest.updateOrder.useMutation();
 
   // Initialize orderedIds from activeQuests (which are sorted by displayOrder from server)
+  // Only reset when the actual set of quest IDs changes (add/remove), NOT on data updates
   useEffect(() => {
     if (activeQuests) {
-      setOrderedIds(activeQuests.map(q => q.id));
+      const serverIds = activeQuests.map(q => q.id);
+      const currentIdSet = new Set(orderedIds);
+      const serverIdSet = new Set(serverIds);
+      // Check if same set of IDs
+      const sameIds = serverIds.length === orderedIds.length && serverIds.every(id => currentIdSet.has(id));
+      if (!sameIds) {
+        // IDs changed (quest added/removed) — merge: keep existing order, append new ones
+        const newIds = serverIds.filter(id => !currentIdSet.has(id));
+        const kept = orderedIds.filter(id => serverIdSet.has(id));
+        setOrderedIds([...kept, ...newIds]);
+      }
     }
   }, [activeQuests]);
 
