@@ -56,17 +56,25 @@ const TIME_SLOT_WIDTH = "w-20";
 function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: () => void, planningDayOffset?: number }) {
   const [open, setOpen] = useState(false);
   const [questType, setQuestType] = useState("Free");
+  const [startDateVal, setStartDateVal] = useState("");
+  const [deadlineVal, setDeadlineVal] = useState("");
   const createQuest = trpc.quest.create.useMutation();
 
   const createTemplate = trpc.template.create.useMutation();
 
-  // Compute default start date based on planning offset
-  const defaultStartDate = React.useMemo(() => {
-    if (planningDayOffset <= 0) return "";
-    const d = new Date();
-    d.setDate(d.getDate() + planningDayOffset);
-    return format(d, "yyyy-MM-dd");
-  }, [planningDayOffset]);
+  // When dialog opens, auto-fill startDate based on planning offset
+  useEffect(() => {
+    if (open) {
+      if (planningDayOffset > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + planningDayOffset);
+        setStartDateVal(format(d, "yyyy-MM-dd"));
+      } else {
+        setStartDateVal("");
+      }
+      setDeadlineVal("");
+    }
+  }, [open, planningDayOffset]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -74,25 +82,21 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
     const type = formData.get("questType") as string;
 
     if (type === "Relax") {
-      // Relax Mission -> Create Template
       await createTemplate.mutateAsync({
         questName: formData.get("questName") as string,
         questType: "Relax",
         difficulty: "1",
-        frequency: 1, // Default
+        frequency: 1,
       });
     } else {
-      // Normal One-off -> Create Quest
       const status = type === "Free" ? "accepted" : "unreceived";
-      const startDateStr = formData.get("startDate") as string;
-      const deadlineStr = formData.get("deadline") as string;
       await createQuest.mutateAsync({
         questName: formData.get("questName") as string,
         questType: type as any,
         difficulty: formData.get("difficulty") as any,
         status: status,
-        startDate: startDateStr ? new Date(startDateStr) : (planningDayOffset > 0 ? new Date(defaultStartDate) : undefined),
-        deadline: deadlineStr ? new Date(deadlineStr) : undefined,
+        startDate: startDateVal ? new Date(startDateVal) : undefined,
+        deadline: deadlineVal ? new Date(deadlineVal) : undefined,
         autoDeadline: false,
       } as any);
     }
@@ -122,11 +126,11 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Start Date</Label>
-                <Input name="startDate" type="date" className="text-xs" defaultValue={defaultStartDate} />
+                <Input name="startDate" type="date" className="text-xs" value={startDateVal} onChange={(e) => setStartDateVal(e.target.value)} />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Deadline</Label>
-                <Input name="deadline" type="date" className="text-xs" />
+                <Input name="deadline" type="date" className="text-xs" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} />
               </div>
             </div>
           )}
@@ -1190,14 +1194,8 @@ export default function Home() {
                       <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
                       {timeSlots.map(slot => {
                         // Check if slot is used (use activeQuests to include failed/other statuses as "occupied" in log)
-                        const isUsed = activeQuests?.some(q => {
+                        const isUsed = todayQuests.some(q => {
                           if (!q.plannedTimeSlot) return false;
-                          // If failed/cleared, only count if it was updated today?
-                          // activeQuests already filters for today logic in getActiveQuests
-                          if (["failed", "cleared"].includes(q.status)) {
-                            // Check update time? getActiveQuests logic handles it.
-                          }
-
                           try {
                             const parsed = JSON.parse(q.plannedTimeSlot);
                             if (Array.isArray(parsed)) return parsed.includes(slot.id);
@@ -1205,7 +1203,7 @@ export default function Home() {
                           } catch {
                             return q.plannedTimeSlot === slot.id;
                           }
-                        }) || false;
+                        });
 
                         return (
                           <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
