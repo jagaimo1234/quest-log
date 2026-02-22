@@ -306,6 +306,9 @@ function TodayItem({
       }}
       onTouchStart={(e) => {
         if (!isPreviousDay) {
+          // Don't start drag if touching interactive elements (inputs, buttons, etc.)
+          const target = e.target as HTMLElement;
+          if (target.closest('input, textarea, button, a, select, label, [role="button"]')) return;
           startPress();
           onDragStart(e);
         }
@@ -838,7 +841,13 @@ export default function Home() {
       if (!dragState.active) return;
       const touch = e.touches[0];
       setDragState(prev => ({ ...prev, currentX: touch.clientX, currentY: touch.clientY }));
-      if (e.cancelable) e.preventDefault();
+      if (e.cancelable) {
+        // Don't preventDefault if touching inside a dialog (allows textarea scrolling/input)
+        const target = e.target as HTMLElement;
+        if (!target.closest('[role="dialog"]')) {
+          e.preventDefault();
+        }
+      }
 
       // Reorder Logic (Swiss Swap) - Touch
       if (dragState.mode === 'sort' && dragState.itemId) {
