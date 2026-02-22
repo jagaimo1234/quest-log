@@ -64,16 +64,20 @@ function parseLocalDate(dateStr: string): Date {
 
 function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: () => void, planningDayOffset?: number }) {
   const [open, setOpen] = useState(false);
+  const [questName, setQuestName] = useState("");
   const [questType, setQuestType] = useState("Free");
   const [startDateVal, setStartDateVal] = useState("");
   const [deadlineVal, setDeadlineVal] = useState("");
   const createQuest = trpc.quest.create.useMutation();
-
   const createTemplate = trpc.template.create.useMutation();
 
-  // When dialog opens, auto-fill startDate based on planning offset
+  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
+      setQuestName("");
+      setQuestType("Free");
+      setDeadlineVal("");
+      // Auto-set startDate to tomorrow when in Tomorrow view
       if (planningDayOffset > 0) {
         const d = new Date();
         d.setDate(d.getDate() + planningDayOffset);
@@ -81,30 +85,39 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
       } else {
         setStartDateVal("");
       }
-      setDeadlineVal("");
     }
   }, [open, planningDayOffset]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const type = formData.get("questType") as string;
+    if (!questName.trim()) return;
 
-    if (type === "Relax") {
+    if (questType === "Relax") {
       await createTemplate.mutateAsync({
-        questName: formData.get("questName") as string,
+        questName: questName.trim(),
         questType: "Relax",
         difficulty: "1",
         frequency: 1,
       });
     } else {
-      const status = type === "Free" ? "accepted" : "unreceived";
+      // Compute startDate: use form value if set, otherwise use planningDayOffset
+      let startDate: Date | undefined = undefined;
+      if (startDateVal) {
+        startDate = parseLocalDate(startDateVal);
+      } else if (planningDayOffset > 0) {
+        // Fallback: even if form is empty, set tomorrow's date
+        const d = new Date();
+        d.setDate(d.getDate() + planningDayOffset);
+        d.setHours(0, 0, 0, 0);
+        startDate = d;
+      }
+
       await createQuest.mutateAsync({
-        questName: formData.get("questName") as string,
-        questType: type as any,
-        difficulty: formData.get("difficulty") as any,
-        status: status,
-        startDate: startDateVal ? parseLocalDate(startDateVal) : undefined,
+        questName: questName.trim(),
+        questType: questType as any,
+        difficulty: "1",
+        status: "accepted",
+        startDate: startDate,
         deadline: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
         autoDeadline: false,
       } as any);
@@ -119,14 +132,14 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
         <Button size="icon" variant="ghost" className="h-6 w-6"><Plus className="w-4 h-4" /></Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Create Mission</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Create Mission {planningDayOffset > 0 ? "(Tomorrow)" : ""}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><Label>Name</Label><Input name="questName" required /></div>
+          <div><Label>Name</Label><Input value={questName} onChange={(e) => setQuestName(e.target.value)} required /></div>
           <div><Label>Type</Label>
-            <Select name="questType" defaultValue="Free" value={questType} onValueChange={setQuestType}>
+            <Select value={questType} onValueChange={setQuestType}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Free">One-off (Today)</SelectItem>
+                <SelectItem value="Free">One-off {planningDayOffset > 0 ? "(Tomorrow)" : "(Today)"}</SelectItem>
                 <SelectItem value="Relax">Relax Mission (Saved)</SelectItem>
               </SelectContent>
             </Select>
@@ -135,15 +148,14 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Start Date</Label>
-                <Input name="startDate" type="date" className="text-xs" value={startDateVal} onChange={(e) => setStartDateVal(e.target.value)} />
+                <Input type="date" className="text-xs" value={startDateVal} onChange={(e) => setStartDateVal(e.target.value)} />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Deadline</Label>
-                <Input name="deadline" type="date" className="text-xs" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} />
+                <Input type="date" className="text-xs" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} />
               </div>
             </div>
           )}
-          <input type="hidden" name="difficulty" value="1" />
           <Button type="submit">Create</Button>
         </form>
       </DialogContent>
