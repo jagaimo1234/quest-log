@@ -445,7 +445,7 @@ function FixItem({ quest, executedCount, onReceive }: { quest: any, executedCoun
 
 function NonFixItem({ template, history, onReceive }: { template: any, history: any[], onReceive: () => void }) {
   const now = new Date();
-  let periodStart = startOfWeek(now);
+  let periodStart = startOfWeek(now, { weekStartsOn: 1 });
   if (template.questType === "Monthly") periodStart = startOfMonth(now);
 
   const doneCount = history.filter(h =>
@@ -694,8 +694,8 @@ export default function Home() {
   const { data: unreceivedQuests } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
 
   const now = new Date();
-  const startRange = format(startOfWeek(startOfMonth(now)), 'yyyy-MM-dd');
-  const endRange = format(endOfWeek(endOfMonth(now)), 'yyyy-MM-dd');
+  const startRange = format(startOfWeek(startOfMonth(now), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const endRange = format(endOfWeek(endOfMonth(now), { weekStartsOn: 1 }), 'yyyy-MM-dd');
   const { data: history, refetch: refetchHistory } = trpc.history.list.useQuery({ startDate: startRange, endDate: endRange }, { enabled: isAuthenticated });
 
   const updateStatus = trpc.quest.updateStatus.useMutation();
@@ -981,7 +981,7 @@ export default function Home() {
 
     // Filter out if quota met
     if (!history) return true;
-    let periodStart = startOfWeek(now);
+    let periodStart = startOfWeek(now, { weekStartsOn: 1 });
     if (t.questType === "Monthly") periodStart = startOfMonth(now);
     const doneCount = history.filter(h => h.templateId === t.id && (isAfter(new Date(h.recordedAt), periodStart) || isEqual(new Date(h.recordedAt), periodStart))).length;
     return doneCount < (t.frequency || 1);

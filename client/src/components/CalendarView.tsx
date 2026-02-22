@@ -8,7 +8,7 @@ import { CalendarDetailDialog, type CalendarEvent } from "./CalendarDetailDialog
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 // Days of week for header
-const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
 
 // Color Definitions - SOURCE ONLY
 // Text set to slate-900 (Black) for high contrast on pastel backgrounds
@@ -34,14 +34,14 @@ export function CalendarView() {
     const getRange = () => {
         let start: Date, end: Date;
         if (viewMode === 'month') {
-            start = startOfWeek(startOfMonth(currentDate));
-            end = endOfWeek(endOfMonth(currentDate));
+            start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
+            end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
         } else if (viewMode === 'week') {
-            start = startOfWeek(currentDate);
-            end = endOfWeek(currentDate);
+            start = startOfWeek(currentDate, { weekStartsOn: 1 });
+            end = endOfWeek(currentDate, { weekStartsOn: 1 });
         } else { // day
             start = startOfDay(currentDate);
-            end = endOfWeek(currentDate); // Fetch a week around it just in case? Or just the day?
+            end = endOfWeek(currentDate, { weekStartsOn: 1 }); // Fetch a week around it just in case? Or just the day?
             // Fetching just the day is fine, but for consistency lets fetch the day.
             end = start; // same day
         }
@@ -74,11 +74,11 @@ export function CalendarView() {
     const calendarDays = useMemo(() => {
         let start: Date, end: Date;
         if (viewMode === 'month') {
-            start = startOfWeek(startOfMonth(currentDate));
-            end = endOfWeek(endOfMonth(currentDate));
+            start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
+            end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
         } else if (viewMode === 'week') {
-            start = startOfWeek(currentDate);
-            end = endOfWeek(currentDate);
+            start = startOfWeek(currentDate, { weekStartsOn: 1 });
+            end = endOfWeek(currentDate, { weekStartsOn: 1 });
         } else { // Day
             start = startOfDay(currentDate);
             end = startOfDay(currentDate);
@@ -303,7 +303,7 @@ export function CalendarView() {
             {viewMode !== 'day' && (
                 <div className={`grid ${gridClass} gap-1 mb-2`}>
                     {WEEKDAYS.map((day, i) => (
-                        <div key={day} className={`text-center text-[10px] font-medium py-1 ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-muted-foreground"}`}>
+                        <div key={day} className={`text-center text-[10px] font-medium py-1 ${i === 5 ? "text-blue-400" : i === 6 ? "text-red-400" : "text-muted-foreground"}`}>
                             {day}
                         </div>
                     ))}
