@@ -53,12 +53,20 @@ const TIME_SLOT_WIDTH = "w-20";
 // COMPONENTS
 // ------------------------------------------------------------------
 
-function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
+function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: () => void, planningDayOffset?: number }) {
   const [open, setOpen] = useState(false);
   const [questType, setQuestType] = useState("Free");
   const createQuest = trpc.quest.create.useMutation();
 
   const createTemplate = trpc.template.create.useMutation();
+
+  // Compute default start date based on planning offset
+  const defaultStartDate = React.useMemo(() => {
+    if (planningDayOffset <= 0) return "";
+    const d = new Date();
+    d.setDate(d.getDate() + planningDayOffset);
+    return format(d, "yyyy-MM-dd");
+  }, [planningDayOffset]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -83,7 +91,7 @@ function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
         questType: type as any,
         difficulty: formData.get("difficulty") as any,
         status: status,
-        startDate: startDateStr ? new Date(startDateStr) : undefined,
+        startDate: startDateStr ? new Date(startDateStr) : (planningDayOffset > 0 ? new Date(defaultStartDate) : undefined),
         deadline: deadlineStr ? new Date(deadlineStr) : undefined,
         autoDeadline: false,
       } as any);
@@ -114,7 +122,7 @@ function QuestCreateDialog({ onCreated }: { onCreated: () => void }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Start Date</Label>
-                <Input name="startDate" type="date" className="text-xs" />
+                <Input name="startDate" type="date" className="text-xs" defaultValue={defaultStartDate} />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Deadline</Label>
@@ -1103,7 +1111,7 @@ export default function Home() {
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"}><Database className="w-4 h-4 mr-1" /> DB</Button>
-              <QuestCreateDialog onCreated={refreshAll} />
+              <QuestCreateDialog onCreated={refreshAll} planningDayOffset={planningDayOffset} />
             </div>
           </div>
         </div>
