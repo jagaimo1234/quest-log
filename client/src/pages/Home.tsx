@@ -50,6 +50,15 @@ const MISSION_CARD_LAYOUT = "w-55 ml-0";
 const TIME_SLOT_WIDTH = "w-20";
 
 // ------------------------------------------------------------------
+// HELPERS
+// ------------------------------------------------------------------
+// Parse "yyyy-MM-dd" to Date at LOCAL midnight (new Date("yyyy-MM-dd") creates UTC midnight which shifts in JST)
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// ------------------------------------------------------------------
 // COMPONENTS
 // ------------------------------------------------------------------
 
@@ -95,8 +104,8 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
         questType: type as any,
         difficulty: formData.get("difficulty") as any,
         status: status,
-        startDate: startDateVal ? new Date(startDateVal) : undefined,
-        deadline: deadlineVal ? new Date(deadlineVal) : undefined,
+        startDate: startDateVal ? parseLocalDate(startDateVal) : undefined,
+        deadline: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
         autoDeadline: false,
       } as any);
     }
@@ -758,23 +767,20 @@ export default function Home() {
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + planningDayOffset);
     targetDate.setHours(0, 0, 0, 0);
-    const nextDay = new Date(targetDate);
-    nextDay.setDate(nextDay.getDate() + 1);
+    const targetDateStr = format(targetDate, "yyyy-MM-dd");
     // Filter active quests for the selected planning date
     const filtered = activeQuests?.filter(q => {
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
       if (planningDayOffset > 0) {
-        // Tomorrow view: only show quests whose startDate is the target date
+        // Tomorrow view: only show quests whose startDate matches tomorrow
         if (!q.startDate) return false;
-        const start = new Date(q.startDate);
-        start.setHours(0, 0, 0, 0);
-        if (start.getTime() !== targetDate.getTime()) return false;
+        const startStr = format(new Date(q.startDate), "yyyy-MM-dd");
+        if (startStr !== targetDateStr) return false;
       } else {
         // Today view: hide quests with future startDate
         if (q.startDate) {
-          const start = new Date(q.startDate);
-          start.setHours(0, 0, 0, 0);
-          if (start > targetDate) return false;
+          const startStr = format(new Date(q.startDate), "yyyy-MM-dd");
+          if (startStr > targetDateStr) return false;
         }
       }
       return true;
