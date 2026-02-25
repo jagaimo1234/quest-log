@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
@@ -738,6 +738,49 @@ export default function Home() {
   const updateStatus = trpc.quest.updateStatus.useMutation();
   const createQuest = trpc.quest.create.useMutation();
   const generateFromTemplates = trpc.template.generate.useMutation();
+  const updateOrder = trpc.quest.updateOrder.useMutation();
+
+  // ------------------------------------------------------------------
+  // CONFIG & JOB MODE
+  // ------------------------------------------------------------------
+  // Get Target Date (string format for DB query)
+  const targetDateStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + planningDayOffset);
+    return format(d, "yyyy-MM-dd");
+  }, [planningDayOffset]);
+
+  const { data: dailyConfig, refetch: refetchConfig } = trpc.config.getDaily.useQuery(
+    { date: targetDateStr },
+    { enabled: isAuthenticated, staleTime: 1000 * 60 } // Cache for 1 minute
+  );
+  const disableJobModeMutation = trpc.config.disableJobMode.useMutation();
+
+  const handleDisableJobMode = async () => {
+    await disableJobModeMutation.mutateAsync({ date: targetDateStr });
+    toast.success("Job Mode disabled for the day.");
+    refetchConfig();
+  };
+
+  // Determine if today is a weekday (Monday=1, Sunday=0)
+  const isWeekday = useMemo(() => {
+    const d = parseLocalDate(targetDateStr);
+    const day = d.getDay();
+    return day >= 1 && day <= 5;
+  }, [targetDateStr]);
+
+  const isJobModeActive = isWeekday && !dailyConfig?.jobModeDisabled;
+
+  // Render Time Slots (9:00 - 17:00 is Job Time)
+  const isJobSlot = (slotLabel: string) => {
+    const hour = parseInt(slotLabel.split(":")[0], 10);
+    return hour >= 9 && hour < 17; // 09:00 up to 16:00 (16:00-17:00 block)
+  };
+
+  const handleDragStart = (e: React.DragEvent | React.TouchEvent, id: number, mode: 'plan' | 'sort' = 'plan') => {
+    // Legacy drag start (can be removed or kept if needed else where)
+  };
+
   const updateQuest = trpc.quest.update.useMutation();
 
   useEffect(() => {
@@ -1159,7 +1202,7 @@ export default function Home() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold tracking-tight">Quest Log</h1>
           <div className="flex gap-4">
-            {progression?.currentStreak > 0 && <div className="flex items-center gap-1 text-orange-500 font-bold"><Flame className="fill-orange-500 w-5 h-5" /> {progression.currentStreak}</div>}
+            {(progression?.currentStreak ?? 0) > 0 && <div className="flex items-center gap-1 text-orange-500 font-bold"><Flame className="fill-orange-500 w-5 h-5" /> {progression?.currentStreak}</div>}
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
@@ -1210,7 +1253,7 @@ export default function Home() {
                    画面外（サイド）をタップすると：RELAX列は再び折りたたまれる
                 */}
                 <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]">
-                  <ConnectionLines quests={todayQuests} parentRef={containerRef} templates={templates || []} onUnlink={handleUnlink} />
+                  <ConnectionLines quests={todayQuests} parentRef={containerRef as React.RefObject<HTMLDivElement>} templates={templates || []} onUnlink={handleUnlink} />
 
                   <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
                     {todayQuests.map(q => (
@@ -1237,7 +1280,6 @@ export default function Home() {
                     ))}
                   </div>
 
-                  {/* Right Log (Time Slots) */}
                   <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
                     <div className="flex flex-col gap-1 w-full pb-10">
                       <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
@@ -1257,44 +1299,74 @@ export default function Home() {
                         return (
                           <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
                             <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
+                            {/* Wait, the user specified: "job mode time slots are released if a mission card is linked" - which means if isUsed is true, we don't show the JOB stamp either! */}
                             {!isUsed && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
-                              </div>
-                            )}
-                            {!isUsed && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
-                              </div>
+                              <>
+                                {isJobModeActive && isJobSlot(slot.label) ? (
+                                  <>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                                      <img src="/job_stamp.png" alt="job" className="w-16 opacity-50 -rotate-12 select-none" />
+                                    </div>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                      <img src="/job_stamp.png" alt="job" className="w-12 opacity-30 -rotate-12 select-none" />
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                                      <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
+                                    </div>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                      <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
+                                    </div>
+                                  </>
+                                )}
+                              </>
                             )}
                           </div>
                         );
                       })}
                     </div>
+
+                    {/* Job Mode Disable Button */}
+                    {isJobModeActive && (
+                      <div className="absolute bottom-0 left-0 right-0 flex justify-center w-full px-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-[10px] h-6 border-dashed"
+                          onClick={handleDisableJobMode}
+                        >
+                          Job Mode 解除
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </section>
 
-            {dragState.active && dragState.itemId && (
-              <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
-                {(() => {
-                  const q = todayQuests.find(i => i.id === dragState.itemId);
-                  if (!q) return null;
-                  return (
-                    <TodayItem
-                      quest={q}
-                      templates={templates || []}
-                      onStatusChange={refreshAll}
-                      onDragStart={(e) => {
-                        if ('touches' in e) handleTouchStart(e as any, q.id);
-                        else handleMouseDown(e as any, q.id);
-                      }}
-                    />
-                  );
-                })()}
-              </div>
-            )}
+            {
+              dragState.active && dragState.itemId && (
+                <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
+                  {(() => {
+                    const q = todayQuests.find(i => i.id === dragState.itemId);
+                    if (!q) return null;
+                    return (
+                      <TodayItem
+                        quest={q}
+                        templates={templates || []}
+                        onStatusChange={refreshAll}
+                        onDragStart={(e) => {
+                          if ('touches' in e) handleTouchStart(e as any, q.id);
+                          else handleMouseDown(e as any, q.id);
+                        }}
+                      />
+                    );
+                  })()}
+                </div>
+              )
+            }
 
             <div className="h-px bg-border/50 my-6" />
 
@@ -1303,12 +1375,14 @@ export default function Home() {
               <div className="flex items-center justify-between mb-3 px-1">
                 <h2 className="text-xs font-bold text-sky-500 uppercase tracking-wider">FIX (Scheduled)</h2>
               </div>
-              {fixShelfQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No scheduled tasks.</div> : (
-                <div>{fixShelfQuests.map(q => {
-                  const t = templates?.find(tp => tp.id === q.templateId);
-                  return <FixItem key={q.id} quest={q} executedCount={t?.executedCount || 0} onReceive={() => handleReceiveFix(q.id)} />;
-                })}</div>
-              )}
+              {
+                fixShelfQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No scheduled tasks.</div> : (
+                  <div>{fixShelfQuests.map(q => {
+                    const t = templates?.find(tp => tp.id === q.templateId);
+                    return <FixItem key={q.id} quest={q} executedCount={t?.executedCount || 0} onReceive={() => handleReceiveFix(q.id)} />;
+                  })}</div>
+                )
+              }
             </section>
 
             <div className="h-px bg-border/50 my-6" />

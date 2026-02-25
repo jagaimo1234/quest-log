@@ -241,3 +241,16 @@ export const memos = sqliteTable("memos", {
 
 export type Memo = typeof memos.$inferSelect;
 export type InsertMemo = typeof memos.$inferInsert;
+
+/**
+ * 日次設定テーブル (Daily Config)
+ */
+export const dailyConfig = sqliteTable("daily_config", {
+  userId: integer("userId").notNull(),
+  date: text("date").notNull(), // format: YYYY-MM-DD
+  jobModeDisabled: integer("jobModeDisabled", { mode: "boolean" }).default(false).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type DailyConfig = typeof dailyConfig.$inferSelect;
+export type InsertDailyConfig = typeof dailyConfig.$inferInsert;

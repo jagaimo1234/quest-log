@@ -3,22 +3,25 @@ import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import { format } from "date-fns";
 import {
-  InsertUser,
   users,
+  InsertUser,
   quests,
-  questTemplates,
-  questHistory,
-  userProgression,
   Quest,
-  QuestTemplate,
-  QuestHistory,
-  UserProgression,
   InsertQuest,
+  questTemplates,
+  QuestTemplate,
+  questHistory,
+  QuestHistory,
   InsertQuestTemplate,
   InsertQuestHistory,
+  userProgression,
+  UserProgression,
   projects,
-  InsertProject,
   Project,
+  InsertProject,
+  memos,
+  dailyConfig,
+  InsertDailyConfig,
 } from "../drizzle/schema.js";
 import { ENV } from './_core/env.js';
 
@@ -1403,4 +1406,34 @@ export async function updateQuestOrder(userId: number, updates: { id: number, or
   });
 
   return true;
+}
+
+// ============================================
+// 日次設定（Daily Config）
+// ============================================
+
+export async function getDailyConfig(userId: number, date: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const [config] = await db.select().from(dailyConfig).where(and(eq(dailyConfig.userId, userId), eq(dailyConfig.date, date)));
+  return config || { userId, date, jobModeDisabled: false };
+}
+
+export async function updateDailyConfig(userId: number, date: string, jobModeDisabled: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await getDailyConfig(userId, date);
+  // @ts-ignore - DB mock difference in return type
+  if (existing && 'updatedAt' in existing) {
+    await db.update(dailyConfig)
+      .set({ jobModeDisabled, updatedAt: new Date() })
+      .where(and(eq(dailyConfig.userId, userId), eq(dailyConfig.date, date)));
+  } else {
+    await db.insert(dailyConfig).values({
+      userId,
+      date,
+      jobModeDisabled,
+    });
+  }
 }

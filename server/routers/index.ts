@@ -35,6 +35,8 @@ import {
   migrateLegacyProjects,
   fixInconsistentData,
   updateQuestOrder,
+  getDailyConfig,
+  updateDailyConfig,
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
@@ -539,6 +541,24 @@ export const appRouter = router({
           .where(and(eq(memos.id, input.id), eq(memos.userId, ctx.user!.id)));
         return { success: true };
       }),
+  }),
+
+  // ==========================================
+  // 日次設定（Daily Config） ルーター
+  // ==========================================
+  config: router({
+    getDaily: protectedProcedure
+      .input(z.object({ date: z.string() }))
+      .query(async ({ ctx, input }) => {
+        return getDailyConfig(ctx.user!.id, input.date);
+      }),
+
+    disableJobMode: protectedProcedure
+      .input(z.object({ date: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        await updateDailyConfig(ctx.user!.id, input.date, true);
+        return { success: true };
+      })
   }),
 });
 

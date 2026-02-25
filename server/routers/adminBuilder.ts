@@ -78,7 +78,7 @@ export const adminRouter = router({
             let orderBy = desc(table.id); // Default to ID desc
             if (input.sortBy && input.sortBy in table) {
                 const column = table[input.sortBy as keyof typeof table];
-                orderBy = input.sortOrder === "asc" ? asc(column) : desc(column);
+                orderBy = input.sortOrder === "asc" ? asc(column as any) : desc(column as any);
             } else if ('createdAt' in table) {
                 // @ts-ignore - we know it has createdAt if check passes commonly
                 orderBy = desc(table.createdAt);
