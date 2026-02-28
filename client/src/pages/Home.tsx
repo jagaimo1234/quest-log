@@ -461,13 +461,22 @@ function TodayItem({
 }
 
 function FixItem({ quest, executedCount, onReceive }: { quest: any, executedCount: number, onReceive: () => void }) {
+  const isCompleted = quest.status === "cleared";
+
   return (
-    <div onClick={onReceive} className="cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-sky-200 bg-white hover:bg-sky-50 transition-all shadow-sm">
-      <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center group-hover:bg-sky-200 transition-colors">
-        <Plus className="w-4 h-4" />
+    <div onClick={isCompleted ? undefined : onReceive} className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-sky-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-sky-50'}`}>
+      {isCompleted && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
+          <div className="text-2xl font-black text-sky-500/50 -rotate-12 border-4 border-sky-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
+            CLEAR
+          </div>
+        </div>
+      )}
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-sky-50 text-sky-300' : 'bg-sky-100 text-sky-600 group-hover:bg-sky-200 transition-colors'}`}>
+        {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
       </div>
-      <div className="flex-1">
-        <div className="text-xs font-bold text-sky-900">
+      <div className="flex-1 min-w-0">
+        <div className={`text-xs font-bold truncate ${isCompleted ? 'text-sky-700/60' : 'text-sky-900'}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
         <div className="flex items-center gap-2">
@@ -493,16 +502,23 @@ function NonFixItem({ template, history, onReceive }: { template: any, history: 
   const isCompleted = doneCount >= quota;
 
   return (
-    <div onClick={onReceive} className="cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-fuchsia-200 bg-white hover:bg-fuchsia-50 transition-all shadow-sm">
-      <div className="w-8 h-8 rounded-full bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center group-hover:bg-fuchsia-200 transition-colors">
-        <Plus className="w-4 h-4" />
+    <div onClick={isCompleted ? undefined : onReceive} className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-fuchsia-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-fuchsia-50'}`}>
+      {isCompleted && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
+          <div className="text-2xl font-black text-fuchsia-500/50 -rotate-12 border-4 border-fuchsia-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
+            CLEAR
+          </div>
+        </div>
+      )}
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-fuchsia-50 text-fuchsia-300' : 'bg-fuchsia-100 text-fuchsia-600 group-hover:bg-fuchsia-200 transition-colors'}`}>
+        {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-0.5">
-          <div className="text-xs font-bold text-fuchsia-900">
+          <div className={`text-xs font-bold truncate ${isCompleted ? 'text-fuchsia-700/60' : 'text-fuchsia-900'}`}>
             {template.projectName ? `${template.questName} -${template.projectName}-` : template.questName}
           </div>
-          <span className="text-[9px] font-bold text-fuchsia-400">{doneCount}/{quota}</span>
+          <span className={`text-[9px] font-bold ${isCompleted ? 'text-fuchsia-300' : 'text-fuchsia-400'}`}>{doneCount}/{quota}</span>
         </div>
         <div className="flex justify-between items-end">
           <div className="flex flex-col gap-0.5">
@@ -1063,7 +1079,28 @@ export default function Home() {
   };
 
   // SHELF LOGIC
-  const fixShelfQuests = unreceivedQuests?.filter(q => q.questType !== "Project" && q.questType !== "Relax") || []; // RELAX uses templates directly
+  const fixShelfQuests = [
+    ...(unreceivedQuests?.filter(q => q.questType !== "Project" && q.questType !== "Relax") || []),
+    ...(activeQuests?.filter(q => {
+      if (q.questType === "Project" || q.questType === "Relax" || q.questType === "Free") return false;
+      if (q.status !== "cleared") return false;
+
+      // Target date matching (only show cleared quests if they were scheduled for today/tomorrow depending on offset)
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + planningDayOffset);
+      const targetStr = format(targetDate, "yyyy-MM-dd");
+      if (q.startDate && format(new Date(q.startDate), "yyyy-MM-dd") !== targetStr) return false;
+
+      // Check if it belongs to a FIX template (not a pool template)
+      return templates?.some(t => {
+        if (t.id !== q.templateId) return false;
+        const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
+          (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
+          (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
+        return !isPool;
+      });
+    }) || [])
+  ].sort((a, b) => a.id - b.id);
 
   // Project Shelf Logic (Now based on Templates)
   const projectTemplates = templates?.filter(t => {
@@ -1082,14 +1119,7 @@ export default function Home() {
     const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
       (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
       (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
-    if (!isPool) return false;
-
-    // Filter out if quota met
-    if (!history) return true;
-    let periodStart = startOfWeek(now, { weekStartsOn: 1 });
-    if (t.questType === "Monthly") periodStart = startOfMonth(now);
-    const doneCount = history.filter(h => h.templateId === t.id && (isAfter(new Date(h.recordedAt), periodStart) || isEqual(new Date(h.recordedAt), periodStart))).length;
-    return doneCount < (t.frequency || 1);
+    return isPool;
   }) || [];
 
   const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
