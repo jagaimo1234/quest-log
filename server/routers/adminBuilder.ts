@@ -9,7 +9,8 @@ import {
     users,
     questTemplates,
     projects,
-    userProgression
+    userProgression,
+    dailyInsights
 } from "../../drizzle/schema.js";
 import { eq, desc, asc, sql, and, getTableColumns } from "drizzle-orm";
 
@@ -20,7 +21,8 @@ const tables = {
     users,
     questTemplates,
     projects,
-    userProgression
+    userProgression,
+    dailyInsights
 } as const;
 
 type TableName = keyof typeof tables;
