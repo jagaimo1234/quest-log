@@ -254,3 +254,19 @@ export const dailyConfig = sqliteTable("daily_config", {
 
 export type DailyConfig = typeof dailyConfig.$inferSelect;
 export type InsertDailyConfig = typeof dailyConfig.$inferInsert;
+
+/**
+ * 日次インサイトテーブル (Daily Insights)
+ */
+export const dailyInsights = sqliteTable("daily_insights", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  insight: text("insight").notNull(),
+  action: text("action"),
+  applied: integer("applied", { mode: "boolean" }).default(false).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  date: text("date").notNull(), // format: YYYY-MM-DD
+});
+
+export type DailyInsight = typeof dailyInsights.$inferSelect;
+export type InsertDailyInsight = typeof dailyInsights.$inferInsert;

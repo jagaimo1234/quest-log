@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -1212,6 +1212,32 @@ export default function Home() {
     refetchMemos();
   };
 
+  // Daily Insight
+  const [isInsightOpen, setIsInsightOpen] = useState(false);
+  const [insightInput, setInsightInput] = useState("");
+  const [insightActionInput, setInsightActionInput] = useState("");
+  const { data: insightsList, refetch: refetchInsights } = trpc.dailyInsight.list.useQuery({ date: targetDateStr });
+  const createInsight = trpc.dailyInsight.create.useMutation();
+  const toggleInsightApplied = trpc.dailyInsight.toggleApplied.useMutation();
+  const deleteInsight = trpc.dailyInsight.delete.useMutation();
+
+  const handleSaveInsight = async () => {
+    if (!insightInput.trim()) return;
+    await createInsight.mutateAsync({ insight: insightInput.trim(), action: insightActionInput.trim(), date: targetDateStr });
+    setInsightInput("");
+    setInsightActionInput("");
+    refetchInsights();
+    toast.success("Insight saved");
+  };
+  const handleDeleteInsight = async (id: number) => {
+    await deleteInsight.mutateAsync({ id });
+    refetchInsights();
+  };
+  const handleToggleInsight = async (id: number, currentApplied: boolean) => {
+    await toggleInsightApplied.mutateAsync({ id, applied: !currentApplied });
+    refetchInsights();
+  };
+
   const handleRestoreHistory = async (item: any) => {
     await createQuest.mutateAsync({
       questName: item.questName,
@@ -1589,6 +1615,91 @@ export default function Home() {
                             variant="ghost"
                             className="w-5 h-5 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-destructive shrink-0 ml-1"
                             onClick={() => handleDeleteMemo(memo.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
+            <div className="h-px bg-border/50 my-6" />
+
+            {/* SHELF 8: DAILY INSIGHT (Collapsible) */}
+            <section>
+              <div
+                onClick={(e) => { e.stopPropagation(); setIsInsightOpen(!isInsightOpen); }}
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-sky-50/50 rounded-md py-1 transition-colors select-none"
+              >
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center gap-1">
+                    <Lightbulb className="w-3 h-3" /> DAILY INSIGHT
+                  </h2>
+                  <span className="text-[10px] text-muted-foreground bg-sky-50 px-1.5 rounded-sm">Reflections & Actions</span>
+                </div>
+                <div className="text-sky-400">
+                  {isInsightOpen ? "▼" : "▶"}
+                </div>
+              </div>
+
+              {isInsightOpen && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3">
+                  <div className="flex flex-col gap-2 p-2 border border-sky-100 rounded-lg bg-white/50">
+                    <div className="flex gap-2">
+                      <Input
+                        value={insightInput}
+                        onChange={(e) => setInsightInput(e.target.value)}
+                        placeholder="💡 気づき・発見を入力... (必須)"
+                        className="text-xs flex-1"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={insightActionInput}
+                        onChange={(e) => setInsightActionInput(e.target.value)}
+                        placeholder="▶ アクション・ルール化... (任意)"
+                        className="text-xs flex-1"
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveInsight(); } }}
+                      />
+                      <Button size="sm" onClick={handleSaveInsight} disabled={createInsight.isPending || !insightInput.trim()} className="bg-sky-500 hover:bg-sky-600 text-white text-xs px-3">
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+
+                  {!insightsList?.length ? <div className="text-xs text-muted-foreground px-1 italic">No insights yet.</div> : (
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                      {insightsList.map((insight: any) => (
+                        <div key={insight.id} className={`group flex items-start gap-2 p-3 rounded-lg border ${insight.applied ? 'border-sky-100 bg-sky-50/30' : 'border-slate-100 bg-white'} text-xs relative`}>
+                          <button
+                            onClick={() => handleToggleInsight(insight.id, insight.applied)}
+                            title={insight.applied ? "仕組み化済み" : "仕組み・ルールに反映する"}
+                            className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${insight.applied ? 'bg-sky-500 border-sky-500 text-white' : 'border-slate-300 hover:border-sky-400'}`}
+                          >
+                            {insight.applied && <CheckCircle2 className="w-3 h-3" />}
+                          </button>
+
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className={`font-medium text-slate-700 whitespace-pre-wrap ${insight.applied ? 'opacity-70 line-through' : ''}`}>
+                              {insight.insight}
+                            </div>
+                            {insight.action && (
+                              <div className={`text-[11px] text-sky-600/90 flex items-start gap-1 mt-1 ${insight.applied ? 'opacity-70 line-through' : ''}`}>
+                                <ArrowRight className="w-3 h-3 shrink-0" />
+                                <span className="whitespace-pre-wrap">{insight.action}</span>
+                              </div>
+                            )}
+                            <div className="text-[9px] text-slate-300 pt-1">{new Date(insight.createdAt).toLocaleDateString()}</div>
+                          </div>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-destructive shrink-0"
+                            onClick={() => handleDeleteInsight(insight.id)}
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>

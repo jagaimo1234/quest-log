@@ -44,10 +44,12 @@ import { eq, and, desc } from "drizzle-orm";
 import { questHistory, memos } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
+import { dailyInsightRouter } from "./dailyInsight.js";
 
 export const appRouter = router({
   system: systemRouter,
   admin: adminRouter,
+  dailyInsight: dailyInsightRouter,
   auth: router({
     me: publicProcedure.query(({ ctx }) => ctx.user),
     logout: publicProcedure.mutation(({ ctx }: { ctx: TrpcContext }) => {

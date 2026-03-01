@@ -22,6 +22,9 @@ import {
   memos,
   dailyConfig,
   InsertDailyConfig,
+  dailyInsights,
+  DailyInsight,
+  InsertDailyInsight,
 } from "../drizzle/schema.js";
 import { ENV } from './_core/env.js';
 
