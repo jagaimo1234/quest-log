@@ -1216,7 +1216,7 @@ export default function Home() {
   const [isInsightOpen, setIsInsightOpen] = useState(false);
   const [insightInput, setInsightInput] = useState("");
   const [insightActionInput, setInsightActionInput] = useState("");
-  const { data: insightsList, refetch: refetchInsights } = trpc.dailyInsight.list.useQuery({ date: targetDateStr });
+  const { data: insightsList, refetch: refetchInsights } = trpc.dailyInsight.list.useQuery();
   const createInsight = trpc.dailyInsight.create.useMutation();
   const toggleInsightApplied = trpc.dailyInsight.toggleApplied.useMutation();
   const deleteInsight = trpc.dailyInsight.delete.useMutation();

@@ -7,18 +7,12 @@ import { eq, and, desc } from "drizzle-orm";
 
 export const dailyInsightRouter = router({
     list: protectedProcedure
-        .input(z.object({ date: z.string() }))
-        .query(async ({ ctx, input }: { ctx: TrpcContext, input: { date: string } }) => {
+        .query(async ({ ctx }: { ctx: TrpcContext }) => {
             const db = await getDb();
             return db
                 .select()
                 .from(dailyInsights)
-                .where(
-                    and(
-                        eq(dailyInsights.userId, ctx.user!.id),
-                        eq(dailyInsights.date, input.date)
-                    )
-                )
+                .where(eq(dailyInsights.userId, ctx.user!.id))
                 .orderBy(desc(dailyInsights.createdAt));
         }),
 
