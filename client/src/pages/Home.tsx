@@ -521,7 +521,7 @@ function FixItem({ quest, executedCount, onReceive }: { quest: any, executedCoun
   );
 }
 
-function NonFixItem({ template, history, onReceive }: { template: any, history: any[], onReceive: () => void }) {
+function NonFixItem({ template, history, onReceive, onDragStart }: { template: any, history: any[], onReceive: () => void, onDragStart?: (e: React.MouseEvent | React.TouchEvent) => void }) {
   const now = new Date();
   let periodStart = startOfWeek(now, { weekStartsOn: 1 });
   if (template.questType === "Monthly") periodStart = startOfMonth(now);
@@ -535,7 +535,18 @@ function NonFixItem({ template, history, onReceive }: { template: any, history: 
   const isCompleted = doneCount >= quota;
 
   return (
-    <div onClick={isCompleted ? undefined : onReceive} className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-fuchsia-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-fuchsia-50'}`}>
+    <div
+      onClick={isCompleted ? undefined : onReceive}
+      data-sort-template-id={template.id}
+      className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-fuchsia-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-fuchsia-50'}`}
+    >
+      <div
+        className="shrink-0 cursor-grab text-muted-foreground/50 hover:text-foreground active:cursor-grabbing p-1 -ml-1 z-20"
+        onMouseDown={(e) => { e.stopPropagation(); onDragStart && onDragStart(e); }}
+        onTouchStart={(e) => { e.stopPropagation(); onDragStart && onDragStart(e); }}
+      >
+        <GripVertical className="w-4 h-4" />
+      </div>
       {isCompleted && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
           <div className="text-2xl font-black text-fuchsia-500/50 -rotate-12 border-4 border-fuchsia-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
@@ -961,6 +972,9 @@ export default function Home() {
   const [orderedIds, setOrderedIds] = useState<number[]>([]);
   const updateOrderMutation = trpc.quest.updateOrder.useMutation();
 
+  const [orderedTemplateIds, setOrderedTemplateIds] = useState<number[]>([]);
+  const updateTemplateOrderMutation = trpc.template.updateOrder.useMutation();
+
   // Initialize orderedIds from activeQuests (which are sorted by displayOrder from server)
   // Only reset when the actual set of quest IDs changes (add/remove), NOT on data updates
   useEffect(() => {
@@ -978,6 +992,26 @@ export default function Home() {
       }
     }
   }, [activeQuests]);
+
+  useEffect(() => {
+    if (templates) {
+      const poolIds = templates.filter(t => {
+        const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
+          (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
+          (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
+        return isPool;
+      }).map(t => t.id);
+
+      const currentIdSet = new Set(orderedTemplateIds);
+      const serverIdSet = new Set(poolIds);
+      const sameIds = poolIds.length === orderedTemplateIds.length && poolIds.every(id => currentIdSet.has(id));
+      if (!sameIds) {
+        const newIds = poolIds.filter(id => !currentIdSet.has(id));
+        const kept = orderedTemplateIds.filter(id => serverIdSet.has(id));
+        setOrderedTemplateIds([...kept, ...newIds]);
+      }
+    }
+  }, [templates]);
 
   const todayQuests = React.useMemo(() => {
     const targetDate = new Date();
@@ -1027,7 +1061,7 @@ export default function Home() {
   const [dragState, setDragState] = useState<{
     active: boolean,
     itemId: number | null,
-    mode: 'plan' | 'sort', // 'plan' = time slot, 'sort' = reorder
+    mode: 'plan' | 'sort' | 'sort-template',
     startX: number,
     startY: number,
     currentX: number,
@@ -1036,7 +1070,7 @@ export default function Home() {
     active: false, itemId: null, mode: 'plan', startX: 0, startY: 0, currentX: 0, currentY: 0
   });
 
-  const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
+  const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' | 'sort-template' = 'plan') => {
     e.preventDefault();
     e.stopPropagation(); // Stop propagation to prevent conflict
     setDragState({
@@ -1050,7 +1084,7 @@ export default function Home() {
     });
   };
 
-  const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
+  const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' | 'sort-template' = 'plan') => {
     const touch = e.touches[0];
     e.stopPropagation();
     setDragState({
@@ -1081,14 +1115,30 @@ export default function Home() {
               const fromIndex = newOrder.indexOf(dragState.itemId!);
               const toIndex = newOrder.indexOf(targetId);
               if (fromIndex !== -1 && toIndex !== -1) {
-                // Remove and insert
                 newOrder.splice(fromIndex, 1);
                 newOrder.splice(toIndex, 0, dragState.itemId!);
+                return newOrder;
+              }
+              return prev;
+            });
+          }
+        }
+      }
 
-                // Debounce server update? Or just trigger it on drop?
-                // For simpler implementation, let's trigger it on drop (MouseUp) to avoid spamming.
-                // But wait, MouseUp logic doesn't have reference to the new order easily unless we store it.
-                // Actually, 'orderedIds' state is updated here.
+      // Reorder Logic Templates (Swiss Swap)
+      if (dragState.mode === 'sort-template' && dragState.itemId) {
+        const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+        const sortTarget = elementUnder?.closest('[data-sort-template-id]');
+        if (sortTarget) {
+          const targetId = Number(sortTarget.getAttribute('data-sort-template-id'));
+          if (targetId && targetId !== dragState.itemId) {
+            setOrderedTemplateIds(prev => {
+              const newOrder = [...prev];
+              const fromIndex = newOrder.indexOf(dragState.itemId!);
+              const toIndex = newOrder.indexOf(targetId);
+              if (fromIndex !== -1 && toIndex !== -1) {
+                newOrder.splice(fromIndex, 1);
+                newOrder.splice(toIndex, 0, dragState.itemId!);
                 return newOrder;
               }
               return prev;
@@ -1118,6 +1168,28 @@ export default function Home() {
           const targetId = Number(sortTarget.getAttribute('data-sort-id'));
           if (targetId && targetId !== dragState.itemId) {
             setOrderedIds(prev => {
+              const newOrder = [...prev];
+              const fromIndex = newOrder.indexOf(dragState.itemId!);
+              const toIndex = newOrder.indexOf(targetId);
+              if (fromIndex !== -1 && toIndex !== -1) {
+                newOrder.splice(fromIndex, 1);
+                newOrder.splice(toIndex, 0, dragState.itemId!);
+                return newOrder;
+              }
+              return prev;
+            });
+          }
+        }
+      }
+
+      // Reorder Logic Templates (Swiss Swap) - Touch
+      if (dragState.mode === 'sort-template' && dragState.itemId) {
+        const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+        const sortTarget = elementUnder?.closest('[data-sort-template-id]');
+        if (sortTarget) {
+          const targetId = Number(sortTarget.getAttribute('data-sort-template-id'));
+          if (targetId && targetId !== dragState.itemId) {
+            setOrderedTemplateIds(prev => {
               const newOrder = [...prev];
               const fromIndex = newOrder.indexOf(dragState.itemId!);
               const toIndex = newOrder.indexOf(targetId);
@@ -1186,6 +1258,8 @@ export default function Home() {
         // Create updates array
         const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
         updateOrderMutation.mutate(updates);
+      } else if (dragState.mode === 'sort-template') {
+        updateTemplateOrderMutation.mutate({ orderedIds: orderedTemplateIds });
       }
     };
 
@@ -1264,12 +1338,22 @@ export default function Home() {
     return isAfter(now, start) && isBefore(now, end) || isEqual(now, start) || isEqual(now, end);
   }) || [];
 
-  const nonFixTemplates = templates?.filter(t => {
-    const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
-      (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
-      (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
-    return isPool;
-  }) || [];
+  const nonFixTemplates = React.useMemo(() => {
+    const arr = templates?.filter(t => {
+      const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
+        (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
+        (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
+      return isPool;
+    }) || [];
+    return arr.sort((a, b) => {
+      const indexA = orderedTemplateIds.indexOf(a.id);
+      const indexB = orderedTemplateIds.indexOf(b.id);
+      if (indexA === -1 && indexB === -1) return (a.displayOrder || 0) - (b.displayOrder || 0);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+  }, [templates, orderedTemplateIds]);
 
   const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
 
@@ -1569,19 +1653,25 @@ export default function Home() {
               dragState.active && dragState.itemId && (
                 <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
                   {(() => {
-                    const q = todayQuests.find(i => i.id === dragState.itemId);
-                    if (!q) return null;
-                    return (
-                      <TodayItem
-                        quest={q}
-                        templates={templates || []}
-                        onStatusChange={refreshAll}
-                        onDragStart={(e) => {
-                          if ('touches' in e) handleTouchStart(e as any, q.id);
-                          else handleMouseDown(e as any, q.id);
-                        }}
-                      />
-                    );
+                    if (dragState.mode === 'sort-template') {
+                      const t = nonFixTemplates.find(i => i.id === dragState.itemId);
+                      if (!t) return null;
+                      return <NonFixItem template={t} history={history || []} onReceive={() => { }} />;
+                    } else {
+                      const q = todayQuests.find(i => i.id === dragState.itemId);
+                      if (!q) return null;
+                      return (
+                        <TodayItem
+                          quest={q}
+                          templates={templates || []}
+                          onStatusChange={refreshAll}
+                          onDragStart={(e) => {
+                            if ('touches' in e) handleTouchStart(e as any, q.id, dragState.mode as any);
+                            else handleMouseDown(e as any, q.id, dragState.mode as any);
+                          }}
+                        />
+                      );
+                    }
                   })()}
                 </div>
               )
@@ -1612,7 +1702,20 @@ export default function Home() {
                 <h2 className="text-xs font-bold text-fuchsia-500 uppercase tracking-wider">Non-FIX (Pool)</h2>
               </div>
               {nonFixTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
-                <div>{nonFixTemplates.map(t => <NonFixItem key={t.id} template={t} history={history || []} onReceive={() => handleReceiveNonFix(t)} />)}</div>
+                <div className="space-y-1">
+                  {nonFixTemplates.map(t => (
+                    <NonFixItem
+                      key={t.id}
+                      template={t}
+                      history={history || []}
+                      onReceive={() => handleReceiveNonFix(t)}
+                      onDragStart={(e) => {
+                        if ('touches' in e) handleTouchStart(e as any, t.id, 'sort-template');
+                        else handleMouseDown(e as any, t.id, 'sort-template');
+                      }}
+                    />
+                  ))}
+                </div>
               )}
             </section>
 

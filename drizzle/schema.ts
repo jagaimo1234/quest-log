@@ -130,6 +130,9 @@ export const questTemplates = sqliteTable("quest_templates", {
   // 有効/無効 (SQLite boolean is 0/1 integer)
   isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
 
+  // 表示順序（同期用）
+  displayOrder: integer("displayOrder").default(0).notNull(),
+
   // 最後に生成した日付
   lastGeneratedAt: integer("lastGeneratedAt", { mode: "timestamp" }),
 
