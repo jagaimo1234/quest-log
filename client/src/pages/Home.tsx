@@ -567,8 +567,8 @@ function OneOffItem({ quest, onStatusChange, onDragStart }: { quest: any, onStat
   const incrementCount = trpc.quest.incrementCount.useMutation();
 
   const isCompleted = quest.status === "cleared";
-  const doneCount = quest.currentCount || 0;
-  const quota = quest.targetCount || 1;
+  const doneCount = quest.currentCount ? Number(quest.currentCount) : 0;
+  const quota = quest.targetCount ? Number(quest.targetCount) : 1;
 
   const handleNext = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -662,7 +662,7 @@ function OneOffItem({ quest, onStatusChange, onDragStart }: { quest: any, onStat
             </div>
             <div className="flex gap-1" style={{ pointerEvents: 'auto' }}>
               {Array.from({ length: quota }).map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full border border-orange-200 ${i < doneCount ? 'bg-green-500 border-green-600' : 'bg-gray-100'}`} />
+                <div key={i} className={`w-2 h-2 rounded-full border border-orange-200 ${i < doneCount ? 'bg-orange-500 border-orange-600' : 'bg-gray-100'}`} />
               ))}
             </div>
           </div>

@@ -118,6 +118,7 @@ export const appRouter = router({
         autoDeadline: z.boolean().optional(),
         templateId: z.number().optional().nullable(),
         status: z.enum(["unreceived", "accepted"]).optional(),
+        targetCount: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return createQuest(ctx.user!.id, input);
