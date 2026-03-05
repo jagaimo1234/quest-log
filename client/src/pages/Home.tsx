@@ -99,8 +99,17 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
         difficulty: "1",
         frequency: 1,
       });
+    } else if (type === "Free") {
+      await createTemplate.mutateAsync({
+        questName: formData.get("questName") as string,
+        questType: "Free",
+        difficulty: formData.get("difficulty") as any,
+        startDate: startDateVal ? parseLocalDate(startDateVal) : undefined,
+        endDate: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
+        frequency: parseInt(targetCountVal) || 1,
+      });
     } else {
-      const status = type === "Free" ? "accepted" : "unreceived";
+      const status = "unreceived";
       // Compute startDate directly from planningDayOffset at submit time
       // to guarantee correct date regardless of state timing
       let startDate: Date | undefined;
@@ -113,28 +122,16 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
         d.setHours(0, 0, 0, 0);
         startDate = d;
       }
-
-      const targetCount = parseInt(targetCountVal) || 1;
-
-      if (type === "Free" && targetCount > 1) {
-        await createTemplate.mutateAsync({
-          questName: formData.get("questName") as string,
-          questType: "Free",
-          difficulty: formData.get("difficulty") as any,
-          frequency: targetCount,
-        } as any);
-      } else {
-        await createQuest.mutateAsync({
-          questName: formData.get("questName") as string,
-          questType: type as any,
-          difficulty: formData.get("difficulty") as any,
-          status: status,
-          startDate: startDate,
-          deadline: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
-          autoDeadline: false,
-          targetCount: targetCount,
-        } as any);
-      }
+      await createQuest.mutateAsync({
+        questName: formData.get("questName") as string,
+        questType: type as any,
+        difficulty: formData.get("difficulty") as any,
+        status: status,
+        startDate: startDate,
+        deadline: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
+        autoDeadline: false,
+        targetCount: parseInt(targetCountVal) || 1,
+      } as any);
     }
     setOpen(false);
     onCreated();
@@ -227,13 +224,7 @@ function TodayItem({
     if (updateStatus.isPending || incrementCount.isPending) return;
     if (quest.status === "failed" || quest.status === "cleared") return;
 
-    // Multi-step quest checks
-    if (quest.questType === "Free" && quest.targetCount && quest.targetCount > 1) {
-      await incrementCount.mutateAsync({ questId: quest.id });
-      onStatusChange();
-      return;
-    }
-
+    // Normal clear
     const nextStatus = quest.status === "accepted" ? "challenging" : quest.status === "challenging" ? "cleared" : "cleared";
     await updateStatus.mutateAsync({ questId: quest.id, status: nextStatus });
     onStatusChange();
@@ -573,43 +564,115 @@ function NonFixItem({ template, history, onReceive }: { template: any, history: 
   );
 }
 
-function OneOffItem({ template, history, onReceive }: { template: any, history: any[], onReceive: () => void }) {
-  const doneCount = history.filter(h => h.templateId === template.id).length;
+function OneOffTemplateItem({ template, onReceive }: { template: any, onReceive: () => void }) {
+  const isCompleted = template.executedCount >= (template.frequency || 1);
+  const doneCount = template.executedCount || 0;
   const quota = template.frequency || 1;
-  const isCompleted = doneCount >= quota;
+
+  const handleNext = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isCompleted) return;
+    onReceive();
+  };
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startPress = () => {
+    timerRef.current = setTimeout(() => {
+      setIsMenuOpen(true);
+    }, 500);
+  };
+  const endPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+  const cancelPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const deleteTemplate = trpc.template.toggleActive.useMutation();
+  const handleDelete = async () => {
+    if (confirm("Delete this One-off task permanently?")) {
+      await deleteTemplate.mutateAsync({ templateId: template.id, isActive: false });
+      setIsMenuOpen(false);
+    }
+  };
 
   return (
-    <div onClick={isCompleted ? undefined : onReceive} className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-orange-50'}`}>
-      {isCompleted && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
-          <div className="text-2xl font-black text-orange-500/50 -rotate-12 border-4 border-orange-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
-            CLEAR
+    <>
+      <div
+        className={`relative group flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-orange-50'}`}
+        onMouseDown={(e) => { startPress(); }}
+        onTouchStart={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('button, [role="button"]')) return;
+          startPress();
+        }}
+        onMouseUp={endPress}
+        onTouchEnd={endPress}
+        onMouseLeave={cancelPress}
+        onTouchMove={cancelPress}
+      >
+        {isCompleted && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
+            <div className="text-2xl font-black text-orange-500/50 -rotate-12 border-4 border-orange-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
+              CLEAR
+            </div>
+          </div>
+        )}
+        <div
+          onClick={handleNext}
+          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 cursor-pointer z-20 pointer-events-auto transition-colors ${isCompleted ? 'bg-orange-50 text-orange-300' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'}`}
+        >
+          {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+        </div>
+        <div className="flex-1 min-w-0 pointer-events-none">
+          <div className="flex justify-between items-center mb-0.5">
+            <div className={`text-xs font-bold truncate ${isCompleted ? 'text-orange-700/60' : 'text-orange-900'}`}>
+              {template.projectName ? `${template.questName} -${template.projectName}-` : template.questName}
+            </div>
+            <span className={`text-[9px] font-bold ${isCompleted ? 'text-orange-300' : 'text-orange-400'}`}>{doneCount}/{quota}</span>
+          </div>
+          <div className="flex justify-between items-end">
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[10px] text-orange-500 uppercase tracking-wider">{QUEST_TYPE_LABELS["Free"] || "ONE-OFF"}</div>
+            </div>
+            <div className="flex gap-1" style={{ pointerEvents: 'auto' }}>
+              {Array.from({ length: quota }).map((_, i) => (
+                <div key={i} className={`w-2 h-2 rounded-full border border-orange-200 ${i < doneCount ? 'bg-orange-500 border-orange-600' : 'bg-gray-100'}`} />
+              ))}
+            </div>
           </div>
         </div>
-      )}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-orange-50 text-orange-300' : 'bg-orange-100 text-orange-600 group-hover:bg-orange-200 transition-colors'}`}>
-        {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center mb-0.5">
-          <div className={`text-xs font-bold truncate ${isCompleted ? 'text-orange-700/60' : 'text-orange-900'}`}>
-            {template.projectName ? `${template.questName} -${template.projectName}-` : template.questName}
+
+      <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg font-bold truncate">
+              {template.questName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-4">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleDelete}
+              className="w-full text-red-600 border-red-200 hover:bg-red-50 justify-start h-14 text-lg"
+            >
+              <Trash2 className="w-6 h-6 mr-3" />
+              Delete Permanently
+            </Button>
           </div>
-          <span className={`text-[9px] font-bold ${isCompleted ? 'text-orange-300' : 'text-orange-400'}`}>{doneCount}/{quota}</span>
-        </div>
-        <div className="flex justify-between items-end">
-          <div className="flex flex-col gap-0.5">
-            <div className="text-[10px] text-orange-500 uppercase tracking-wider">{QUEST_TYPE_LABELS[template.questType] || "ONE-OFF"}</div>
-            {template.note && <div className="text-[9px] text-muted-foreground truncate max-w-[120px]">{template.note}</div>}
-          </div>
-          <div className="flex gap-1" style={{ pointerEvents: 'auto' }}>
-            {Array.from({ length: quota }).map((_, i) => (
-              <div key={i} className={`w-2 h-2 rounded-full border border-orange-200 ${i < doneCount ? 'bg-orange-500 border-orange-600' : 'bg-gray-100'}`} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -946,7 +1009,7 @@ export default function Home() {
   }, [activeQuests, orderedIds, planningDayOffset]);
 
   const oneOffTemplates = React.useMemo(() => {
-    return templates?.filter(t => t.questType === "Free" && t.frequency > 1) || [];
+    return (templates || []).filter(t => t.questType === "Free" && t.isActive);
   }, [templates]);
 
   const timeSlots = Array.from({ length: 18 }, (_, i) => {
@@ -1237,6 +1300,20 @@ export default function Home() {
     refreshAll();
   };
 
+  const handleReceiveOneOff = async (template: any) => {
+    await createQuest.mutateAsync({
+      questName: template.questName,
+      questType: template.questType,
+      difficulty: template.difficulty,
+      templateId: template.id,
+      status: "accepted",
+      startDate: getPlanningStartDate(),
+      targetCount: 1, // Instantiated quests are always single step now
+    } as any);
+    toast.success("Added to TODAY Plan");
+    refreshAll();
+  };
+
   // Create Instance from Project Template
   const handleReceiveProject = async (template: any) => {
     await createQuest.mutateAsync({
@@ -1263,20 +1340,6 @@ export default function Home() {
       startDate: getPlanningStartDate(),
     } as any);
     toast.success("Add Relax Mission");
-    refreshAll();
-  };
-
-  // ONE-OFF: Create Instance
-  const handleReceiveOneOff = async (template: any) => {
-    await createQuest.mutateAsync({
-      questName: template.questName,
-      questType: "Free" as any,
-      difficulty: "1",
-      templateId: template.id,
-      status: "unreceived",
-      startDate: getPlanningStartDate(),
-    } as any);
-    toast.success("Added One-off Mission");
     refreshAll();
   };
 
@@ -1558,10 +1621,9 @@ export default function Home() {
               {oneOffTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active one-off missions.</div> : (
                 <div className="space-y-2">
                   {oneOffTemplates.map(t => (
-                    <OneOffItem
+                    <OneOffTemplateItem
                       key={t.id}
                       template={t}
-                      history={history || []}
                       onReceive={() => handleReceiveOneOff(t)}
                     />
                   ))}
