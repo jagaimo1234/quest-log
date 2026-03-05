@@ -254,6 +254,7 @@ function TodayItem({
   const isMonthlyPool = template?.questType === "Monthly" && (!template.datesOfMonth || JSON.parse(template.datesOfMonth).length === 0) && (!template.weeksOfMonth || JSON.parse(template.weeksOfMonth).length === 0);
   const isProject = quest.questType === "Project";
   const isRelax = template?.questType === "Relax";
+  const isFree = template?.questType === "Free" || quest.questType === "Free";
 
   if (template) {
     if (isRelax) {
@@ -262,13 +263,17 @@ function TodayItem({
       borderClass = "border-l-indigo-500";
     } else if (isWeeklyPool || isMonthlyPool) {
       borderClass = "border-l-fuchsia-500";
+    } else if (isFree) {
+      borderClass = "border-l-orange-500";
     } else {
       borderClass = "border-l-sky-500";
     }
   } else if (isProject) {
     borderClass = "border-l-indigo-500";
+  } else if (isFree) {
+    borderClass = "border-l-orange-500";
   } else {
-    // Manual / One-off
+    // Manual / unknown
     borderClass = "border-l-orange-500"; // Orange for Manual
   }
 

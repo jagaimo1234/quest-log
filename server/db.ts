@@ -742,8 +742,11 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
     } else if (type === "Yearly") {
       const d = new Date(now.getFullYear(), 0, 1);
       startDateStr = d.toISOString().split('T')[0];
+    } else if (type === "Daily") {
+      const d = new Date(now);
+      startDateStr = d.toISOString().split('T')[0];
     } else {
-      return 0; // Daily resets daily
+      return 0;
     }
 
     const [result] = await db.select({ count: sql<number>`count(*)` })
