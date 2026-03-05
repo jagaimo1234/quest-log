@@ -441,7 +441,7 @@ export const appRouter = router({
       .input(z.object({
         questName: z.string().optional().nullable(),
         projectName: z.string().optional().nullable(),
-        questType: z.enum(["Daily", "Weekly", "Monthly", "Yearly", "Project", "Relax"]),
+        questType: z.enum(["Daily", "Weekly", "Monthly", "Yearly", "Project", "Relax", "Free"]),
         difficulty: z.enum(["1", "2", "3"]).optional(),
         frequency: z.number().min(1).optional(),
         daysOfWeek: z.array(z.number()).optional().nullable(),

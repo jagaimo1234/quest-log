@@ -103,7 +103,7 @@ export const questTemplates = sqliteTable("quest_templates", {
   projectName: text("projectName"),
 
   // クエスト種別
-  questType: text("questType", { enum: ["Daily", "Weekly", "Monthly", "Yearly", "Project", "Relax"] }).notNull(),
+  questType: text("questType", { enum: ["Daily", "Weekly", "Monthly", "Yearly", "Project", "Relax", "Free"] }).notNull(),
 
   // 難易度
   difficulty: text("difficulty", { enum: ["1", "2", "3"] }).default("1").notNull(),
