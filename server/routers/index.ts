@@ -37,6 +37,7 @@ import {
   updateQuestOrder,
   getDailyConfig,
   updateDailyConfig,
+  incrementQuestCount,
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
@@ -235,6 +236,53 @@ export const appRouter = router({
         }
 
         return quest;
+      }),
+
+    /**
+     * クエストカウントを1進行（マルチステップ対応）
+     */
+    incrementCount: protectedProcedure
+      .input(z.object({
+        questId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        const { quest, newlyCleared } = await incrementQuestCount(input.questId, ctx.user!.id);
+
+        if (newlyCleared) {
+          const xpReward = calculateXpReward(quest.difficulty);
+
+          await updateUserProgression(ctx.user!.id, {
+            xpGain: xpReward,
+            questCleared: true,
+          });
+
+          await addToHistory(ctx.user!.id, input.questId, {
+            questName: quest.questName,
+            projectName: quest.projectName,
+            questType: quest.questType,
+            difficulty: quest.difficulty,
+            finalStatus: "cleared",
+            xpEarned: xpReward,
+            templateId: quest.templateId,
+            plannedTimeSlot: quest.plannedTimeSlot,
+            note: quest.note,
+          });
+
+          const payload: SheetPayload = {
+            recordedDate: new Date().toISOString().split('T')[0],
+            questName: quest.questName,
+            projectName: quest.projectName,
+            questType: quest.questType,
+            finalStatus: "cleared",
+            plannedTimeSlot: quest.plannedTimeSlot,
+            executionType: "NON-FIX",
+            progress: quest.targetCount > 1 ? `${quest.currentCount}/${quest.targetCount}` : "1/1"
+          };
+          await sendToSpreadsheet(payload);
+          return { ...quest, xpEarned: xpReward, clearedNow: true };
+        }
+
+        return { ...quest, clearedNow: false };
       }),
 
     /**

@@ -246,8 +246,9 @@ export async function createQuest(
     deadline?: Date | null;
     templateId?: number | null;
     autoDeadline?: boolean;
-    status?: "unreceived" | "accepted"; // Allow immediate accept
+    status?: "unreceived" | "accepted";
     note?: string | null;
+    targetCount?: number;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -275,6 +276,8 @@ export async function createQuest(
     templateId: input.templateId || null,
     acceptedAt: input.status === "accepted" ? new Date() : null,
     note: input.note || null,
+    targetCount: input.targetCount || 1,
+    currentCount: 0,
   };
 
   const result = await db.insert(quests).values(values).returning();
@@ -441,6 +444,42 @@ export async function updateQuestDeadline(
 
   const [quest] = await db.select().from(quests).where(eq(quests.id, questId));
   return quest;
+}
+
+/**
+ * クエストカウントを1進める（指定回数到達でクリア化）
+ */
+export async function incrementQuestCount(questId: number, userId: number): Promise<{ quest: Quest; newlyCleared: boolean }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [quest] = await db.select().from(quests).where(and(eq(quests.id, questId), eq(quests.userId, userId)));
+  if (!quest) throw new Error("Quest not found");
+
+  if (quest.status === "cleared" || quest.status === "failed" || quest.status === "cancelled") {
+    return { quest, newlyCleared: false };
+  }
+
+  const newCount = quest.currentCount + 1;
+  const isCleared = newCount >= quest.targetCount;
+
+  const updateData: Partial<Quest> = {
+    currentCount: newCount,
+    updatedAt: new Date(),
+  };
+
+  if (isCleared) {
+    updateData.status = "cleared";
+    updateData.clearedAt = new Date();
+  } else if (quest.status === "unreceived") {
+    updateData.status = "accepted";
+    updateData.acceptedAt = new Date();
+  }
+
+  await db.update(quests).set(updateData).where(eq(quests.id, questId));
+
+  const [updatedQuest] = await db.select().from(quests).where(eq(quests.id, questId));
+  return { quest: updatedQuest, newlyCleared: isCleared };
 }
 
 /**

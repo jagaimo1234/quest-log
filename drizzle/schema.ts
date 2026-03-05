@@ -59,6 +59,10 @@ export const quests = sqliteTable("quests", {
   // メモ（詳細内容など、例：読んだ本のタイトル）
   note: text("note"),
 
+  // One-off等のマルチステップ用: 見込み回数と現在回数
+  targetCount: integer("targetCount").default(1).notNull(),
+  currentCount: integer("currentCount").default(0).notNull(),
+
   // 開始日（任意）- クエストをいつから始めるか
   startDate: integer("startDate", { mode: "timestamp" }),
 

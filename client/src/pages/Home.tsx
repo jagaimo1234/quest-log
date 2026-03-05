@@ -67,6 +67,7 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
   const [questType, setQuestType] = useState("Free");
   const [startDateVal, setStartDateVal] = useState("");
   const [deadlineVal, setDeadlineVal] = useState("");
+  const [targetCountVal, setTargetCountVal] = useState("1");
   const createQuest = trpc.quest.create.useMutation();
 
   const createTemplate = trpc.template.create.useMutation();
@@ -82,6 +83,7 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
         setStartDateVal("");
       }
       setDeadlineVal("");
+      setTargetCountVal("1");
     }
   }, [open, planningDayOffset]);
 
@@ -119,6 +121,7 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
         startDate: startDate,
         deadline: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
         autoDeadline: false,
+        targetCount: parseInt(targetCountVal) || 1,
       } as any);
     }
     setOpen(false);
@@ -144,14 +147,20 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
             </Select>
           </div>
           {questType === "Free" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs text-muted-foreground">Start Date</Label>
-                <Input name="startDate" type="date" className="text-xs" value={startDateVal} onChange={(e) => setStartDateVal(e.target.value)} />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Start Date</Label>
+                  <Input name="startDate" type="date" className="text-xs" value={startDateVal} onChange={(e) => setStartDateVal(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Deadline</Label>
+                  <Input name="deadline" type="date" className="text-xs" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} />
+                </div>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Deadline</Label>
-                <Input name="deadline" type="date" className="text-xs" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} />
+                <Label className="text-xs text-muted-foreground">Target Count (e.g. 3 days)</Label>
+                <Input name="targetCount" type="number" min="1" className="text-xs" value={targetCountVal} onChange={(e) => setTargetCountVal(e.target.value)} />
               </div>
             </div>
           )}
@@ -178,12 +187,13 @@ function TodayItem({
 }) {
   const updateStatus = trpc.quest.updateStatus.useMutation();
   const deleteQuest = trpc.quest.delete.useMutation();
+  const incrementCount = trpc.quest.incrementCount.useMutation();
   const template = templates.find(t => t.id === quest.templateId);
 
   const isCompleted = quest.status === "cleared";
   const isFailed = quest.status === "failed";
   const isChallenging = quest.status === "challenging" || quest.status === "almost";
-  const isPending = updateStatus.isPending;
+  const isPending = updateStatus.isPending || incrementCount.isPending;
   const updateQuest = trpc.quest.update.useMutation();
   const [note, setNote] = useState(quest.note || "");
 
@@ -202,8 +212,16 @@ function TodayItem({
 
   const handleNext = async () => {
     if (isPreviousDay) return; // 過去分は操作不可
-    if (updateStatus.isPending) return;
+    if (updateStatus.isPending || incrementCount.isPending) return;
     if (quest.status === "failed" || quest.status === "cleared") return;
+
+    // Multi-step quest checks
+    if (quest.questType === "Free" && quest.targetCount && quest.targetCount > 1) {
+      await incrementCount.mutateAsync({ questId: quest.id });
+      onStatusChange();
+      return;
+    }
+
     const nextStatus = quest.status === "accepted" ? "challenging" : quest.status === "challenging" ? "cleared" : "cleared";
     await updateStatus.mutateAsync({ questId: quest.id, status: nextStatus });
     onStatusChange();
@@ -380,6 +398,13 @@ function TodayItem({
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
           {isChallenging && <span className="text-amber-600 font-bold bg-amber-100 px-1 rounded animate-pulse">RUNNING</span>}
+          {quest.targetCount > 1 && (
+            <span className="flex items-center gap-1 ml-2 font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
+              <span className="px-1 bg-emerald-100 dark:bg-emerald-900/40 rounded">
+                [{quest.currentCount}/{quest.targetCount}]
+              </span>
+            </span>
+          )}
         </div>
       </div>
 
@@ -867,6 +892,10 @@ export default function Home() {
       return indexA - indexB;
     });
   }, [activeQuests, orderedIds, planningDayOffset]);
+
+  const oneOffQuests = React.useMemo(() => {
+    return activeQuests?.filter(q => q.questType === "Free" && ["unreceived", "accepted", "challenging", "almost"].includes(q.status)) || [];
+  }, [activeQuests]);
 
   const timeSlots = Array.from({ length: 18 }, (_, i) => {
     const hour = i + 6;
@@ -1450,6 +1479,31 @@ export default function Home() {
               </div>
               {nonFixTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
                 <div>{nonFixTemplates.map(t => <NonFixItem key={t.id} template={t} history={history || []} onReceive={() => handleReceiveNonFix(t)} />)}</div>
+              )}
+            </section>
+
+            <div className="h-px bg-border/50 my-6" />
+
+            {/* SHELF 3.5: ONE-OFF (IN PROGRESS) */}
+            <section>
+              <div className="flex items-center justify-between mb-3 px-1">
+                <h2 className="text-xs font-bold text-orange-500 uppercase tracking-wider">ONE-OFF (IN PROGRESS)</h2>
+              </div>
+              {oneOffQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active one-off missions.</div> : (
+                <div className="space-y-2">
+                  {oneOffQuests.map(q => (
+                    <TodayItem
+                      key={q.id}
+                      quest={q}
+                      templates={templates || []}
+                      onStatusChange={() => refreshAll()}
+                      onDragStart={(e) => {
+                        if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
+                        else handleMouseDown(e as any, q.id, 'plan');
+                      }}
+                    />
+                  ))}
+                </div>
               )}
             </section>
 
