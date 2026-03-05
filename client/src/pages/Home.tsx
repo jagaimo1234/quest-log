@@ -561,6 +561,147 @@ function NonFixItem({ template, history, onReceive }: { template: any, history: 
   );
 }
 
+function OneOffItem({ quest, onStatusChange, onDragStart }: { quest: any, onStatusChange: () => void, onDragStart?: (e: React.MouseEvent | React.TouchEvent) => void }) {
+  const updateStatus = trpc.quest.updateStatus.useMutation();
+  const deleteQuest = trpc.quest.delete.useMutation();
+  const incrementCount = trpc.quest.incrementCount.useMutation();
+
+  const isCompleted = quest.status === "cleared";
+  const doneCount = quest.currentCount || 0;
+  const quota = quest.targetCount || 1;
+
+  const handleNext = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (updateStatus.isPending || incrementCount.isPending || isCompleted) return;
+
+    if (quest.targetCount > 1) {
+      await incrementCount.mutateAsync({ questId: quest.id });
+    } else {
+      await updateStatus.mutateAsync({ questId: quest.id, status: "cleared" });
+    }
+    onStatusChange();
+  };
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startPress = () => {
+    timerRef.current = setTimeout(() => {
+      setIsMenuOpen(true);
+    }, 500);
+  };
+  const endPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+  const cancelPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleAbort = async () => {
+    if (confirm("Abort (Fail) this quest?")) {
+      await updateStatus.mutateAsync({ questId: quest.id, status: "failed" });
+      setIsMenuOpen(false);
+      onStatusChange();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirm("Delete this quest?")) {
+      await deleteQuest.mutateAsync({ questId: quest.id });
+      setIsMenuOpen(false);
+      onStatusChange();
+    }
+  };
+
+  return (
+    <>
+      <div
+        className={`relative group flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-orange-50'}`}
+        onMouseDown={(e) => { startPress(); onDragStart && onDragStart(e); }}
+        onTouchStart={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('button, [role="button"]')) return;
+          startPress();
+          onDragStart && onDragStart(e);
+        }}
+        onMouseUp={endPress}
+        onTouchEnd={endPress}
+        onMouseLeave={cancelPress}
+        onTouchMove={cancelPress}
+      >
+        {isCompleted && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
+            <div className="text-2xl font-black text-orange-500/50 -rotate-12 border-4 border-orange-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
+              CLEAR
+            </div>
+          </div>
+        )}
+        <div
+          onClick={handleNext}
+          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 cursor-pointer z-20 pointer-events-auto transition-colors ${isCompleted ? 'bg-orange-50 text-orange-300' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'}`}
+        >
+          {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+        </div>
+        <div className="flex-1 min-w-0 pointer-events-none">
+          <div className="flex justify-between items-center mb-0.5">
+            <div className={`text-xs font-bold truncate ${isCompleted ? 'text-orange-700/60' : 'text-orange-900'}`}>
+              {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
+            </div>
+            <span className={`text-[9px] font-bold ${isCompleted ? 'text-orange-300' : 'text-orange-400'}`}>{doneCount}/{quota}</span>
+          </div>
+          <div className="flex justify-between items-end">
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[10px] text-orange-500 uppercase tracking-wider">{QUEST_TYPE_LABELS[quest.questType]}</div>
+              {quest.note && <div className="text-[9px] text-muted-foreground truncate max-w-[120px]">{quest.note}</div>}
+            </div>
+            <div className="flex gap-1" style={{ pointerEvents: 'auto' }}>
+              {Array.from({ length: quota }).map((_, i) => (
+                <div key={i} className={`w-2 h-2 rounded-full border border-orange-200 ${i < doneCount ? 'bg-green-500 border-green-600' : 'bg-gray-100'}`} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg font-bold truncate">
+              {quest.questName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-4">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleAbort}
+              className="w-full text-destructive border-destructive/50 hover:bg-destructive/10 justify-start h-14 text-lg"
+            >
+              <XCircle className="w-6 h-6 mr-3" />
+              Abort (Fail)
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleDelete}
+              className="w-full text-red-600 border-red-200 hover:bg-red-50 justify-start h-14 text-lg"
+            >
+              <Trash2 className="w-6 h-6 mr-3" />
+              Delete Permanently
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function ProjectTemplateItem({ template, onReceive }: { template: any, onReceive: () => void }) {
   return (
     <div onClick={onReceive} className="cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 transition-all shadow-sm">
@@ -1492,10 +1633,9 @@ export default function Home() {
               {oneOffQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active one-off missions.</div> : (
                 <div className="space-y-2">
                   {oneOffQuests.map(q => (
-                    <TodayItem
+                    <OneOffItem
                       key={q.id}
                       quest={q}
-                      templates={templates || []}
                       onStatusChange={() => refreshAll()}
                       onDragStart={(e) => {
                         if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
