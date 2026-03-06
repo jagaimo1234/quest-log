@@ -28,8 +28,9 @@ jobs:
       - name: Run backup script
         env:
           DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-        run: npx tsx scripts/backup.ts
+        run: node scripts/backup.mjs
 
       - name: Upload backup as artifact
         uses: actions/upload-artifact@v4
