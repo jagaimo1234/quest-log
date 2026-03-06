@@ -265,7 +265,7 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
   const [datesOfMonth, setDatesOfMonth] = useState<string>(initialDates.join(", "));
   const [monthOfYear, setMonthOfYear] = useState<string>(template.monthOfYear?.toString() || "");
   const [scheduledHour, setScheduledHour] = useState<string>(
-    template.scheduledHour != null ? String(template.scheduledHour) : ""
+    template.scheduledHour != null ? String(template.scheduledHour) : "none"
   );
 
   const updateTemplate = trpc.template.update.useMutation();
@@ -338,7 +338,7 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
         weeksOfMonth: finalWeeks,
         datesOfMonth: finalDates,
         monthOfYear: finalMonth,
-        scheduledHour: questType === "Daily" && scheduledHour !== "" ? parseInt(scheduledHour) : null,
+        scheduledHour: questType === "Daily" && scheduledHour !== "none" ? parseInt(scheduledHour) : null,
       });
 
       toast.success("テンプレートを更新しました");
@@ -413,7 +413,7 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
                   <SelectValue placeholder="時刻を選択（任意）" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">なし（自動なし）</SelectItem>
+                  <SelectItem value="none">なし（自動なし）</SelectItem>
                   {Array.from({ length: 24 }, (_, i) => (
                     <SelectItem key={i} value={String(i)}>
                       {String(i).padStart(2, '0')}:00 〜 {String(i + 1).padStart(2, '0')}:00
@@ -637,7 +637,7 @@ function TemplateCreateDialog({ onCreated }: { onCreated: () => void }) {
   const [weeksOfMonth, setWeeksOfMonth] = useState<string[]>([]);
   const [datesOfMonth, setDatesOfMonth] = useState<string>("");
   const [monthOfYear, setMonthOfYear] = useState<string>("");
-  const [scheduledHour, setScheduledHour] = useState<string>("");
+  const [scheduledHour, setScheduledHour] = useState<string>("none");
 
   const createTemplate = trpc.template.create.useMutation();
 
@@ -676,7 +676,7 @@ function TemplateCreateDialog({ onCreated }: { onCreated: () => void }) {
         weeksOfMonth: finalWeeks,
         datesOfMonth: finalDates,
         monthOfYear: finalMonth,
-        scheduledHour: questType === "Daily" && scheduledHour !== "" ? parseInt(scheduledHour) : null,
+        scheduledHour: questType === "Daily" && scheduledHour !== "none" ? parseInt(scheduledHour) : null,
       });
 
       toast.success("テンプレートを作成しました");
@@ -699,7 +699,7 @@ function TemplateCreateDialog({ onCreated }: { onCreated: () => void }) {
     setWeeksOfMonth([]);
     setDatesOfMonth("");
     setMonthOfYear("");
-    setScheduledHour("");
+    setScheduledHour("none");
   };
 
   return (
@@ -784,7 +784,7 @@ function TemplateCreateDialog({ onCreated }: { onCreated: () => void }) {
                   <SelectValue placeholder="時刻を選択（任意）" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">なし（自動なし）</SelectItem>
+                  <SelectItem value="none">なし（自動なし）</SelectItem>
                   {Array.from({ length: 24 }, (_, i) => (
                     <SelectItem key={i} value={String(i)}>
                       {String(i).padStart(2, '0')}:00 〜 {String(i + 1).padStart(2, '0')}:00
