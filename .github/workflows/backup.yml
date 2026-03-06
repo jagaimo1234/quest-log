@@ -1,0 +1,40 @@
+name: Daily Turso DB Backup
+
+on:
+  schedule:
+    # 毎朝7時（JST = UTC 22:00の前日）に実行
+    - cron: '0 22 * * *'
+  # 手動でも実行できるようにする
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Backup Turso Database
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run backup script
+        env:
+          DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: npx tsx scripts/backup.ts
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}-${{ github.run_id }}
+          path: backups/
+          retention-days: 30  # 30日間保持
+          if-no-files-found: error
