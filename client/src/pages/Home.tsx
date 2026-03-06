@@ -892,9 +892,9 @@ export default function Home() {
   const [planningDayOffset, setPlanningDayOffset] = useState(0); // 0=today, 1=tomorrow
 
   const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: templates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: templates, refetch: refetchTemplates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
   const { data: progression, refetch: refetchProgression } = trpc.progression.get.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: unreceivedQuests } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: unreceivedQuests, refetch: refetchUnreceived } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
 
   const now = new Date();
   const startRange = format(startOfWeek(startOfMonth(now), { weekStartsOn: 1 }), 'yyyy-MM-dd');
@@ -955,6 +955,8 @@ export default function Home() {
 
   const refreshAll = () => {
     refetchQuests();
+    refetchTemplates();
+    refetchUnreceived();
     refetchHistory();
     refetchProgression();
   };
