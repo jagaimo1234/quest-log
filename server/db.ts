@@ -652,6 +652,7 @@ export async function updateQuestTemplate(
     monthOfYear?: number | null;
     startDate?: Date | null;
     endDate?: Date | null;
+    scheduledHour?: number | null;
   }
 ): Promise<QuestTemplate> {
   const db = await getDb();
@@ -672,6 +673,7 @@ export async function updateQuestTemplate(
   if (input.monthOfYear !== undefined) updateData.monthOfYear = input.monthOfYear;
   if (input.startDate !== undefined) updateData.startDate = input.startDate;
   if (input.endDate !== undefined) updateData.endDate = input.endDate;
+  if (input.scheduledHour !== undefined) updateData.scheduledHour = input.scheduledHour;
 
   await db.update(questTemplates)
     .set(updateData)
