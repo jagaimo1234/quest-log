@@ -1247,9 +1247,26 @@ export default function Home() {
   };
 
   // SHELF LOGIC
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() + planningDayOffset);
+  const targetStr = format(targetDate, "yyyy-MM-dd");
+
   const fixShelfQuests = [
-    ...(unreceivedQuests?.filter(q => q.questType !== "Project" && q.questType !== "Relax") || []),
-    ...(activeQuests?.filter(q => {
+    ...(unreceivedQuests?.filter(q => {
+      if (q.questType === "Project" || q.questType === "Relax") return false;
+      if (!q.templateId) return true; // Keep manual unreceived quests
+
+      // If we already have a planned/active/cleared quest for this template ON the target date, don't show the unreceived one!
+      const alreadyPlannedForTargetDate = activeQuests?.some(aq =>
+        aq.templateId === q.templateId &&
+        aq.startDate && format(new Date(aq.startDate), "yyyy-MM-dd") === targetStr
+      ) || history?.some(hq =>
+        hq.templateId === q.templateId &&
+        hq.recordedAt && format(new Date(hq.recordedAt), "yyyy-MM-dd") === targetStr
+      );
+
+      return !alreadyPlannedForTargetDate;
+    }) || []), ...(activeQuests?.filter(q => {
       if (q.questType === "Project" || q.questType === "Relax" || q.questType === "Free") return false;
       if (q.status !== "cleared") return false;
 
@@ -1355,12 +1372,44 @@ export default function Home() {
   };
 
   const handleReceiveFix = async (questId: number) => {
-    await updateStatus.mutateAsync({ questId, status: "accepted" });
-    // If planning for tomorrow, set startDate
-    const sd = getPlanningStartDate();
-    if (sd) {
-      await updateQuest.mutateAsync({ questId, startDate: sd });
+    const quest = unreceivedQuests?.find(q => q.id === questId) || fixShelfQuests.find(q => q.id === questId);
+
+    // Auto-link scheduledHour
+    const template = templates?.find(t => t.id === quest?.templateId);
+    let plannedTimeSlot: string | undefined = undefined;
+    if (template && template.questType === "Daily" && template.scheduledHour != null) {
+      plannedTimeSlot = `${String(template.scheduledHour).padStart(2, '0')}:00`;
     }
+
+    const sd = getPlanningStartDate();
+
+    if (sd && planningDayOffset > 0 && quest && quest.status === "unreceived" && quest.templateId) {
+      // Create a NEW quest for tomorrow to avoid removing the unreceived one for today
+      await createQuest.mutateAsync({
+        questName: quest.questName,
+        questType: quest.questType,
+        difficulty: quest.difficulty,
+        templateId: quest.templateId,
+        status: "accepted",
+        startDate: sd,
+        plannedTimeSlot: plannedTimeSlot
+      } as any);
+      toast.success("Received for Tomorrow");
+      refreshAll();
+      return;
+    }
+
+    // Normal flow (Today)
+    await updateStatus.mutateAsync({ questId, status: "accepted" });
+
+    const updatePayload: any = { questId };
+    if (sd) updatePayload.startDate = sd;
+    if (plannedTimeSlot) updatePayload.plannedTimeSlot = plannedTimeSlot;
+
+    if (Object.keys(updatePayload).length > 1) {
+      await updateQuest.mutateAsync(updatePayload);
+    }
+
     toast.success("Received");
     refreshAll();
   };
