@@ -1251,41 +1251,116 @@ export default function Home() {
   targetDate.setDate(targetDate.getDate() + planningDayOffset);
   const targetStr = format(targetDate, "yyyy-MM-dd");
 
-  const fixShelfQuests = [
-    ...(unreceivedQuests?.filter(q => {
-      if (q.questType === "Project" || q.questType === "Relax") return false;
-      if (!q.templateId) return true; // Keep manual unreceived quests
+  const fixShelfQuests = React.useMemo(() => {
+    const arr: any[] = [];
+    // 1. Add manual unreceived quests (no template)
+    unreceivedQuests?.forEach(q => {
+      if (q.questType === "Project" || q.questType === "Relax") return;
+      if (!q.templateId) {
+        arr.push({ ...q, isSynthesized: false });
+      }
+    });
 
-      // If we already have a planned/active/cleared quest for this template ON the target date, don't show the unreceived one!
-      const alreadyPlannedForTargetDate = activeQuests?.some(aq =>
-        aq.templateId === q.templateId &&
+    // Helper: check if template is valid for targetDate
+    const isTemplateValidForDate = (t: any, date: Date) => {
+      if (t.questType === "Daily") return true;
+      if (t.questType === "Weekly") {
+        const days = t.daysOfWeek && t.daysOfWeek !== "[]" ? JSON.parse(t.daysOfWeek) : [];
+        if (days.length === 0) return false;
+        const dow = date.getDay() === 0 ? 7 : date.getDay();
+        return days.includes(dow);
+      }
+      if (t.questType === "Monthly" || t.questType === "Yearly") {
+        if (t.questType === "Yearly") {
+          const m = date.getMonth() + 1;
+          if (t.monthOfYear !== m) return false;
+        }
+        const dates = t.datesOfMonth && t.datesOfMonth !== "[]" ? JSON.parse(t.datesOfMonth) : [];
+        const weeks = t.weeksOfMonth && t.weeksOfMonth !== "[]" ? JSON.parse(t.weeksOfMonth) : [];
+        const days = t.daysOfWeek && t.daysOfWeek !== "[]" ? JSON.parse(t.daysOfWeek) : [];
+
+        const d = date.getDate();
+        const dow = date.getDay() === 0 ? 7 : date.getDay();
+        const wom = Math.ceil(d / 7);
+
+        if (dates.length > 0) return dates.includes(d);
+        if (weeks.length > 0) {
+          return weeks.includes(wom) && (days.length === 0 || days.includes(dow));
+        }
+        return false;
+      }
+      return false;
+    };
+
+    // 2. Add template-based FIX items
+    templates?.forEach(t => {
+      if (t.questType === "Project" || t.questType === "Relax" || t.questType === "Free") return;
+
+      const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
+        (!t.daysOfWeek || t.daysOfWeek === "[]") &&
+        (!t.datesOfMonth || t.datesOfMonth === "[]");
+      if (isPool) return;
+
+      if (!isTemplateValidForDate(t, targetDate)) return;
+
+      const alreadyPlanned = activeQuests?.some(aq =>
+        aq.templateId === t.id &&
         aq.startDate && format(new Date(aq.startDate), "yyyy-MM-dd") === targetStr
       ) || history?.some(hq =>
-        hq.templateId === q.templateId &&
+        hq.templateId === t.id &&
         hq.recordedAt && format(new Date(hq.recordedAt), "yyyy-MM-dd") === targetStr
       );
 
-      return !alreadyPlannedForTargetDate;
-    }) || []), ...(activeQuests?.filter(q => {
-      if (q.questType === "Project" || q.questType === "Relax" || q.questType === "Free") return false;
-      if (q.status !== "cleared") return false;
+      if (alreadyPlanned) return;
 
-      // Target date matching (only show cleared quests if they were scheduled for today/tomorrow depending on offset)
-      const targetDate = new Date();
-      targetDate.setDate(targetDate.getDate() + planningDayOffset);
-      const targetStr = format(targetDate, "yyyy-MM-dd");
-      if (q.startDate && format(new Date(q.startDate), "yyyy-MM-dd") !== targetStr) return false;
+      const existingUnreceived = unreceivedQuests?.find(q => q.templateId === t.id);
 
-      // Check if it belongs to a FIX template (not a pool template)
-      return templates?.some(t => {
-        if (t.id !== q.templateId) return false;
-        const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
-          (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
-          (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
-        return !isPool;
-      });
-    }) || [])
-  ].sort((a, b) => a.id - b.id);
+      if (existingUnreceived && planningDayOffset === 0) {
+        // We have a real quest generated for today
+        if (!arr.find(x => x.id === existingUnreceived.id)) {
+          arr.push({ ...existingUnreceived, isSynthesized: false });
+        }
+      } else {
+        // Synthesize for UI
+        arr.push({
+          id: `template-${t.id}`,
+          questName: t.questName,
+          projectName: t.projectName,
+          questType: t.questType,
+          difficulty: t.difficulty,
+          templateId: t.id,
+          status: "unreceived",
+          isSynthesized: true,
+          template: t
+        });
+      }
+    });
+
+    // 3. Keep showing cleared targets for today so the user feels good.
+    activeQuests?.forEach(q => {
+      if (q.questType === "Project" || q.questType === "Relax" || q.questType === "Free") return;
+      if (q.status !== "cleared") return;
+      if (q.startDate && format(new Date(q.startDate), "yyyy-MM-dd") !== targetStr) return;
+
+      const t = templates?.find(tp => tp.id === q.templateId);
+      if (!t) return;
+      const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
+        (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
+        (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
+      if (isPool) return;
+
+      if (!arr.find(x => x.id === q.id)) {
+        arr.push({ ...q, isSynthesized: false });
+      }
+    });
+
+    return arr.sort((a, b) => {
+      // Sort by original order or synthesized id
+      const idA = typeof a.id === 'string' ? a.templateId : a.id;
+      const idB = typeof b.id === 'string' ? b.templateId : b.id;
+      return idA - idB;
+    });
+  }, [unreceivedQuests, activeQuests, history, templates, targetStr, planningDayOffset]);
 
   // Project Shelf Logic (Now based on Templates)
   const projectTemplates = templates?.filter(t => {
@@ -1371,10 +1446,24 @@ export default function Home() {
     return d;
   };
 
-  const handleReceiveFix = async (questId: number) => {
-    const quest = unreceivedQuests?.find(q => q.id === questId) || fixShelfQuests.find(q => q.id === questId);
+  const handleReceiveFix = async (questIdOrString: number | string) => {
+    let quest: any;
+    let template: any;
+    let isSynthesized = false;
 
-    const template = templates?.find(t => t.id === quest?.templateId);
+    if (typeof questIdOrString === 'string' && questIdOrString.startsWith('template-')) {
+      const tId = parseInt(questIdOrString.split('-')[1], 10);
+      template = templates?.find(t => t.id === tId);
+      quest = fixShelfQuests.find(q => q.id === questIdOrString);
+      isSynthesized = true;
+    } else {
+      const questId = questIdOrString as number;
+      quest = unreceivedQuests?.find(q => q.id === questId) || fixShelfQuests.find(q => q.id === questId);
+      template = templates?.find(t => t.id === quest?.templateId);
+    }
+
+    if (!quest) return;
+
     let plannedTimeSlot: string | undefined = undefined;
     if (template && template.questType === "Daily" && template.scheduledHour != null) {
       const sh = template.scheduledHour;
@@ -1382,28 +1471,28 @@ export default function Home() {
       plannedTimeSlot = JSON.stringify([`${String(sh).padStart(2, '0')}:00-${String(nextHour).padStart(2, '0')}:00`]);
     }
 
-    const sd = getPlanningStartDate();
+    const sd = getPlanningStartDate() || new Date();
 
-    if (sd && planningDayOffset > 0 && quest && quest.status === "unreceived" && quest.templateId) {
-      // Create a NEW quest for tomorrow to avoid removing the unreceived one for today
+    if (isSynthesized || (planningDayOffset > 0 && quest.status === "unreceived")) {
+      // Create a NEW quest for the target date since we don't have one or we don't want to move today's
       await createQuest.mutateAsync({
         questName: quest.questName,
         questType: quest.questType,
-        difficulty: quest.difficulty,
-        templateId: quest.templateId,
+        difficulty: quest.difficulty || "1",
+        templateId: template?.id,
         status: "accepted",
         startDate: sd,
         plannedTimeSlot: plannedTimeSlot
       } as any);
-      toast.success("Received for Tomorrow");
+      toast.success(`Received for ${planningDayOffset > 0 ? "Tomorrow" : "Today"}`);
       refreshAll();
       return;
     }
 
-    // Normal flow (Today)
-    await updateStatus.mutateAsync({ questId, status: "accepted" });
+    // Normal flow (Today, existing unreceived)
+    await updateStatus.mutateAsync({ questId: quest.id, status: "accepted" });
 
-    const updatePayload: any = { questId };
+    const updatePayload: any = { questId: quest.id };
     if (sd) updatePayload.startDate = sd;
     if (plannedTimeSlot) updatePayload.plannedTimeSlot = plannedTimeSlot;
 
