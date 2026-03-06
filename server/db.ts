@@ -596,7 +596,7 @@ export async function getQuestTemplates(userId: number): Promise<(QuestTemplate 
     .from(questTemplates)
     .leftJoin(projects, eq(questTemplates.projectId, projects.id))
     .where(eq(questTemplates.userId, userId))
-    .orderBy(asc(questTemplates.displayOrder), desc(questTemplates.createdAt));
+    .orderBy(desc(questTemplates.createdAt));
 
   const results = await Promise.all(rows.map(async ({ template, project }: { template: QuestTemplate, project: Project | null }) => {
     const [res] = await db.select({ count: sql<number>`count(*)` })
@@ -677,26 +677,6 @@ export async function updateQuestTemplate(
 
   const [template] = await db.select().from(questTemplates).where(eq(questTemplates.id, templateId));
   return template;
-}
-
-/**
- * テンプレートの並び順を更新
- */
-export async function updateTemplateOrder(
-  userId: number,
-  orderedIds: number[]
-): Promise<void> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  // TODO: Use transaction or bulk update if supported by Drizzle Turso driver well.
-  // For now, simple loop is fine for personal use scale.
-  for (let i = 0; i < orderedIds.length; i++) {
-    const id = orderedIds[i];
-    await db.update(questTemplates)
-      .set({ displayOrder: i })
-      .where(and(eq(questTemplates.id, id), eq(questTemplates.userId, userId)));
-  }
 }
 
 /**

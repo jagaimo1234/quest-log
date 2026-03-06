@@ -38,7 +38,6 @@ import {
   getDailyConfig,
   updateDailyConfig,
   incrementQuestCount,
-  updateTemplateOrder,
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
@@ -467,17 +466,6 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return updateTemplateStatus(input.templateId, ctx.user!.id, input.isActive);
-      }),
-
-    /**
-     * テンプレートの並び順を更新
-     */
-    updateOrder: protectedProcedure
-      .input(z.object({
-        orderedIds: z.array(z.number()),
-      }))
-      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
-        return updateTemplateOrder(ctx.user!.id, input.orderedIds);
       }),
 
     /**
