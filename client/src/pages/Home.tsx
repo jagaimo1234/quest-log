@@ -452,6 +452,10 @@ function TodayItem({
                 placeholder="e.g. Read 'Atomic Habits'"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
+                onTouchStart={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); (e.target as HTMLTextAreaElement).focus(); }}
+                style={{ touchAction: 'manipulation' }}
               />
               <Button onClick={handleSaveNote} disabled={updateQuest.isPending} className="w-full">
                 {updateQuest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
