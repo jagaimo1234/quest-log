@@ -903,6 +903,7 @@ export default function Home() {
 
   const updateStatus = trpc.quest.updateStatus.useMutation();
   const createQuest = trpc.quest.create.useMutation();
+  const createTemplate = trpc.template.create.useMutation();
   const generateFromTemplates = trpc.template.generate.useMutation();
   const updateOrder = trpc.quest.updateOrder.useMutation();
 
@@ -1409,14 +1410,13 @@ export default function Home() {
   };
 
   const handleRestoreHistory = async (item: any) => {
-    await createQuest.mutateAsync({
+    await createTemplate.mutateAsync({
       questName: item.questName,
       questType: "Free",
       difficulty: "1",
-      status: "accepted",
-      note: item.note,
+      frequency: 1,
     } as any);
-    toast.success("Task Restored");
+    toast.success("Added to ONE-OFF (IN PROGRESS)");
     refreshAll();
   };
 
