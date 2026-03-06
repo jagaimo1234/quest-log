@@ -249,6 +249,7 @@ export async function createQuest(
     status?: "unreceived" | "accepted";
     note?: string | null;
     targetCount?: number;
+    plannedTimeSlot?: string | null;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -278,6 +279,7 @@ export async function createQuest(
     note: input.note || null,
     targetCount: input.targetCount || 1,
     currentCount: 0,
+    plannedTimeSlot: input.plannedTimeSlot || null,
   };
 
   const result = await db.insert(quests).values(values).returning();
@@ -850,6 +852,11 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
     }
 
     // 5. Generate
+    // Determine plannedTimeSlot from scheduledHour (Daily only)
+    const plannedTimeSlot = (template.questType === "Daily" && template.scheduledHour != null)
+      ? `${String(template.scheduledHour).padStart(2, '0')}:00`
+      : undefined;
+
     const quest = await createQuest(userId, {
       questName: questName,
       projectName: project?.name || template.projectName,
@@ -857,6 +864,7 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
       difficulty: template.difficulty,
       templateId: template.id,
       autoDeadline: true,
+      plannedTimeSlot: plannedTimeSlot,
     });
 
     generatedQuests.push(quest);

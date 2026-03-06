@@ -133,6 +133,9 @@ export const questTemplates = sqliteTable("quest_templates", {
   // 表示順
   displayOrder: integer("displayOrder").default(0).notNull(),
 
+  // 自動スケジュール時刻 (0-23, null=未設定) - Daily専用
+  scheduledHour: integer("scheduledHour"),
+
   // 最後に生成した日付
   lastGeneratedAt: integer("lastGeneratedAt", { mode: "timestamp" }),
 

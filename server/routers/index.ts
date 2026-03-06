@@ -451,6 +451,7 @@ export const appRouter = router({
         startDate: z.date().optional().nullable(),
         endDate: z.date().optional().nullable(),
         projectId: z.number().optional().nullable(),
+        scheduledHour: z.number().min(0).max(23).nullable().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return createQuestTemplate(ctx.user!.id, input);
@@ -493,6 +494,7 @@ export const appRouter = router({
         monthOfYear: z.number().min(1).max(12).optional().nullable(),
         startDate: z.date().optional().nullable(),
         endDate: z.date().optional().nullable(),
+        scheduledHour: z.number().min(0).max(23).nullable().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return updateQuestTemplate(input.templateId, ctx.user!.id, input);

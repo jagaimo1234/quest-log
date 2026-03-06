@@ -196,6 +196,11 @@ function TemplateCard({
               <span className="ml-1 border-l pl-2 border-border/50">頻度: {template.frequency}回</span>
             )}
           </div>
+          {template.scheduledHour != null && (
+            <div className="flex items-center gap-1 bg-sky-100 text-sky-700 px-2 py-1 rounded-md font-medium">
+              🕐 {String(template.scheduledHour).padStart(2, '0')}:00
+            </div>
+          )}
         </div>
       </div>
 
@@ -259,6 +264,9 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
   const [weeksOfMonth, setWeeksOfMonth] = useState<string[]>(initialWeeks);
   const [datesOfMonth, setDatesOfMonth] = useState<string>(initialDates.join(", "));
   const [monthOfYear, setMonthOfYear] = useState<string>(template.monthOfYear?.toString() || "");
+  const [scheduledHour, setScheduledHour] = useState<string>(
+    template.scheduledHour != null ? String(template.scheduledHour) : ""
+  );
 
   const updateTemplate = trpc.template.update.useMutation();
   const deleteTemplate = trpc.template.delete.useMutation();
@@ -330,6 +338,7 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
         weeksOfMonth: finalWeeks,
         datesOfMonth: finalDates,
         monthOfYear: finalMonth,
+        scheduledHour: questType === "Daily" && scheduledHour !== "" ? parseInt(scheduledHour) : null,
       });
 
       toast.success("テンプレートを更新しました");
@@ -390,6 +399,30 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
               </SelectContent>
             </Select>
           </div>
+
+          {/* Daily: Time Scheduling */}
+          {questType === "Daily" && (
+            <div className="space-y-2 p-4 border rounded-md bg-sky-50/50 border-sky-100 animate-in fade-in">
+              <Label className="text-foreground font-bold flex items-center gap-2">
+                🕐 自動スケジュール時刻
+                <span className="text-xs font-normal text-muted-foreground">（Beta）</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">指定すると、この時間帯にTODAY PLANNINGへ自動紐付けされます。</p>
+              <Select value={scheduledHour} onValueChange={setScheduledHour}>
+                <SelectTrigger className="bg-white border-sky-200">
+                  <SelectValue placeholder="時刻を選択（任意）" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">なし（自動なし）</SelectItem>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>
+                      {String(i).padStart(2, '0')}:00 〜 {String(i + 1).padStart(2, '0')}:00
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {questType !== "Daily" && (
             <div className="space-y-3 p-4 border rounded-md bg-muted/20">
@@ -604,6 +637,7 @@ function TemplateCreateDialog({ onCreated }: { onCreated: () => void }) {
   const [weeksOfMonth, setWeeksOfMonth] = useState<string[]>([]);
   const [datesOfMonth, setDatesOfMonth] = useState<string>("");
   const [monthOfYear, setMonthOfYear] = useState<string>("");
+  const [scheduledHour, setScheduledHour] = useState<string>("");
 
   const createTemplate = trpc.template.create.useMutation();
 
@@ -642,6 +676,7 @@ function TemplateCreateDialog({ onCreated }: { onCreated: () => void }) {
         weeksOfMonth: finalWeeks,
         datesOfMonth: finalDates,
         monthOfYear: finalMonth,
+        scheduledHour: questType === "Daily" && scheduledHour !== "" ? parseInt(scheduledHour) : null,
       });
 
       toast.success("テンプレートを作成しました");
@@ -664,6 +699,7 @@ function TemplateCreateDialog({ onCreated }: { onCreated: () => void }) {
     setWeeksOfMonth([]);
     setDatesOfMonth("");
     setMonthOfYear("");
+    setScheduledHour("");
   };
 
   return (
@@ -734,6 +770,30 @@ function TemplateCreateDialog({ onCreated }: { onCreated: () => void }) {
             {/* Difficulty Removed */}
             <input type="hidden" value="1" />
           </div>
+
+          {/* Daily: Time Scheduling */}
+          {questType === "Daily" && (
+            <div className="space-y-2 p-4 border rounded-md bg-sky-50/50 border-sky-100 animate-in fade-in">
+              <Label className="text-foreground font-bold flex items-center gap-2">
+                🕐 自動スケジュール時刻
+                <span className="text-xs font-normal text-muted-foreground">（Beta）</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">指定すると、この時間帯にTODAY PLANNINGへ自動紐付けされます。</p>
+              <Select value={scheduledHour} onValueChange={setScheduledHour}>
+                <SelectTrigger className="bg-white border-sky-200">
+                  <SelectValue placeholder="時刻を選択（任意）" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">なし（自動なし）</SelectItem>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>
+                      {String(i).padStart(2, '0')}:00 〜 {String(i + 1).padStart(2, '0')}:00
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {questType !== "Daily" && (
             <div className="space-y-3 p-4 border rounded-md bg-muted/20">
