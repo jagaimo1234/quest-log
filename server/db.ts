@@ -839,18 +839,7 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
 
     // 2. Already Active? (Prevent duplication)
     const existingQuest = activeQuests.find((q: Quest) => q.templateId === template.id);
-    if (existingQuest) {
-      // If the template has a scheduledHour set, sync it to the existing quest's plannedTimeSlot
-      if (template.questType === "Daily" && template.scheduledHour != null) {
-        const desiredSlot = `${String(template.scheduledHour).padStart(2, '0')}:00`;
-        if (existingQuest.plannedTimeSlot !== desiredSlot) {
-          await db.update(quests)
-            .set({ plannedTimeSlot: desiredSlot })
-            .where(eq(quests.id, existingQuest.id));
-        }
-      }
-      continue; // Already have one, don't generate another until it's done.
-    }
+    if (existingQuest) continue; // Already have one, don't generate another until it's done.
 
     // 3. Frequency Check (Goal Met?)
     const freq = template.frequency || 1;
@@ -865,11 +854,6 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
     }
 
     // 5. Generate
-    // Determine plannedTimeSlot from scheduledHour (Daily only)
-    const plannedTimeSlot = (template.questType === "Daily" && template.scheduledHour != null)
-      ? `${String(template.scheduledHour).padStart(2, '0')}:00`
-      : undefined;
-
     const quest = await createQuest(userId, {
       questName: questName,
       projectName: project?.name || template.projectName,
@@ -877,7 +861,6 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
       difficulty: template.difficulty,
       templateId: template.id,
       autoDeadline: true,
-      plannedTimeSlot: plannedTimeSlot,
     });
 
     generatedQuests.push(quest);
