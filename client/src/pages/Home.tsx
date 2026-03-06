@@ -525,7 +525,7 @@ function FixItem({ quest, executedCount, onReceive }: { quest: any, executedCoun
   );
 }
 
-function NonFixItem({ template, history, onReceive }: { template: any, history: any[], onReceive: () => void }) {
+function NonFixItem({ template, history, onReceive, onDragStart }: { template: any, history: any[], onReceive: () => void, onDragStart?: (e: React.MouseEvent | React.TouchEvent) => void }) {
   const now = new Date();
   let periodStart = startOfWeek(now, { weekStartsOn: 1 });
   if (template.questType === "Monthly") periodStart = startOfMonth(now);
@@ -540,7 +540,7 @@ function NonFixItem({ template, history, onReceive }: { template: any, history: 
   const isCompleted = doneCount >= quota;
 
   return (
-    <div onClick={isCompleted ? undefined : onReceive} className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-fuchsia-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-fuchsia-50'}`}>
+    <div className={`relative group flex items-center gap-2 p-2 rounded-lg border border-fuchsia-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-fuchsia-50'}`}>
       {isCompleted && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
           <div className="text-2xl font-black text-fuchsia-500/50 -rotate-12 border-4 border-fuchsia-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
@@ -548,25 +548,36 @@ function NonFixItem({ template, history, onReceive }: { template: any, history: 
           </div>
         </div>
       )}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-fuchsia-50 text-fuchsia-300' : 'bg-fuchsia-100 text-fuchsia-600 group-hover:bg-fuchsia-200 transition-colors'}`}>
-        {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+      {/* Drag handle */}
+      <div
+        className="shrink-0 cursor-grab text-fuchsia-200 hover:text-fuchsia-400 p-1 -ml-1 touch-none"
+        onMouseDown={(e) => { e.stopPropagation(); onDragStart && onDragStart(e); }}
+        onTouchStart={(e) => { e.stopPropagation(); onDragStart && onDragStart(e); }}
+      >
+        <GripVertical className="w-3 h-3" />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center mb-0.5">
-          <div className={`text-xs font-bold truncate ${isCompleted ? 'text-fuchsia-700/60' : 'text-fuchsia-900'}`}>
-            {template.projectName ? `${template.questName} -${template.projectName}-` : template.questName}
-          </div>
-          <span className={`text-[9px] font-bold ${isCompleted ? 'text-fuchsia-300' : 'text-fuchsia-400'}`}>{doneCount}/{quota}</span>
+      {/* Main click area */}
+      <div onClick={isCompleted ? undefined : onReceive} className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-fuchsia-50 text-fuchsia-300' : 'bg-fuchsia-100 text-fuchsia-600 group-hover:bg-fuchsia-200 transition-colors'}`}>
+          {isCompleted ? <CheckCircle2 className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
         </div>
-        <div className="flex justify-between items-end">
-          <div className="flex flex-col gap-0.5">
-            <div className="text-[10px] text-fuchsia-500 uppercase tracking-wider">{QUEST_TYPE_LABELS[template.questType]}</div>
-            <div className="text-[9px] text-muted-foreground">達成回数: {template.executedCount || 0}</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-center mb-0.5">
+            <div className={`text-xs font-bold truncate ${isCompleted ? 'text-fuchsia-700/60' : 'text-fuchsia-900'}`}>
+              {template.projectName ? `${template.questName} -${template.projectName}-` : template.questName}
+            </div>
+            <span className={`text-[9px] font-bold ml-1 shrink-0 ${isCompleted ? 'text-fuchsia-300' : 'text-fuchsia-400'}`}>{doneCount}/{quota}</span>
           </div>
-          <div className="flex gap-1">
-            {Array.from({ length: quota }).map((_, i) => (
-              <div key={i} className={`w-2 h-2 rounded-full border border-fuchsia-200 ${i < doneCount ? 'bg-green-500 border-green-600' : 'bg-gray-100'}`} />
-            ))}
+          <div className="flex justify-between items-end">
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[10px] text-fuchsia-500 uppercase tracking-wider">{QUEST_TYPE_LABELS[template.questType]}</div>
+              <div className="text-[9px] text-muted-foreground">達成回数: {template.executedCount || 0}</div>
+            </div>
+            <div className="flex gap-1">
+              {Array.from({ length: quota }).map((_, i) => (
+                <div key={i} className={`w-2 h-2 rounded-full border border-fuchsia-200 ${i < doneCount ? 'bg-green-500 border-green-600' : 'bg-gray-100'}`} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1279,6 +1290,59 @@ export default function Home() {
     return isPool;
   }) || [];
 
+  const [orderedNonFixIds, setOrderedNonFixIds] = useState<number[]>([]);
+  const updateTemplateOrder = trpc.template.updateOrder.useMutation();
+  const [nonFixDragState, setNonFixDragState] = useState<{ active: boolean; itemId: number | null; startY: number; currentY: number }>({ active: false, itemId: null, startY: 0, currentY: 0 });
+
+  useEffect(() => {
+    if (nonFixTemplates.length > 0) {
+      const serverIds = nonFixTemplates.map(t => t.id);
+      const currentSet = new Set(orderedNonFixIds);
+      const sameIds = serverIds.length === orderedNonFixIds.length && serverIds.every(id => currentSet.has(id));
+      if (!sameIds) setOrderedNonFixIds(serverIds);
+    }
+  }, [nonFixTemplates.map(t => t.id).join(',')]);
+
+  const orderedNonFix = orderedNonFixIds
+    .map(id => nonFixTemplates.find(t => t.id === id))
+    .filter(Boolean);
+
+  const handleNonFixDragStart = (e: React.MouseEvent | React.TouchEvent, id: number) => {
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setNonFixDragState({ active: true, itemId: id, startY: clientY, currentY: clientY });
+  };
+
+  const handleNonFixDragMove = (clientY: number) => {
+    if (!nonFixDragState.active || !nonFixDragState.itemId) return;
+    setNonFixDragState(s => ({ ...s, currentY: clientY }));
+    const container = document.getElementById('nonfix-list');
+    if (!container) return;
+    const items = Array.from(container.querySelectorAll('[data-nonfix-id]')) as HTMLElement[];
+    const dragIdx = orderedNonFixIds.indexOf(nonFixDragState.itemId);
+    let targetIdx = dragIdx;
+    for (let i = 0; i < items.length; i++) {
+      const rect = items[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) { targetIdx = i; break; }
+      targetIdx = i;
+    }
+    if (targetIdx !== dragIdx) {
+      const newIds = [...orderedNonFixIds];
+      const [moved] = newIds.splice(dragIdx, 1);
+      newIds.splice(targetIdx, 0, moved);
+      setOrderedNonFixIds(newIds);
+    }
+  };
+
+  const handleNonFixDragEnd = async () => {
+    if (!nonFixDragState.active) return;
+    setNonFixDragState({ active: false, itemId: null, startY: 0, currentY: 0 });
+    if (orderedNonFixIds.length > 0) {
+      await updateTemplateOrder.mutateAsync(
+        orderedNonFixIds.map((id, idx) => ({ templateId: id, order: idx }))
+      );
+    }
+  };
+
   const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
 
   // Helper: compute startDate for planning offset
@@ -1618,8 +1682,30 @@ export default function Home() {
               <div className="flex items-center justify-between mb-3 px-1">
                 <h2 className="text-xs font-bold text-fuchsia-500 uppercase tracking-wider">Non-FIX (Pool)</h2>
               </div>
-              {nonFixTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
-                <div>{nonFixTemplates.map(t => <NonFixItem key={t.id} template={t} history={history || []} onReceive={() => handleReceiveNonFix(t)} />)}</div>
+              {orderedNonFix.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
+                <div
+                  id="nonfix-list"
+                  className="space-y-2"
+                  onMouseMove={(e) => handleNonFixDragMove(e.clientY)}
+                  onTouchMove={(e) => handleNonFixDragMove(e.touches[0].clientY)}
+                  onMouseUp={handleNonFixDragEnd}
+                  onTouchEnd={handleNonFixDragEnd}
+                >
+                  {orderedNonFix.map(t => (
+                    <div
+                      key={t!.id}
+                      data-nonfix-id={t!.id}
+                      className={nonFixDragState.itemId === t!.id ? 'opacity-50 scale-95 transition-all' : 'transition-all'}
+                    >
+                      <NonFixItem
+                        template={t}
+                        history={history || []}
+                        onReceive={() => handleReceiveNonFix(t)}
+                        onDragStart={(e) => handleNonFixDragStart(e, t!.id)}
+                      />
+                    </div>
+                  ))}
+                </div>
               )}
             </section>
 

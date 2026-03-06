@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "openId": "guest_default_user",
+    "name": "ゲスト",
+    "email": null,
+    "loginMethod": "guest",
+    "role": "user",
+    "createdAt": 1769958595,
+    "updatedAt": 1769958595,
+    "lastSignedIn": 1772771668
+  }
+]

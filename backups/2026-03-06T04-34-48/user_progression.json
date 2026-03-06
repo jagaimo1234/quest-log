@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "userId": 1,
+    "totalXp": 1690,
+    "currentStreak": 2,
+    "longestStreak": 8,
+    "lastClearedDate": "2026-03-06",
+    "createdAt": 1769958641,
+    "updatedAt": 1772769467
+  }
+]

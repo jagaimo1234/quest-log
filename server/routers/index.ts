@@ -41,8 +41,8 @@ import {
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
-import { eq, and, desc } from "drizzle-orm";
-import { questHistory, memos } from "../../drizzle/schema.js";
+import { eq, and, desc, asc } from "drizzle-orm";
+import { questHistory, memos, questTemplates } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
 import { dailyInsightRouter } from "./dailyInsight.js";
@@ -505,6 +505,25 @@ export const appRouter = router({
       .input(z.object({ templateId: z.number() }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return deleteTemplate(input.templateId, ctx.user!.id);
+      }),
+
+    /**
+     * テンプレートの表示順を更新
+     */
+    updateOrder: protectedProcedure
+      .input(z.array(z.object({
+        templateId: z.number(),
+        order: z.number(),
+      })))
+      .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await Promise.all(input.map((i: any) =>
+          db.update(questTemplates)
+            .set({ displayOrder: i.order })
+            .where(and(eq(questTemplates.id, i.templateId), eq(questTemplates.userId, ctx.user!.id)))
+        ));
+        return { success: true };
       }),
   }),
 

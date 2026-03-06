@@ -596,7 +596,7 @@ export async function getQuestTemplates(userId: number): Promise<(QuestTemplate 
     .from(questTemplates)
     .leftJoin(projects, eq(questTemplates.projectId, projects.id))
     .where(eq(questTemplates.userId, userId))
-    .orderBy(desc(questTemplates.createdAt));
+    .orderBy(asc(questTemplates.displayOrder), asc(questTemplates.id));
 
   const results = await Promise.all(rows.map(async ({ template, project }: { template: QuestTemplate, project: Project | null }) => {
     const [res] = await db.select({ count: sql<number>`count(*)` })
