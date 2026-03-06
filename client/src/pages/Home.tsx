@@ -1378,7 +1378,7 @@ export default function Home() {
     const template = templates?.find(t => t.id === quest?.templateId);
     let plannedTimeSlot: string | undefined = undefined;
     if (template && template.questType === "Daily" && template.scheduledHour != null) {
-      plannedTimeSlot = `${String(template.scheduledHour).padStart(2, '0')}:00`;
+      plannedTimeSlot = JSON.stringify([`${String(template.scheduledHour).padStart(2, '0')}:00`]);
     }
 
     const sd = getPlanningStartDate();
