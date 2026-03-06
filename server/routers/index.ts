@@ -117,6 +117,7 @@ export const appRouter = router({
         deadline: z.date().optional().nullable(),
         autoDeadline: z.boolean().optional(),
         templateId: z.number().optional().nullable(),
+        plannedTimeSlot: z.string().optional().nullable(),
         status: z.enum(["unreceived", "accepted"]).optional(),
         targetCount: z.number().optional(),
       }))

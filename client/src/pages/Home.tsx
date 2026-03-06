@@ -1374,11 +1374,12 @@ export default function Home() {
   const handleReceiveFix = async (questId: number) => {
     const quest = unreceivedQuests?.find(q => q.id === questId) || fixShelfQuests.find(q => q.id === questId);
 
-    // Auto-link scheduledHour
     const template = templates?.find(t => t.id === quest?.templateId);
     let plannedTimeSlot: string | undefined = undefined;
     if (template && template.questType === "Daily" && template.scheduledHour != null) {
-      plannedTimeSlot = JSON.stringify([`${String(template.scheduledHour).padStart(2, '0')}:00`]);
+      const sh = template.scheduledHour;
+      const nextHour = sh === 23 ? 24 : sh + 1;
+      plannedTimeSlot = JSON.stringify([`${String(sh).padStart(2, '0')}:00-${String(nextHour).padStart(2, '0')}:00`]);
     }
 
     const sd = getPlanningStartDate();
