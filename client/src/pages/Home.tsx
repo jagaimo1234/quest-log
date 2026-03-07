@@ -849,47 +849,93 @@ function RelaxEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] p-0 gap-0 overflow-hidden border-none shadow-2xl">
-        <DialogHeader className="p-6 pb-2 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-background border-b border-emerald-100/50">
-          <DialogTitle className="text-xl font-extrabold tracking-tight flex items-center gap-2 text-emerald-800 dark:text-emerald-400">
-            <span>🌱</span> Edit Relax Mission
-          </DialogTitle>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Edit Relax Mission</DialogTitle>
         </DialogHeader>
-
-        <form id="relax-edit-form" onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-questName" className="text-foreground font-bold mb-1.5 block">Mission Name</Label>
-              <Input
-                id="edit-questName"
-                value={questName}
-                onChange={(e) => setQuestName(e.target.value)}
-                placeholder="e.g. read a book, take a nap"
-                className="bg-input border-border font-medium"
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <Label htmlFor="questName">Mission Name</Label>
+            <Input
+              id="questName"
+              value={questName}
+              onChange={(e) => setQuestName(e.target.value)}
+              required
+            />
           </div>
-        </form>
-
-        <DialogFooter className="p-4 bg-muted/20 border-t border-border flex gap-2 sm:justify-between items-center w-full">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleDelete}
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Delete
-          </Button>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" form="relax-edit-form" disabled={updateTemplate.isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              {updateTemplate.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Save
+          <DialogFooter className="flex justify-between items-center sm:justify-between">
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+            >
+              Delete
             </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit">Save</Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Restore History Dialog
+function RestoreHistoryDialog({
+  item,
+  open,
+  onOpenChange,
+  onRestore
+}: {
+  item: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onRestore: (item: any, frequency: number) => void;
+}) {
+  const [frequency, setFrequency] = useState("1");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseInt(frequency, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      onRestore(item, parsed);
+      onOpenChange(false);
+    }
+  };
+
+  if (!item) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Restore ONE-OFF Mission</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <Label>Mission Name</Label>
+            <div className="text-sm font-medium p-2 bg-muted rounded-md">{item.questName}</div>
           </div>
-        </DialogFooter>
+          <div className="space-y-2">
+            <Label htmlFor="frequency">Target Count (指定回数)</Label>
+            <Input
+              id="frequency"
+              type="number"
+              min="1"
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value)}
+              required
+            />
+            <p className="text-xs text-muted-foreground">This mission will be completed after this many executions.</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit">Restore</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -1628,12 +1674,14 @@ export default function Home() {
     refetchInsights();
   };
 
-  const handleRestoreHistory = async (item: any) => {
+  const [restoringHistoryItem, setRestoringHistoryItem] = useState<any>(null);
+
+  const handleRestoreHistory = async (item: any, frequency: number) => {
     await createTemplate.mutateAsync({
       questName: item.questName,
       questType: "Free",
       difficulty: "1",
-      frequency: 1,
+      frequency: frequency,
     } as any);
     toast.success("Added to ONE-OFF (IN PROGRESS)");
     refreshAll();
@@ -1976,7 +2024,7 @@ export default function Home() {
                       {historyItems.map((item: any) => (
                         <div
                           key={item.id}
-                          onClick={() => handleRestoreHistory(item)}
+                          onClick={() => setRestoringHistoryItem(item)}
                           className="cursor-pointer group flex items-center justify-between p-2 rounded-lg border border-slate-100 bg-white hover:bg-slate-50 transition-all shadow-sm"
                         >
                           <div className="min-w-0 flex-1">
@@ -1992,6 +2040,13 @@ export default function Home() {
                   )}
                 </div>
               )}
+
+              <RestoreHistoryDialog
+                item={restoringHistoryItem}
+                open={!!restoringHistoryItem}
+                onOpenChange={(open) => !open && setRestoringHistoryItem(null)}
+                onRestore={handleRestoreHistory}
+              />
             </section>
 
             <div className="h-px bg-border/50 my-6" />
