@@ -1935,7 +1935,7 @@ export default function Home() {
                 <div className="flex flex-col justify-center bg-white p-3 rounded-lg border border-sky-100 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] relative">
                   <div className="text-[10px] font-bold text-sky-400 mb-1 flex items-center justify-between">
                     <span>ヤスダヨーグルト換算 (603円/本)</span>
-                    <span className="text-xl">🥛</span>
+                    <img src="/yasuda.png" alt="icon" className="w-5 h-5 object-contain" />
                   </div>
                   <div className="flex items-baseline gap-1 mb-1 relative z-10">
                     <span className="text-3xl font-black text-sky-700">{yogurtCount.toFixed(1)}</span>
@@ -1943,10 +1943,10 @@ export default function Home() {
                   </div>
 
                   {/* Visual Yogurt Gauge */}
-                  <div className="flex flex-wrap gap-0.5 mb-2 mt-1">
+                  <div className="flex flex-wrap gap-1 mb-2 mt-1 min-h-[1.5rem] items-end">
                     {Array.from({ length: Math.max(10, Math.ceil(yogurtCount)) }).map((_, i) => (
-                      <div key={i} className={`text-lg leading-none transition-all duration-500 ${i < Math.floor(yogurtCount) ? 'grayscale-0 opacity-100 scale-110' : 'grayscale opacity-20 scale-90'}`}>
-                        🥛
+                      <div key={i} className={`transition-all duration-500 ${i < Math.floor(yogurtCount) ? 'grayscale-0 opacity-100 scale-110' : 'grayscale opacity-30 scale-90'}`}>
+                        <img src="/yasuda.png" alt="yogurt" className="w-4 h-auto object-contain drop-shadow-sm" />
                       </div>
                     ))}
                   </div>
