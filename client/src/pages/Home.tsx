@@ -986,15 +986,16 @@ export default function Home() {
   // ============================================
   const targetYearMonth = useMemo(() => targetDateStr.substring(0, 7), [targetDateStr]);
   const { data: lunchCookedCount, refetch: refetchLunchCookedCount } = trpc.config.getLunchCookedCount.useQuery({ yearMonth: targetYearMonth }, { enabled: isAuthenticated });
-  const setLunchCookedMutaion = trpc.config.setLunchCooked.useMutation();
+  const setLunchCountMutaion = trpc.config.setLunchCount.useMutation();
 
-  const handleToggleLunchCooked = async (current: boolean) => {
-    await setLunchCookedMutaion.mutateAsync({ date: targetDateStr, cooked: !current });
+  const handleAddLunch = async () => {
+    const newCount = (dailyConfig?.lunchCount ?? 0) + 1;
+    await setLunchCountMutaion.mutateAsync({ date: targetDateStr, count: newCount });
     refetchConfig();
     refetchLunchCookedCount();
   };
 
-  const isLunchCookedToday = dailyConfig?.lunchCooked ?? false;
+  const todayLunchCount = dailyConfig?.lunchCount ?? 0;
   const thisMonthLunchCount = lunchCookedCount ?? 0;
   const savedAmount = thisMonthLunchCount * 300;
   const yogurtCount = savedAmount / 603;
@@ -1904,20 +1905,22 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Left: Input */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-500 uppercase">今日</span>
-                    <button
-                      onClick={() => handleToggleLunchCooked(isLunchCookedToday)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md border transition-all ${isLunchCookedToday
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold shadow-sm'
-                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                        }`}
-                    >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isLunchCookedToday ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>
-                        {isLunchCookedToday && <CheckCircle2 className="w-3 h-3" />}
-                      </div>
-                      自炊した
-                    </button>
+                    <div className="flex flex-col items-end gap-1">
+                      <button
+                        onClick={handleAddLunch}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-all font-bold shadow-sm active:scale-95"
+                      >
+                        <span className="text-lg leading-none">+</span>
+                        自炊を追加
+                      </button>
+                      {todayLunchCount > 0 && (
+                        <div className="text-[10px] text-emerald-600 font-bold px-1">
+                          本日: {todayLunchCount}回追加済み
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded-lg border border-sky-100 shadow-sm">
                     <div>

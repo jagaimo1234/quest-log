@@ -633,10 +633,10 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    setLunchCooked: protectedProcedure
-      .input(z.object({ date: z.string(), cooked: z.boolean() }))
+    setLunchCount: protectedProcedure
+      .input(z.object({ date: z.string(), count: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        await updateDailyConfig(ctx.user!.id, input.date, { lunchCooked: input.cooked });
+        await updateDailyConfig(ctx.user!.id, input.date, { lunchCount: input.count });
         return { success: true };
       }),
 
@@ -646,14 +646,13 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) return 0;
 
-        const rows = await db.select({ count: sql<number>`count(*)` })
+        const rows = await db.select({ total: sql<number>`sum(${dailyConfig.lunchCount})` })
           .from(dailyConfig)
           .where(and(
             eq(dailyConfig.userId, ctx.user!.id),
-            eq(dailyConfig.lunchCooked, true),
             sql`date LIKE ${input.yearMonth + '-%'}`
           ));
-        return rows[0]?.count || 0;
+        return rows[0]?.total || 0;
       })
   }),
 });

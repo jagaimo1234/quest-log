@@ -259,7 +259,7 @@ export const dailyConfig = sqliteTable("daily_config", {
   userId: integer("userId").notNull(),
   date: text("date").notNull(), // format: YYYY-MM-DD
   jobModeDisabled: integer("jobModeDisabled", { mode: "boolean" }).default(false).notNull(),
-  lunchCooked: integer("lunchCooked", { mode: "boolean" }).default(false).notNull(),
+  lunchCount: integer("lunchCount").default(0).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
 

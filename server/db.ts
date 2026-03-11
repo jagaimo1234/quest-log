@@ -1468,7 +1468,7 @@ export async function getDailyConfig(userId: number, date: string) {
   return config || { userId, date, jobModeDisabled: false };
 }
 
-export async function updateDailyConfig(userId: number, date: string, updates: { jobModeDisabled?: boolean, lunchCooked?: boolean }) {
+export async function updateDailyConfig(userId: number, date: string, updates: { jobModeDisabled?: boolean, lunchCount?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -1482,7 +1482,8 @@ export async function updateDailyConfig(userId: number, date: string, updates: {
     await db.insert(dailyConfig).values({
       userId,
       date,
-      ...updates,
+      lunchCount: updates.lunchCount ?? 0,
+      jobModeDisabled: updates.jobModeDisabled ?? false,
     });
   }
 }
