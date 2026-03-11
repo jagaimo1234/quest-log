@@ -949,6 +949,8 @@ export default function Home() {
   const [planningDayOffset, setPlanningDayOffset] = useState(0); // 0=today, 1=tomorrow
 
   const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, { enabled: isAuthenticated });
+
+
   const { data: templates, refetch: refetchTemplates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
   const { data: progression, refetch: refetchProgression } = trpc.progression.get.useQuery(undefined, { enabled: isAuthenticated });
   const { data: unreceivedQuests, refetch: refetchUnreceived } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
@@ -978,6 +980,31 @@ export default function Home() {
     { date: targetDateStr },
     { enabled: isAuthenticated, staleTime: 1000 * 60 } // Cache for 1 minute
   );
+
+  // ============================================
+  // Yasuda Yogurt Counter logic
+  // ============================================
+  const targetYearMonth = useMemo(() => targetDateStr.substring(0, 7), [targetDateStr]);
+  const { data: lunchCookedCount, refetch: refetchLunchCookedCount } = trpc.config.getLunchCookedCount.useQuery({ yearMonth: targetYearMonth }, { enabled: isAuthenticated });
+  const setLunchCookedMutaion = trpc.config.setLunchCooked.useMutation();
+
+  const handleToggleLunchCooked = async (current: boolean) => {
+    await setLunchCookedMutaion.mutateAsync({ date: targetDateStr, cooked: !current });
+    refetchConfig();
+    refetchLunchCookedCount();
+  };
+
+  const isLunchCookedToday = dailyConfig?.lunchCooked ?? false;
+  const thisMonthLunchCount = lunchCookedCount ?? 0;
+  const savedAmount = thisMonthLunchCount * 300;
+  const yogurtCount = savedAmount / 603;
+
+  const getYogurtComment = (count: number) => {
+    if (count >= 10) return "「ヤスダヨーグルト箱買いレベル」";
+    if (count >= 5) return "「ヨーグルトパーティーできる」";
+    if (count >= 1) return `「ヤスダヨーグルト${Math.floor(count)}本分節約！」`;
+    return "「あと少しで1本買える！」";
+  };
   const disableJobModeMutation = trpc.config.disableJobMode.useMutation();
 
   const handleDisableJobMode = async () => {
@@ -1860,6 +1887,76 @@ export default function Home() {
                 </div>
               )
             }
+
+            <div className="h-px bg-border/50 my-6" />
+
+            {/* YASUDA YOGURT COUNTER */}
+            <section className="mb-6 p-4 rounded-xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 shadow-sm relative overflow-hidden">
+              <div className="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none grayscale">
+                <img src="/yasuda.png" alt="Yasuda Yogurt" className="w-48 h-auto object-contain" />
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <h2 className="text-sm font-black text-sky-800 flex items-center gap-1.5">
+                  <span className="text-lg">🍱</span> 平日お昼自炊カウンター
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Left: Input */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase">今日</span>
+                    <button
+                      onClick={() => handleToggleLunchCooked(isLunchCookedToday)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md border transition-all ${isLunchCookedToday
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                        }`}
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isLunchCookedToday ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>
+                        {isLunchCookedToday && <CheckCircle2 className="w-3 h-3" />}
+                      </div>
+                      自炊した
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded-lg border border-sky-100 shadow-sm">
+                    <div>
+                      <div className="text-[10px] text-muted-foreground font-bold">今月</div>
+                      <div className="text-slate-700">自炊回数 <span className="font-black text-lg text-sky-600">{thisMonthLunchCount}</span><span className="text-xs font-bold ml-0.5">回</span></div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground font-bold">節約額 (1回300円)</div>
+                      <div className="text-slate-700 font-black text-lg text-sky-600">{savedAmount.toLocaleString()}<span className="text-xs font-bold ml-0.5">円</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Yogurt UI */}
+                <div className="flex flex-col justify-center bg-white p-3 rounded-lg border border-sky-100 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] relative">
+                  <div className="text-[10px] font-bold text-sky-400 mb-1 flex items-center justify-between">
+                    <span>ヤスダヨーグルト換算 (603円/本)</span>
+                    <span className="text-xl">🥛</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mb-1 relative z-10">
+                    <span className="text-3xl font-black text-sky-700">{yogurtCount.toFixed(1)}</span>
+                    <span className="text-sm font-bold text-sky-600">本分</span>
+                  </div>
+
+                  {/* Visual Yogurt Gauge */}
+                  <div className="flex flex-wrap gap-0.5 mb-2 mt-1">
+                    {Array.from({ length: Math.max(10, Math.ceil(yogurtCount)) }).map((_, i) => (
+                      <div key={i} className={`text-lg leading-none transition-all duration-500 ${i < Math.floor(yogurtCount) ? 'grayscale-0 opacity-100 scale-110' : 'grayscale opacity-20 scale-90'}`}>
+                        🥛
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-xs font-bold text-emerald-600 bg-emerald-50 p-1.5 rounded text-center">
+                    {getYogurtComment(yogurtCount)}
+                  </div>
+                </div>
+              </div>
+            </section>
 
             <div className="h-px bg-border/50 my-6" />
 

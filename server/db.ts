@@ -1468,7 +1468,7 @@ export async function getDailyConfig(userId: number, date: string) {
   return config || { userId, date, jobModeDisabled: false };
 }
 
-export async function updateDailyConfig(userId: number, date: string, jobModeDisabled: boolean) {
+export async function updateDailyConfig(userId: number, date: string, updates: { jobModeDisabled?: boolean, lunchCooked?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -1476,13 +1476,13 @@ export async function updateDailyConfig(userId: number, date: string, jobModeDis
   // @ts-ignore - DB mock difference in return type
   if (existing && 'updatedAt' in existing) {
     await db.update(dailyConfig)
-      .set({ jobModeDisabled, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: new Date() })
       .where(and(eq(dailyConfig.userId, userId), eq(dailyConfig.date, date)));
   } else {
     await db.insert(dailyConfig).values({
       userId,
       date,
-      jobModeDisabled,
+      ...updates,
     });
   }
 }

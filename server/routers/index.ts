@@ -41,8 +41,8 @@ import {
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
-import { eq, and, desc, asc } from "drizzle-orm";
-import { questHistory, memos, questTemplates } from "../../drizzle/schema.js";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { questHistory, memos, questTemplates, dailyConfig } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
 import { dailyInsightRouter } from "./dailyInsight.js";
@@ -629,8 +629,31 @@ export const appRouter = router({
     disableJobMode: protectedProcedure
       .input(z.object({ date: z.string() }))
       .mutation(async ({ ctx, input }) => {
-        await updateDailyConfig(ctx.user!.id, input.date, true);
+        await updateDailyConfig(ctx.user!.id, input.date, { jobModeDisabled: true });
         return { success: true };
+      }),
+
+    setLunchCooked: protectedProcedure
+      .input(z.object({ date: z.string(), cooked: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        await updateDailyConfig(ctx.user!.id, input.date, { lunchCooked: input.cooked });
+        return { success: true };
+      }),
+
+    getLunchCookedCount: protectedProcedure
+      .input(z.object({ yearMonth: z.string() })) // format: YYYY-MM
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return 0;
+
+        const rows = await db.select({ count: sql<number>`count(*)` })
+          .from(dailyConfig)
+          .where(and(
+            eq(dailyConfig.userId, ctx.user!.id),
+            eq(dailyConfig.lunchCooked, true),
+            sql`date LIKE ${input.yearMonth + '-%'}`
+          ));
+        return rows[0]?.count || 0;
       })
   }),
 });
