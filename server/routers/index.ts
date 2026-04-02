@@ -42,7 +42,7 @@ import {
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
-import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchingMovies } from "../../drizzle/schema.js";
+import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchingMovies, bulletinBoards } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
 import { dailyInsightRouter } from "./dailyInsight.js";
@@ -162,6 +162,36 @@ export const appRouter = router({
         if (!db) throw new Error("Database not available");
         await db.delete(watchingMovies)
           .where(and(eq(watchingMovies.id, input.id), eq(watchingMovies.userId, ctx.user!.id)));
+        return { success: true };
+      })
+  }),
+  bulletin: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const [board] = await db.select()
+        .from(bulletinBoards)
+        .where(eq(bulletinBoards.userId, ctx.user!.id));
+      return board || { content: "", updatedAt: new Date() };
+    }),
+    save: protectedProcedure
+      .input(z.object({ content: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        const [existing] = await db.select().from(bulletinBoards).where(eq(bulletinBoards.userId, ctx.user!.id));
+        if (existing) {
+          await db.update(bulletinBoards)
+            .set({ content: input.content, updatedAt: new Date() })
+            .where(eq(bulletinBoards.userId, ctx.user!.id));
+        } else {
+          await db.insert(bulletinBoards).values({
+            userId: ctx.user!.id,
+            content: input.content,
+            updatedAt: new Date(),
+          });
+        }
         return { success: true };
       })
   }),

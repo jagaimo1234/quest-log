@@ -2014,6 +2014,9 @@ export default function Home() {
 
             <div className="h-px bg-border/50 my-6" />
 
+            {/* BULLETIN BOARD */}
+            <BulletinBoard />
+
             {/* YASUDA YOGURT COUNTER */}
             <section className="mb-6 p-4 rounded-xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 shadow-sm relative overflow-hidden">
               <div className="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none grayscale">
@@ -2605,5 +2608,69 @@ function MediaItem({
         <Trash2 className="w-3 h-3" />
       </Button>
     </div>
+  );
+}
+
+// Bulletin Board Component
+function BulletinBoard() {
+  const { data: board, refetch } = trpc.bulletin.get.useQuery();
+  const saveBoard = trpc.bulletin.save.useMutation();
+  const [content, setContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (board?.content !== undefined) {
+      setContent(board.content);
+    }
+  }, [board?.content]);
+
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newVal = e.target.value;
+    setContent(newVal);
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setIsSaving(true);
+      saveBoard.mutate({ content: newVal }, {
+        onSettled: () => setIsSaving(false)
+      });
+    }, 1000);
+  };
+
+  const handleReset = async () => {
+    if (confirm("掲示板の内容をすべて削除します。よろしいですか？")) {
+      setContent("");
+      setIsSaving(true);
+      await saveBoard.mutateAsync({ content: "" });
+      setIsSaving(false);
+      refetch();
+    }
+  };
+
+  return (
+    <section className="mb-6 p-4 rounded-xl border border-stone-300 bg-[#f4f1ea] shadow-sm relative overflow-hidden">
+      <div className="flex items-center justify-between mb-3 border-b border-stone-200 pb-2">
+        <h2 className="text-sm font-bold flex items-center gap-1.5 text-stone-700">
+          <span className="text-lg">📌</span> 掲示板 (Notice Board)
+          {isSaving && <span className="text-[10px] text-stone-400 ml-2 italic">Saving...</span>}
+        </h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleReset}
+          className="h-7 text-xs bg-white/50 hover:bg-red-50 hover:text-red-600 text-stone-500"
+        >
+          <Trash2 className="w-3 h-3 mr-1" /> リセット
+        </Button>
+      </div>
+      <textarea
+        value={content}
+        onChange={handleChange}
+        placeholder="自由にメモや忘れたくないことを書き込めます..."
+        className="w-full min-h-[120px] bg-transparent text-sm focus:outline-none placeholder:text-stone-400 resize-y text-stone-700 leading-relaxed"
+      />
+    </section>
   );
 }

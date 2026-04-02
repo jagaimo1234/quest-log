@@ -317,3 +317,15 @@ export const watchingMovies = sqliteTable("watching_movies", {
 
 export type WatchingMovie = typeof watchingMovies.$inferSelect;
 export type InsertWatchingMovie = typeof watchingMovies.$inferInsert;
+
+/**
+ * 掲示板テーブル (Bulletin Board)
+ */
+export const bulletinBoards = sqliteTable("bulletin_boards", {
+  userId: integer("userId").primaryKey(),
+  content: text("content").notNull().default(""),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type BulletinBoard = typeof bulletinBoards.$inferSelect;
+export type InsertBulletinBoard = typeof bulletinBoards.$inferInsert;
