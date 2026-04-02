@@ -360,6 +360,7 @@ function TodayItem({
     if (!bookTitle.trim()) return;
     try {
       await createBook.mutateAsync({ title: bookTitle.trim() });
+      await updateQuest.mutateAsync({ questId: quest.id, note: `📚 ${bookTitle.trim()}` });
       toast.success("Book recorded!");
       setIsMenuOpen(false);
       setBookTitle("");
@@ -373,6 +374,7 @@ function TodayItem({
     if (!movieTitle.trim()) return;
     try {
       await createMovie.mutateAsync({ title: movieTitle.trim() });
+      await updateQuest.mutateAsync({ questId: quest.id, note: `🎬 ${movieTitle.trim()}` });
       toast.success("Movie recorded!");
       setIsMenuOpen(false);
       setMovieTitle("");
