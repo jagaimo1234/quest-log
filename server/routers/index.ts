@@ -42,7 +42,7 @@ import {
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
-import { questHistory, memos, questTemplates, dailyConfig } from "../../drizzle/schema.js";
+import { questHistory, memos, questTemplates, dailyConfig, readingBooks } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
 import { dailyInsightRouter } from "./dailyInsight.js";
@@ -51,6 +51,53 @@ export const appRouter = router({
   system: systemRouter,
   admin: adminRouter,
   dailyInsight: dailyInsightRouter,
+  book: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      return db.select()
+        .from(readingBooks)
+        .where(eq(readingBooks.userId, ctx.user!.id))
+        .orderBy(desc(readingBooks.createdAt));
+    }),
+    create: protectedProcedure
+      .input(z.object({ title: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const result = await db.insert(readingBooks).values({
+          userId: ctx.user!.id,
+          title: input.title,
+          status: "reading"
+        }).returning();
+        return result[0];
+      }),
+    updateStatus: protectedProcedure
+      .input(z.object({ id: z.number(), status: z.enum(["reading", "completed"]) }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const updateData: any = { status: input.status, updatedAt: new Date() };
+        if (input.status === "completed") {
+          updateData.completedAt = new Date();
+        } else {
+          updateData.completedAt = null;
+        }
+        await db.update(readingBooks)
+          .set(updateData)
+          .where(and(eq(readingBooks.id, input.id), eq(readingBooks.userId, ctx.user!.id)));
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.delete(readingBooks)
+          .where(and(eq(readingBooks.id, input.id), eq(readingBooks.userId, ctx.user!.id)));
+        return { success: true };
+      })
+  }),
   auth: router({
     me: publicProcedure.query(({ ctx }) => ctx.user),
     logout: publicProcedure.mutation(({ ctx }: { ctx: TrpcContext }) => {

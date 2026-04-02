@@ -281,3 +281,19 @@ export const dailyInsights = sqliteTable("daily_insights", {
 
 export type DailyInsight = typeof dailyInsights.$inferSelect;
 export type InsertDailyInsight = typeof dailyInsights.$inferInsert;
+
+/**
+ * 読書管理テーブル (Reading Books)
+ */
+export const readingBooks = sqliteTable("reading_books", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  title: text("title").notNull(),
+  status: text("status", { enum: ["reading", "completed"] }).default("reading").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  completedAt: integer("completedAt", { mode: "timestamp" }),
+});
+
+export type ReadingBook = typeof readingBooks.$inferSelect;
+export type InsertReadingBook = typeof readingBooks.$inferInsert;

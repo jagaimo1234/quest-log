@@ -204,7 +204,9 @@ function TodayItem({
   const isChallenging = quest.status === "challenging" || quest.status === "almost";
   const isPending = updateStatus.isPending || incrementCount.isPending;
   const updateQuest = trpc.quest.update.useMutation();
+  const createBook = trpc.book.create.useMutation();
   const [note, setNote] = useState(quest.note || "");
+  const [bookTitle, setBookTitle] = useState("");
 
   useEffect(() => {
     setNote(quest.note || "");
@@ -255,6 +257,7 @@ function TodayItem({
   const isProject = quest.questType === "Project";
   const isRelax = template?.questType === "Relax";
   const isFree = template?.questType === "Free" || quest.questType === "Free";
+  const isReadingMission = isRelax && quest.questName.includes("読書");
 
   if (template) {
     if (isRelax) {
@@ -347,6 +350,19 @@ function TodayItem({
       onStatusChange(); // Validate list update
     } catch (e) {
       toast.error("Failed to save note");
+    }
+  };
+
+  const handleRecordBook = async () => {
+    if (!bookTitle.trim()) return;
+    try {
+      await createBook.mutateAsync({ title: bookTitle.trim() });
+      toast.success("Book recorded!");
+      setIsMenuOpen(false);
+      setBookTitle("");
+      onStatusChange();
+    } catch (e) {
+      toast.error("Failed to record book");
     }
   };
 
@@ -445,6 +461,24 @@ function TodayItem({
           </DialogHeader>
 
           <div className="flex flex-col gap-4 mt-4">
+            {isReadingMission && (
+              <div className="space-y-2 p-3 bg-fuchsia-50 dark:bg-fuchsia-900/20 border border-fuchsia-100 rounded-lg">
+                <Label className="text-fuchsia-700 dark:text-fuchsia-300 font-bold flex items-center gap-1">
+                  📚 レコーディング読書
+                </Label>
+                <div className="text-[10px] text-fuchsia-600/80 mb-2">これから読む本を登録して、Daily Insightの下の読書列に追加します。</div>
+                <Input
+                  placeholder="本のタイトルを入力..."
+                  value={bookTitle}
+                  onChange={(e) => setBookTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRecordBook(); } }}
+                />
+                <Button onClick={handleRecordBook} disabled={createBook.isPending || !bookTitle.trim()} className="w-full bg-fuchsia-500 hover:bg-fuchsia-600">
+                  {createBook.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  本を登録する
+                </Button>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Description / Note</Label>
               <textarea
@@ -954,6 +988,10 @@ export default function Home() {
   const { data: templates, refetch: refetchTemplates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });
   const { data: progression, refetch: refetchProgression } = trpc.progression.get.useQuery(undefined, { enabled: isAuthenticated });
   const { data: unreceivedQuests, refetch: refetchUnreceived } = trpc.quest.unreceived.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: books, refetch: refetchBooks } = trpc.book.list.useQuery(undefined, { enabled: isAuthenticated });
+
+  const updateBookStatus = trpc.book.updateStatus.useMutation();
+  const deleteBook = trpc.book.delete.useMutation();
 
   const now = new Date();
   const startRange = format(startOfWeek(startOfMonth(now), { weekStartsOn: 1 }), 'yyyy-MM-dd');
@@ -1045,6 +1083,7 @@ export default function Home() {
     refetchUnreceived();
     refetchHistory();
     refetchProgression();
+    refetchBooks();
   };
 
 
@@ -2295,6 +2334,54 @@ export default function Home() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+            </section>
+
+            {/* SHELF 9: READING (読書) */}
+            <div className="h-px bg-border/50 my-6" />
+            <section>
+              <div className="flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-fuchsia-600 uppercase tracking-wider flex items-center gap-1">
+                    📚 READING
+                  </h2>
+                </div>
+              </div>
+
+              {!books?.length ? <div className="text-xs text-muted-foreground px-1 italic">No reading records.</div> : (
+                <div className="space-y-2">
+                  {books.map((book: any) => (
+                    <div key={book.id} className={`group flex items-center justify-between p-3 rounded-lg border ${book.status === 'completed' ? 'border-fuchsia-100 bg-fuchsia-50/30' : 'border-slate-100 bg-white'} text-xs relative transition-all`}>
+                      <div className="flex items-center gap-3 w-full">
+                        <button
+                          onClick={async () => {
+                            await updateBookStatus.mutateAsync({ id: book.id, status: book.status === 'completed' ? 'reading' : 'completed' });
+                            refetchBooks();
+                          }}
+                          className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${book.status === 'completed' ? 'bg-fuchsia-500 border-fuchsia-500 text-white' : 'border-slate-300 hover:border-fuchsia-400'}`}
+                        >
+                          {book.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
+                        </button>
+                        <div className={`font-medium flex-1 truncate ${book.status === 'completed' ? 'opacity-50 line-through text-slate-500' : 'text-slate-700'}`}>
+                          {book.title}
+                        </div>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 shrink-0"
+                        onClick={async () => {
+                          if (confirm("Delete this book record?")) {
+                            await deleteBook.mutateAsync({ id: book.id });
+                            refetchBooks();
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
