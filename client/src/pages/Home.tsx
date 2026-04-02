@@ -174,7 +174,9 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
             </div>
           )}
           <input type="hidden" name="difficulty" value="1" />
-          <Button type="submit">Create</Button>
+          <Button type="submit" disabled={createQuest.isPending || createTemplate.isPending}>
+            {(createQuest.isPending || createTemplate.isPending) ? "Creating..." : "Create"}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
@@ -655,7 +657,15 @@ function NonFixItem({ template, history, onReceive, onDragStart }: { template: a
   );
 }
 
-function OneOffTemplateItem({ template, onReceive }: { template: any, onReceive: () => void }) {
+function OneOffTemplateItem({
+  template,
+  onReceive,
+  onStatusChange
+}: {
+  template: any,
+  onReceive: () => void,
+  onStatusChange?: () => void
+}) {
   const isCompleted = template.executedCount >= (template.frequency || 1);
   const doneCount = template.executedCount || 0;
   const quota = template.frequency || 1;
@@ -692,6 +702,7 @@ function OneOffTemplateItem({ template, onReceive }: { template: any, onReceive:
     if (confirm("Delete this One-off task permanently?")) {
       await deleteTemplate.mutateAsync({ templateId: template.id, isActive: false });
       setIsMenuOpen(false);
+      if (onStatusChange) onStatusChange();
     }
   };
 
@@ -2138,6 +2149,7 @@ export default function Home() {
                       key={t.id}
                       template={t}
                       onReceive={() => handleReceiveOneOff(t)}
+                      onStatusChange={refreshAll}
                     />
                   ))}
                 </div>
