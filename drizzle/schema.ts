@@ -297,3 +297,19 @@ export const readingBooks = sqliteTable("reading_books", {
 
 export type ReadingBook = typeof readingBooks.$inferSelect;
 export type InsertReadingBook = typeof readingBooks.$inferInsert;
+
+/**
+ * 映画記録テーブル (Watching Movies)
+ */
+export const watchingMovies = sqliteTable("watching_movies", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  title: text("title").notNull(),
+  status: text("status", { enum: ["watching", "completed"] }).default("watching").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  completedAt: integer("completedAt", { mode: "timestamp" }),
+});
+
+export type WatchingMovie = typeof watchingMovies.$inferSelect;
+export type InsertWatchingMovie = typeof watchingMovies.$inferInsert;
