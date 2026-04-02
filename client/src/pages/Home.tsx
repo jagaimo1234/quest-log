@@ -1033,6 +1033,36 @@ export default function Home() {
   const updateMovieStatus = trpc.movie.updateStatus.useMutation();
   const deleteMovie = trpc.movie.delete.useMutation();
 
+  const updateBookReview = trpc.book.updateReview.useMutation();
+  const updateMovieReview = trpc.movie.updateReview.useMutation();
+  const [reviewMedia, setReviewMedia] = useState<{ type: 'book' | 'movie', item: any } | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(0);
+  const [reviewText, setReviewText] = useState<string>("");
+
+  const openReviewDialog = (type: 'book' | 'movie', item: any) => {
+    setReviewMedia({ type, item });
+    setReviewRating(item.rating || 0);
+    setReviewText(item.review || "");
+    if (window.navigator?.vibrate) window.navigator.vibrate(50);
+  };
+
+  const handleReviewSave = async () => {
+    if (!reviewMedia) return;
+    if (reviewMedia.type === 'book') {
+      await updateBookReview.mutateAsync({ id: reviewMedia.item.id, rating: reviewRating, review: reviewText });
+      refetchBooks();
+    } else {
+      await updateMovieReview.mutateAsync({ id: reviewMedia.item.id, rating: reviewRating, review: reviewText });
+      refetchMovies();
+    }
+    setReviewMedia(null);
+  };
+
+  const renderStars = (rating: number | null) => {
+    if (!rating) return null;
+    return <span className="ml-2 text-yellow-500 tracking-tighter text-[10px]">{"★".repeat(rating)}{"☆".repeat(5-rating)}</span>;
+  };
+
   const now = new Date();
   const startRange = format(startOfWeek(startOfMonth(now), { weekStartsOn: 1 }), 'yyyy-MM-dd');
   const endRange = format(endOfWeek(endOfMonth(now), { weekStartsOn: 1 }), 'yyyy-MM-dd');
@@ -2393,35 +2423,24 @@ export default function Home() {
               {!books?.length ? <div className="text-xs text-muted-foreground px-1 italic">No reading records.</div> : (
                 <div className="space-y-2">
                   {books.map((book: any) => (
-                    <div key={book.id} className={`group flex items-center justify-between p-3 rounded-lg border ${book.status === 'completed' ? 'border-fuchsia-100 bg-fuchsia-50/30' : 'border-slate-100 bg-white'} text-xs relative transition-all`}>
-                      <div className="flex items-center gap-3 w-full">
-                        <button
-                          onClick={async () => {
-                            await updateBookStatus.mutateAsync({ id: book.id, status: book.status === 'completed' ? 'reading' : 'completed' });
-                            refetchBooks();
-                          }}
-                          className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${book.status === 'completed' ? 'bg-fuchsia-500 border-fuchsia-500 text-white' : 'border-slate-300 hover:border-fuchsia-400'}`}
-                        >
-                          {book.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
-                        </button>
-                        <div className={`font-medium flex-1 truncate ${book.status === 'completed' ? 'opacity-50 line-through text-slate-500' : 'text-slate-700'}`}>
-                          {book.title}
-                        </div>
-                      </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 shrink-0"
-                        onClick={async () => {
-                          if (confirm("Delete this book record?")) {
-                            await deleteBook.mutateAsync({ id: book.id });
-                            refetchBooks();
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
+                    <MediaItem
+                      key={book.id}
+                      item={book}
+                      type="book"
+                      color="fuchsia"
+                      onStatusToggle={async (item: any) => {
+                        await updateBookStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'reading' : 'completed' });
+                        refetchBooks();
+                      }}
+                      onDelete={async (item: any) => {
+                        if (confirm("Delete this book record?")) {
+                          await deleteBook.mutateAsync({ id: item.id });
+                          refetchBooks();
+                        }
+                      }}
+                      onLongPress={openReviewDialog}
+                      renderStars={renderStars}
+                    />
                   ))}
                 </div>
               )}
@@ -2441,35 +2460,24 @@ export default function Home() {
               {!movies?.length ? <div className="text-xs text-muted-foreground px-1 italic">No watching records.</div> : (
                 <div className="space-y-2">
                   {movies.map((movie: any) => (
-                    <div key={movie.id} className={`group flex items-center justify-between p-3 rounded-lg border ${movie.status === 'completed' ? 'border-rose-100 bg-rose-50/30' : 'border-slate-100 bg-white'} text-xs relative transition-all`}>
-                      <div className="flex items-center gap-3 w-full">
-                        <button
-                          onClick={async () => {
-                            await updateMovieStatus.mutateAsync({ id: movie.id, status: movie.status === 'completed' ? 'watching' : 'completed' });
-                            refetchMovies();
-                          }}
-                          className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${movie.status === 'completed' ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 hover:border-rose-400'}`}
-                        >
-                          {movie.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
-                        </button>
-                        <div className={`font-medium flex-1 truncate ${movie.status === 'completed' ? 'opacity-50 line-through text-slate-500' : 'text-slate-700'}`}>
-                          {movie.title}
-                        </div>
-                      </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 shrink-0"
-                        onClick={async () => {
-                          if (confirm("Delete this movie record?")) {
-                            await deleteMovie.mutateAsync({ id: movie.id });
-                            refetchMovies();
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
+                    <MediaItem
+                      key={movie.id}
+                      item={movie}
+                      type="movie"
+                      color="rose"
+                      onStatusToggle={async (item: any) => {
+                        await updateMovieStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'watching' : 'completed' });
+                        refetchMovies();
+                      }}
+                      onDelete={async (item: any) => {
+                        if (confirm("Delete this movie record?")) {
+                          await deleteMovie.mutateAsync({ id: item.id });
+                          refetchMovies();
+                        }
+                      }}
+                      onLongPress={openReviewDialog}
+                      renderStars={renderStars}
+                    />
                   ))}
                 </div>
               )}
@@ -2490,7 +2498,100 @@ export default function Home() {
             onUpdated={refreshAll}
           />
         )}
+
+        {/* Review Media Dialog */}
+        <Dialog open={!!reviewMedia} onOpenChange={(open) => !open && setReviewMedia(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {reviewMedia?.type === 'book' ? '📚 読書の記録' : '🎬 映画の記録'} - {reviewMedia?.item?.title}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2 text-center">
+                <Label>満足度</Label>
+                <div className="flex justify-center gap-2 cursor-pointer text-2xl filter drop-shadow">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      onClick={() => setReviewRating(star)}
+                      className={star <= reviewRating ? 'text-yellow-400' : 'text-slate-200'}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>感想・メモ</Label>
+                <textarea
+                  className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="感想や学んだことを自由に書き留めましょう。"
+                  value={reviewText}
+                  onChange={(e) => setReviewText(e.target.value)}
+                />
+              </div>
+              <Button className="w-full" onClick={handleReviewSave}>保存する</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
+    </div>
+  );
+}
+
+// Media Item Sub Component
+function MediaItem({
+  item,
+  type,
+  color,
+  onStatusToggle,
+  onDelete,
+  onLongPress,
+  renderStars
+}: any) {
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startPress = () => {
+    timerRef.current = setTimeout(() => {
+      onLongPress(type, item);
+    }, 500);
+  };
+
+  const cancelPress = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  return (
+    <div
+      className={`group flex items-center justify-between p-3 rounded-lg border ${item.status === 'completed' ? `border-${color}-100 bg-${color}-50/30` : 'border-slate-100 bg-white'} text-xs relative transition-all`}
+      onMouseDown={startPress}
+      onTouchStart={startPress}
+      onMouseUp={cancelPress}
+      onTouchEnd={cancelPress}
+      onMouseLeave={cancelPress}
+      onTouchMove={cancelPress}
+    >
+      <div className="flex items-center gap-3 w-full pointer-events-none">
+        <button
+          onClick={(e) => { e.stopPropagation(); onStatusToggle(item); }}
+          className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors pointer-events-auto ${item.status === 'completed' ? `bg-${color}-500 border-${color}-500 text-white` : `border-slate-300 hover:border-${color}-400`}`}
+        >
+          {item.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
+        </button>
+        <div className={`font-medium flex-1 truncate ${item.status === 'completed' ? 'opacity-50 line-through text-slate-500' : 'text-slate-700'}`}>
+          {item.title}
+          {renderStars(item.rating)}
+        </div>
+      </div>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 shrink-0 pointer-events-auto"
+        onClick={(e) => { e.stopPropagation(); onDelete(item); }}
+      >
+        <Trash2 className="w-3 h-3" />
+      </Button>
     </div>
   );
 }

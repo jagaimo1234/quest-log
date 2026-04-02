@@ -88,6 +88,16 @@ export const appRouter = router({
           .where(and(eq(readingBooks.id, input.id), eq(readingBooks.userId, ctx.user!.id)));
         return { success: true };
       }),
+    updateReview: protectedProcedure
+      .input(z.object({ id: z.number(), rating: z.number().nullable(), review: z.string().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.update(readingBooks)
+          .set({ rating: input.rating, review: input.review, updatedAt: new Date() })
+          .where(and(eq(readingBooks.id, input.id), eq(readingBooks.userId, ctx.user!.id)));
+        return { success: true };
+      }),
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
@@ -132,6 +142,16 @@ export const appRouter = router({
         }
         await db.update(watchingMovies)
           .set(updateData)
+          .where(and(eq(watchingMovies.id, input.id), eq(watchingMovies.userId, ctx.user!.id)));
+        return { success: true };
+      }),
+    updateReview: protectedProcedure
+      .input(z.object({ id: z.number(), rating: z.number().nullable(), review: z.string().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.update(watchingMovies)
+          .set({ rating: input.rating, review: input.review, updatedAt: new Date() })
           .where(and(eq(watchingMovies.id, input.id), eq(watchingMovies.userId, ctx.user!.id)));
         return { success: true };
       }),
