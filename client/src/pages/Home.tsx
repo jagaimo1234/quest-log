@@ -1110,17 +1110,19 @@ export default function Home() {
     return (templates || []).filter(t => {
       if (t.questType !== "Free" || !t.isActive) return false;
 
-      // If today or tomorrow planning, check if it was already cleared in the past
-      // "One-off" completed check
-      const doneQuest = history?.find(h => h.templateId === t.id && h.finalStatus === 'cleared');
-      if (doneQuest) {
-        // If it was cleared ON or BEFORE the target date minus offset
-        // Actually, if it's cleared before targetDate, hide it.
-        // Wait, 'targetDateStr' is the date we are viewing. 
-        // If it was cleared BEFORE the viewer's target date, we hide it.
-        // Even simpler: if it was cleared any day before `targetDateStr`.
-        const clearedDateStr = format(new Date(doneQuest.recordedAt), "yyyy-MM-dd");
-        if (clearedDateStr < targetDateStr) return false;
+      const isCompleted = (t.executedCount || 0) >= (t.frequency || 1);
+      
+      if (isCompleted) {
+        if (!history) return false;
+        
+        // If today or tomorrow planning, we only keep it visible if it was cleared specifically on that target date
+        const clearedOnTargetDate = history.some(h => 
+          h.templateId === t.id && 
+          h.finalStatus === 'cleared' && 
+          format(new Date(h.recordedAt), "yyyy-MM-dd") === targetDateStr
+        );
+        
+        if (!clearedOnTargetDate) return false;
       }
       return true;
     });
