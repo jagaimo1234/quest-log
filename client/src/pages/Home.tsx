@@ -1027,6 +1027,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("today");
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRelaxOpen, setIsRelaxOpen] = useState(false);
+  const [isLunchCounterOpen, setIsLunchCounterOpen] = useState(true);
   const [planningDayOffset, setPlanningDayOffset] = useState(0); // 0=today, 1=tomorrow
 
   const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, { enabled: isAuthenticated });
@@ -2022,69 +2023,77 @@ export default function Home() {
               <div className="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none grayscale">
                 <img src="/yasuda.png" alt="Yasuda Yogurt" className="w-48 h-auto object-contain" />
               </div>
-              <div className="flex items-center gap-2 mb-3">
-                <h2 className="text-sm font-black text-sky-800 flex items-center gap-1.5">
+              <div
+                className="flex items-center justify-between mb-3 cursor-pointer select-none group"
+                onClick={() => setIsLunchCounterOpen(!isLunchCounterOpen)}
+              >
+                <h2 className="text-sm font-black text-sky-800 flex items-center gap-1.5 transition-transform group-active:scale-95">
                   <span className="text-lg">🍱</span> 平日お昼自炊カウンター
                 </h2>
+                <div className="text-sky-600 bg-white/50 px-2 py-0.5 rounded-full group-hover:bg-sky-100 transition-colors text-[10px] font-bold">
+                  {isLunchCounterOpen ? '▲ とじる' : '▼ ひらく'}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Left: Input */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-500 uppercase">今日</span>
-                    <div className="flex flex-col items-end gap-1">
-                      <button
-                        onClick={handleAddLunch}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-all font-bold shadow-sm active:scale-95"
-                      >
-                        <span className="text-lg leading-none">+</span>
-                        自炊を追加
-                      </button>
-                      {todayLunchCount > 0 && (
-                        <div className="text-[10px] text-emerald-600 font-bold px-1">
-                          本日: {todayLunchCount}回追加済み
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded-lg border border-sky-100 shadow-sm">
-                    <div>
-                      <div className="text-[10px] text-muted-foreground font-bold">今月</div>
-                      <div className="text-slate-700">自炊回数 <span className="font-black text-lg text-sky-600">{thisMonthLunchCount}</span><span className="text-xs font-bold ml-0.5">回</span></div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-muted-foreground font-bold">節約額 (1回300円)</div>
-                      <div className="text-slate-700 font-black text-lg text-sky-600">{savedAmount.toLocaleString()}<span className="text-xs font-bold ml-0.5">円</span></div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right: Yogurt UI */}
-                <div className="flex flex-col justify-center bg-white p-3 rounded-lg border border-sky-100 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] relative">
-                  <div className="text-[10px] font-bold text-sky-400 mb-1 flex items-center justify-between">
-                    <span>ヤスダヨーグルト換算 (603円/本)</span>
-                    <img src="/yasuda.png" alt="icon" className="w-7 h-7 object-contain drop-shadow-sm" />
-                  </div>
-                  <div className="flex items-baseline gap-1 mb-1 relative z-10">
-                    <span className="text-3xl font-black text-sky-700">{yogurtCount.toFixed(1)}</span>
-                    <span className="text-sm font-bold text-sky-600">本分</span>
-                  </div>
-
-                  {/* Visual Yogurt Gauge */}
-                  <div className="flex flex-wrap gap-1.5 mb-3 mt-3 min-h-[2rem] items-end">
-                    {Array.from({ length: Math.max(10, Math.ceil(yogurtCount)) }).map((_, i) => (
-                      <div key={i} className={`transition-all duration-500 ${i < Math.floor(yogurtCount) ? 'grayscale-0 opacity-100 scale-110' : 'grayscale opacity-30 scale-90'}`}>
-                        <img src="/yasuda.png" alt="yogurt" className="w-6 h-auto object-contain drop-shadow" />
+              {isLunchCounterOpen && (
+                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
+                  {/* Left: Input */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 uppercase">今日</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <button
+                          onClick={handleAddLunch}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-all font-bold shadow-sm active:scale-95"
+                        >
+                          <span className="text-lg leading-none">+</span>
+                          自炊を追加
+                        </button>
+                        {todayLunchCount > 0 && (
+                          <div className="text-[10px] text-emerald-600 font-bold px-1">
+                            本日: {todayLunchCount}回追加済み
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded-lg border border-sky-100 shadow-sm">
+                      <div>
+                        <div className="text-[10px] text-muted-foreground font-bold">今月</div>
+                        <div className="text-slate-700">自炊回数 <span className="font-black text-lg text-sky-600">{thisMonthLunchCount}</span><span className="text-xs font-bold ml-0.5">回</span></div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-muted-foreground font-bold">節約額 (1回300円)</div>
+                        <div className="text-slate-700 font-black text-lg text-sky-600">{savedAmount.toLocaleString()}<span className="text-xs font-bold ml-0.5">円</span></div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="text-xs font-bold text-emerald-600 bg-emerald-50 p-1.5 rounded text-center">
-                    {getYogurtComment(yogurtCount)}
+                  {/* Right: Yogurt UI */}
+                  <div className="flex flex-col justify-center bg-white p-3 rounded-lg border border-sky-100 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] relative">
+                    <div className="text-[10px] font-bold text-sky-400 mb-1 flex items-center justify-between">
+                      <span>ヤスダヨーグルト換算 (603円/本)</span>
+                      <img src="/yasuda.png" alt="icon" className="w-7 h-7 object-contain drop-shadow-sm" />
+                    </div>
+                    <div className="flex items-baseline gap-1 mb-1 relative z-10">
+                      <span className="text-3xl font-black text-sky-700">{yogurtCount.toFixed(1)}</span>
+                      <span className="text-sm font-bold text-sky-600">本分</span>
+                    </div>
+
+                    {/* Visual Yogurt Gauge */}
+                    <div className="flex flex-wrap gap-1.5 mb-3 mt-3 min-h-[2rem] items-end">
+                      {Array.from({ length: Math.max(10, Math.ceil(yogurtCount)) }).map((_, i) => (
+                        <div key={i} className={`transition-all duration-500 ${i < Math.floor(yogurtCount) ? 'grayscale-0 opacity-100 scale-110' : 'grayscale opacity-30 scale-90'}`}>
+                          <img src="/yasuda.png" alt="yogurt" className="w-6 h-auto object-contain drop-shadow" />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="text-xs font-bold text-emerald-600 bg-emerald-50 p-1.5 rounded text-center">
+                      {getYogurtComment(yogurtCount)}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </section>
 
             <div className="h-px bg-border/50 my-6" />
@@ -2555,62 +2564,6 @@ export default function Home() {
   );
 }
 
-// Media Item Sub Component
-function MediaItem({
-  item,
-  type,
-  color,
-  onStatusToggle,
-  onDelete,
-  onLongPress,
-  renderStars
-}: any) {
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const startPress = () => {
-    timerRef.current = setTimeout(() => {
-      onLongPress(type, item);
-    }, 500);
-  };
-
-  const cancelPress = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  };
-
-  return (
-    <div
-      className={`group flex items-center justify-between p-3 rounded-lg border ${item.status === 'completed' ? `border-${color}-100 bg-${color}-50/30` : 'border-slate-100 bg-white'} text-xs relative transition-all`}
-      onMouseDown={startPress}
-      onTouchStart={startPress}
-      onMouseUp={cancelPress}
-      onTouchEnd={cancelPress}
-      onMouseLeave={cancelPress}
-      onTouchMove={cancelPress}
-    >
-      <div className="flex items-center gap-3 w-full pointer-events-none">
-        <button
-          onClick={(e) => { e.stopPropagation(); onStatusToggle(item); }}
-          className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors pointer-events-auto ${item.status === 'completed' ? `bg-${color}-500 border-${color}-500 text-white` : `border-slate-300 hover:border-${color}-400`}`}
-        >
-          {item.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
-        </button>
-        <div className={`font-medium flex-1 truncate ${item.status === 'completed' ? 'opacity-50 line-through text-slate-500' : 'text-slate-700'}`}>
-          {item.title}
-          {renderStars(item.rating)}
-        </div>
-      </div>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 shrink-0 pointer-events-auto"
-        onClick={(e) => { e.stopPropagation(); onDelete(item); }}
-      >
-        <Trash2 className="w-3 h-3" />
-      </Button>
-    </div>
-  );
-}
-
 // Bulletin Board Component
 function BulletinBoard() {
   const { data: board, refetch } = trpc.bulletin.get.useQuery();
@@ -2672,5 +2625,61 @@ function BulletinBoard() {
         className="w-full min-h-[120px] bg-transparent text-sm focus:outline-none placeholder:text-stone-400 resize-y text-stone-700 leading-relaxed"
       />
     </section>
+  );
+}
+
+// Media Item Sub Component
+function MediaItem({
+  item,
+  type,
+  color,
+  onStatusToggle,
+  onDelete,
+  onLongPress,
+  renderStars
+}: any) {
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startPress = () => {
+    timerRef.current = setTimeout(() => {
+      onLongPress(type, item);
+    }, 500);
+  };
+
+  const cancelPress = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  return (
+    <div
+      className={`group flex items-center justify-between p-3 rounded-lg border ${item.status === 'completed' ? `border-${color}-100 bg-${color}-50/30` : 'border-slate-100 bg-white'} text-xs relative transition-all`}
+      onMouseDown={startPress}
+      onTouchStart={startPress}
+      onMouseUp={cancelPress}
+      onTouchEnd={cancelPress}
+      onMouseLeave={cancelPress}
+      onTouchMove={cancelPress}
+    >
+      <div className="flex items-center gap-3 w-full pointer-events-none">
+        <button
+          onClick={(e) => { e.stopPropagation(); onStatusToggle(item); }}
+          className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors pointer-events-auto ${item.status === 'completed' ? `bg-${color}-500 border-${color}-500 text-white` : `border-slate-300 hover:border-${color}-400`}`}
+        >
+          {item.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
+        </button>
+        <div className={`font-medium flex-1 truncate ${item.status === 'completed' ? 'opacity-50 line-through text-slate-500' : 'text-slate-700'}`}>
+          {item.title}
+          {renderStars(item.rating)}
+        </div>
+      </div>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 shrink-0 pointer-events-auto"
+        onClick={(e) => { e.stopPropagation(); onDelete(item); }}
+      >
+        <Trash2 className="w-3 h-3" />
+      </Button>
+    </div>
   );
 }
