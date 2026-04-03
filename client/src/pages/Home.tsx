@@ -2566,16 +2566,20 @@ export default function Home() {
 
 // Bulletin Board Component
 function BulletinBoard() {
-  const { data: board, refetch } = trpc.bulletin.get.useQuery();
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [baseDate, setBaseDate] = useState(new Date());
+
+  const { data: board, refetch } = trpc.bulletin.get.useQuery({ date: selectedDate });
   const saveBoard = trpc.bulletin.save.useMutation();
   const [content, setContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (board?.content !== undefined) {
-      setContent(board.content);
-    }
-  }, [board?.content]);
+    setContent(board?.content || "");
+  }, [board?.content, selectedDate]);
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -2586,44 +2590,100 @@ function BulletinBoard() {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setIsSaving(true);
-      saveBoard.mutate({ content: newVal }, {
+      saveBoard.mutate({ content: newVal, date: selectedDate }, {
         onSettled: () => setIsSaving(false)
       });
     }, 1000);
   };
 
   const handleReset = async () => {
-    if (confirm("掲示板の内容をすべて削除します。よろしいですか？")) {
+    if (confirm("現在表示している掲示板の内容をすべて削除します。よろしいですか？")) {
       setContent("");
       setIsSaving(true);
-      await saveBoard.mutateAsync({ content: "" });
+      await saveBoard.mutateAsync({ content: "", date: selectedDate });
       setIsSaving(false);
       refetch();
     }
   };
 
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  const days: Date[] = [];
+  for (let i = -3; i <= 3; i++) {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+
+  const handlePrevDays = () => {
+    const newBase = new Date(baseDate);
+    newBase.setDate(newBase.getDate() - 1);
+    setBaseDate(newBase);
+  };
+
+  const handleNextDays = () => {
+    const newBase = new Date(baseDate);
+    newBase.setDate(newBase.getDate() + 1);
+    setBaseDate(newBase);
+  };
+
+  // 選択日を見やすく整形
+  const selectedDateObj = new Date(selectedDate);
+  const displaySelectedDateStr = `${selectedDateObj.getMonth() + 1}/${selectedDateObj.getDate()}(${weekdays[selectedDateObj.getDay()]})`;
+
   return (
-    <section className="mb-6 p-4 rounded-xl border border-stone-300 bg-[#f4f1ea] shadow-sm relative overflow-hidden">
-      <div className="flex items-center justify-between mb-3 border-b border-stone-200 pb-2">
-        <h2 className="text-sm font-bold flex items-center gap-1.5 text-stone-700">
-          <span className="text-lg">📌</span> 掲示板 (Notice Board)
-          {isSaving && <span className="text-[10px] text-stone-400 ml-2 italic">Saving...</span>}
-        </h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          className="h-7 text-xs bg-white/50 hover:bg-red-50 hover:text-red-600 text-stone-500"
-        >
-          <Trash2 className="w-3 h-3 mr-1" /> リセット
-        </Button>
+    <section className="mb-6 p-0 rounded-xl border border-stone-300 bg-[#fefdfb] shadow-sm relative overflow-hidden">
+      <div className="p-4 flex flex-col h-[280px]">
+        <div className="flex items-center justify-between mb-3 border-b border-stone-200 pb-2 shrink-0">
+          <h2 className="text-sm font-bold flex items-center gap-1.5 text-stone-700">
+            <span className="text-lg text-rose-500">📌</span> 
+            掲示板 (Notice Board) <span className="ml-1 text-base">{displaySelectedDateStr}</span>
+            {isSaving && <span className="text-[10px] text-stone-400 ml-2 italic">Saving...</span>}
+          </h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReset}
+            className="h-7 text-xs bg-stone-50 hover:bg-red-50 hover:text-red-600 text-stone-500"
+          >
+            <Trash2 className="w-3 h-3 mr-1" /> リセット
+          </Button>
+        </div>
+        <textarea
+          value={content}
+          onChange={handleChange}
+          placeholder="自由に書き込めます..."
+          className="flex-1 w-full bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed custom-scrollbar"
+        />
       </div>
-      <textarea
-        value={content}
-        onChange={handleChange}
-        placeholder="自由にメモや忘れたくないことを書き込めます..."
-        className="w-full min-h-[120px] bg-transparent text-sm focus:outline-none placeholder:text-stone-400 resize-y text-stone-700 leading-relaxed"
-      />
+
+      <div className="flex border-t border-stone-300 bg-white">
+        <button onClick={handlePrevDays} className="px-3 bg-[#4a72aa] hover:bg-[#345b91] text-white transition flex items-center justify-center shrink-0">
+          <span className="text-lg">◀</span>
+        </button>
+        <div className="flex-1 grid grid-cols-7 divide-x divide-stone-200 text-center">
+          {days.map(d => {
+            const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+            const isSelected = selectedDate === dateStr;
+            return (
+              <button
+                key={dateStr}
+                onClick={() => setSelectedDate(dateStr)}
+                className={`flex flex-col items-center justify-center py-2 transition-colors ${
+                  isSelected 
+                    ? 'bg-amber-50 font-bold text-amber-900 shadow-[inset_0_-3px_0_theme(colors.amber.500)]' 
+                    : 'text-stone-500 hover:bg-stone-50'
+                }`}
+              >
+                <div className="text-[11px] leading-tight">{d.getMonth() + 1}/{d.getDate()}</div>
+                <div className="text-[10px] leading-tight">{weekdays[d.getDay()]}</div>
+              </button>
+            );
+          })}
+        </div>
+        <button onClick={handleNextDays} className="px-3 bg-[#4a72aa] hover:bg-[#345b91] text-white transition flex items-center justify-center shrink-0">
+          <span className="text-lg">▶</span>
+        </button>
+      </div>
     </section>
   );
 }

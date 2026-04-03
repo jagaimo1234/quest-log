@@ -42,7 +42,7 @@ import {
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
-import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchingMovies, bulletinBoards } from "../../drizzle/schema.js";
+import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchingMovies, dailyBulletinBoards } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
 import { dailyInsightRouter } from "./dailyInsight.js";
@@ -166,28 +166,44 @@ export const appRouter = router({
       })
   }),
   bulletin: router({
-    get: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      const [board] = await db.select()
-        .from(bulletinBoards)
-        .where(eq(bulletinBoards.userId, ctx.user!.id));
-      return board || { content: "", updatedAt: new Date() };
-    }),
+    get: protectedProcedure
+      .input(z.object({ date: z.string() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [board] = await db.select()
+          .from(dailyBulletinBoards)
+          .where(
+            and(
+              eq(dailyBulletinBoards.userId, ctx.user!.id),
+              eq(dailyBulletinBoards.date, input.date)
+            )
+          );
+        return board || { content: "", updatedAt: new Date() };
+      }),
     save: protectedProcedure
-      .input(z.object({ content: z.string() }))
+      .input(z.object({ content: z.string(), date: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         
-        const [existing] = await db.select().from(bulletinBoards).where(eq(bulletinBoards.userId, ctx.user!.id));
+        const [existing] = await db.select()
+          .from(dailyBulletinBoards)
+          .where(
+            and(
+              eq(dailyBulletinBoards.userId, ctx.user!.id),
+              eq(dailyBulletinBoards.date, input.date)
+            )
+          );
+          
         if (existing) {
-          await db.update(bulletinBoards)
+          await db.update(dailyBulletinBoards)
             .set({ content: input.content, updatedAt: new Date() })
-            .where(eq(bulletinBoards.userId, ctx.user!.id));
+            .where(eq(dailyBulletinBoards.id, existing.id));
         } else {
-          await db.insert(bulletinBoards).values({
+          await db.insert(dailyBulletinBoards).values({
             userId: ctx.user!.id,
+            date: input.date,
             content: input.content,
             updatedAt: new Date(),
           });

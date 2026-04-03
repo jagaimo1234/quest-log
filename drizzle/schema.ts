@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 /**
@@ -319,13 +319,19 @@ export type WatchingMovie = typeof watchingMovies.$inferSelect;
 export type InsertWatchingMovie = typeof watchingMovies.$inferInsert;
 
 /**
- * 掲示板テーブル (Bulletin Board)
+ * 掲示板テーブル (Daily Bulletin Board)
  */
-export const bulletinBoards = sqliteTable("bulletin_boards", {
-  userId: integer("userId").primaryKey(),
+export const dailyBulletinBoards = sqliteTable("daily_bulletin_boards", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  date: text("date").notNull(),
   content: text("content").notNull().default(""),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => {
+  return {
+    userDateUnique: uniqueIndex("user_date_idx").on(table.userId, table.date),
+  }
 });
 
-export type BulletinBoard = typeof bulletinBoards.$inferSelect;
-export type InsertBulletinBoard = typeof bulletinBoards.$inferInsert;
+export type DailyBulletinBoard = typeof dailyBulletinBoards.$inferSelect;
+export type InsertDailyBulletinBoard = typeof dailyBulletinBoards.$inferInsert;
