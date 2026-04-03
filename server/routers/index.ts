@@ -42,7 +42,7 @@ import {
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { getDb } from "../db.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
-import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchingMovies, dailyBulletinBoards } from "../../drizzle/schema.js";
+import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchingMovies, dailyBulletinBoards, monthlyGoals } from "../../drizzle/schema.js";
 
 import { adminRouter } from "./adminBuilder.js";
 import { dailyInsightRouter } from "./dailyInsight.js";
@@ -204,6 +204,52 @@ export const appRouter = router({
           await db.insert(dailyBulletinBoards).values({
             userId: ctx.user!.id,
             date: input.date,
+            content: input.content,
+            updatedAt: new Date(),
+          });
+        }
+        return { success: true };
+      })
+  }),
+  monthlyGoal: router({
+    get: protectedProcedure
+      .input(z.object({ month: z.string() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const [goal] = await db.select()
+          .from(monthlyGoals)
+          .where(
+            and(
+              eq(monthlyGoals.userId, ctx.user!.id),
+              eq(monthlyGoals.month, input.month)
+            )
+          );
+        return goal || { content: "", updatedAt: new Date() };
+      }),
+    save: protectedProcedure
+      .input(z.object({ content: z.string(), month: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        const [existing] = await db.select()
+          .from(monthlyGoals)
+          .where(
+            and(
+              eq(monthlyGoals.userId, ctx.user!.id),
+              eq(monthlyGoals.month, input.month)
+            )
+          );
+          
+        if (existing) {
+          await db.update(monthlyGoals)
+            .set({ content: input.content, updatedAt: new Date() })
+            .where(eq(monthlyGoals.id, existing.id));
+        } else {
+          await db.insert(monthlyGoals).values({
+            userId: ctx.user!.id,
+            month: input.month,
             content: input.content,
             updatedAt: new Date(),
           });

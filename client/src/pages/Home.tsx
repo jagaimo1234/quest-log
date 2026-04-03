@@ -2015,6 +2015,9 @@ export default function Home() {
 
             <div className="h-px bg-border/50 my-6" />
 
+            {/* MONTHLY GOALS */}
+            <MonthlyGoalBoard />
+
             {/* BULLETIN BOARD */}
             <BulletinBoard />
 
@@ -2683,6 +2686,81 @@ function BulletinBoard() {
         <button onClick={handleNextDays} className="px-3 bg-[#4a72aa] hover:bg-[#345b91] text-white transition flex items-center justify-center shrink-0">
           <span className="text-lg">▶</span>
         </button>
+      </div>
+    </section>
+  );
+}
+
+// Monthly Goal Board Component
+function MonthlyGoalBoard() {
+  const [selectedMonthDate, setSelectedMonthDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1); // Set to 1st of month to avoid edge cases
+    return d;
+  });
+
+  const selectedMonthStr = `${selectedMonthDate.getFullYear()}-${String(selectedMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+  const { data: goal, refetch } = trpc.monthlyGoal.get.useQuery({ month: selectedMonthStr });
+  const saveGoal = trpc.monthlyGoal.save.useMutation();
+  const [content, setContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setContent(goal?.content || "");
+  }, [goal?.content, selectedMonthStr]);
+
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newVal = e.target.value;
+    setContent(newVal);
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setIsSaving(true);
+      saveGoal.mutate({ content: newVal, month: selectedMonthStr }, {
+        onSettled: () => setIsSaving(false)
+      });
+    }, 1000);
+  };
+
+  const handlePrevMonth = () => {
+    const d = new Date(selectedMonthDate);
+    d.setMonth(d.getMonth() - 1);
+    setSelectedMonthDate(d);
+  };
+
+  const handleNextMonth = () => {
+    const d = new Date(selectedMonthDate);
+    d.setMonth(d.getMonth() + 1);
+    setSelectedMonthDate(d);
+  };
+
+  return (
+    <section className="mb-4 rounded-xl border border-emerald-200 bg-[#f4fffa] shadow-sm relative overflow-hidden">
+      <div className="flex items-center justify-between p-3 border-b border-emerald-100 bg-emerald-50">
+        <button onClick={handlePrevMonth} className="px-3 py-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 rounded transition font-bold shrink-0">
+          ◀
+        </button>
+        <h2 className="text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 text-emerald-800">
+          <span className="flex items-center gap-1.5">
+            <span className="text-lg">🎯</span> 
+            <span>{selectedMonthDate.getFullYear()}年{selectedMonthDate.getMonth() + 1}月の目標</span>
+          </span>
+          {isSaving && <span className="text-[10px] text-emerald-600/60 sm:ml-2 italic">Saving...</span>}
+        </h2>
+        <button onClick={handleNextMonth} className="px-3 py-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 rounded transition font-bold shrink-0">
+          ▶
+        </button>
+      </div>
+      <div className="p-3">
+        <textarea
+          value={content}
+          onChange={handleChange}
+          placeholder={`${selectedMonthDate.getFullYear()}年${selectedMonthDate.getMonth() + 1}月の目標をここに書き込みましょう...`}
+          className="w-full min-h-[80px] bg-transparent text-sm focus:outline-none placeholder:text-emerald-800/30 resize-y text-emerald-900 leading-relaxed custom-scrollbar"
+        />
       </div>
     </section>
   );

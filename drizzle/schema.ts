@@ -335,3 +335,21 @@ export const dailyBulletinBoards = sqliteTable("daily_bulletin_boards", {
 
 export type DailyBulletinBoard = typeof dailyBulletinBoards.$inferSelect;
 export type InsertDailyBulletinBoard = typeof dailyBulletinBoards.$inferInsert;
+
+/**
+ * 月間目標テーブル (Monthly Goals)
+ */
+export const monthlyGoals = sqliteTable("monthly_goals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  month: text("month").notNull(), // 'YYYY-MM'
+  content: text("content").notNull().default(""),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => {
+  return {
+    userMonthUnique: uniqueIndex("user_month_idx").on(table.userId, table.month),
+  }
+});
+
+export type MonthlyGoal = typeof monthlyGoals.$inferSelect;
+export type InsertMonthlyGoal = typeof monthlyGoals.$inferInsert;
