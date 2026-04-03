@@ -1027,7 +1027,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("today");
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRelaxOpen, setIsRelaxOpen] = useState(false);
-  const [isLunchCounterOpen, setIsLunchCounterOpen] = useState(true);
+  const [isLunchCounterOpen, setIsLunchCounterOpen] = useState(false);
   const [planningDayOffset, setPlanningDayOffset] = useState(0); // 0=today, 1=tomorrow
 
   const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, { enabled: isAuthenticated });
