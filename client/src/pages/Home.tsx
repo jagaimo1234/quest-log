@@ -208,6 +208,8 @@ function TodayItem({
   const updateQuest = trpc.quest.update.useMutation();
   const createBook = trpc.book.create.useMutation();
   const createMovie = trpc.movie.create.useMutation();
+  const { data: bookList } = trpc.book.list.useQuery();
+  const { data: movieList } = trpc.movie.list.useQuery();
   const [note, setNote] = useState(quest.note || "");
   const [bookTitle, setBookTitle] = useState("");
   const [movieTitle, setMovieTitle] = useState("");
@@ -487,6 +489,33 @@ function TodayItem({
                   📚 レコーディング読書
                 </Label>
                 <div className="text-[10px] text-fuchsia-600/80 mb-2">これから読む本を登録して、Daily Insightの下の読書列に追加します。</div>
+                {/* Uncompleted book list */}
+                {(() => {
+                  const unfinished = bookList?.filter((b: any) => b.status !== 'completed') || [];
+                  if (unfinished.length === 0) return null;
+                  return (
+                    <div className="mb-2">
+                      <div className="text-[10px] text-fuchsia-500 font-bold mb-1">未完了の本から選択:</div>
+                      <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto custom-scrollbar">
+                        {unfinished.map((b: any) => (
+                          <button
+                            key={b.id}
+                            onClick={async () => {
+                              await updateQuest.mutateAsync({ questId: quest.id, note: `📚 ${b.title}` });
+                              toast.success(`『${b.title}』を記録しました`);
+                              setIsMenuOpen(false);
+                              onStatusChange();
+                            }}
+                            className="text-[11px] px-2.5 py-1.5 rounded-md bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 border border-fuchsia-200 transition-colors text-left truncate max-w-full"
+                          >
+                            📖 {b.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div className="text-[10px] text-fuchsia-400 mb-0.5">または新規登録:</div>
                 <Input
                   placeholder="本のタイトルを入力..."
                   value={bookTitle}
@@ -505,6 +534,33 @@ function TodayItem({
                   🎬 レコーディング映画
                 </Label>
                 <div className="text-[10px] text-rose-600/80 mb-2">これから観る映画を登録して、Daily Insightの下の映画列に追加します。</div>
+                {/* Uncompleted movie list */}
+                {(() => {
+                  const unfinished = movieList?.filter((m: any) => m.status !== 'completed') || [];
+                  if (unfinished.length === 0) return null;
+                  return (
+                    <div className="mb-2">
+                      <div className="text-[10px] text-rose-500 font-bold mb-1">未完了の映画から選択:</div>
+                      <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto custom-scrollbar">
+                        {unfinished.map((m: any) => (
+                          <button
+                            key={m.id}
+                            onClick={async () => {
+                              await updateQuest.mutateAsync({ questId: quest.id, note: `🎬 ${m.title}` });
+                              toast.success(`『${m.title}』を記録しました`);
+                              setIsMenuOpen(false);
+                              onStatusChange();
+                            }}
+                            className="text-[11px] px-2.5 py-1.5 rounded-md bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 transition-colors text-left truncate max-w-full"
+                          >
+                            🎥 {m.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div className="text-[10px] text-rose-400 mb-0.5">または新規登録:</div>
                 <Input
                   placeholder="映画のタイトルを入力..."
                   value={movieTitle}
