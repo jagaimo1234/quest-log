@@ -353,3 +353,19 @@ export const monthlyGoals = sqliteTable("monthly_goals", {
 
 export type MonthlyGoal = typeof monthlyGoals.$inferSelect;
 export type InsertMonthlyGoal = typeof monthlyGoals.$inferInsert;
+
+/**
+ * モアイ活動記録テーブル (Moai Activity)
+ */
+export const moaiActivities = sqliteTable("moai_activities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  insight: text("insight").notNull(),
+  action: text("action"),
+  date: text("date").notNull(), // 'YYYY-MM-DD'
+  applied: integer("applied", { mode: "boolean" }).default(false).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type MoaiActivity = typeof moaiActivities.$inferSelect;
+export type InsertMoaiActivity = typeof moaiActivities.$inferInsert;

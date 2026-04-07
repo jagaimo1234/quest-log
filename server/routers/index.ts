@@ -46,11 +46,13 @@ import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchin
 
 import { adminRouter } from "./adminBuilder.js";
 import { dailyInsightRouter } from "./dailyInsight.js";
+import { moaiActivityRouter } from "./moaiActivity.js";
 
 export const appRouter = router({
   system: systemRouter,
   admin: adminRouter,
   dailyInsight: dailyInsightRouter,
+  moaiActivity: moaiActivityRouter,
   book: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
