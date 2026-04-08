@@ -181,10 +181,10 @@ export const appRouter = router({
               eq(dailyBulletinBoards.date, input.date)
             )
           );
-        return board || { content: "", updatedAt: new Date() };
+        return board || { content: "", diary: "", updatedAt: new Date() };
       }),
     save: protectedProcedure
-      .input(z.object({ content: z.string(), date: z.string() }))
+      .input(z.object({ content: z.string(), diary: z.string(), date: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -200,13 +200,14 @@ export const appRouter = router({
           
         if (existing) {
           await db.update(dailyBulletinBoards)
-            .set({ content: input.content, updatedAt: new Date() })
+            .set({ content: input.content, diary: input.diary, updatedAt: new Date() })
             .where(eq(dailyBulletinBoards.id, existing.id));
         } else {
           await db.insert(dailyBulletinBoards).values({
             userId: ctx.user!.id,
             date: input.date,
             content: input.content,
+            diary: input.diary,
             updatedAt: new Date(),
           });
         }

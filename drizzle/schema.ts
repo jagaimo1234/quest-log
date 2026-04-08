@@ -325,7 +325,8 @@ export const dailyBulletinBoards = sqliteTable("daily_bulletin_boards", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("userId").notNull(),
   date: text("date").notNull(),
-  content: text("content").notNull().default(""),
+  content: text("content").notNull().default(""),   // 自由欄
+  diary: text("diary").notNull().default(""),        // 日記欄
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 }, (table) => {
   return {

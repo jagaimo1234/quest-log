@@ -2637,32 +2637,44 @@ function BulletinBoard() {
   const { data: board, refetch } = trpc.bulletin.get.useQuery({ date: selectedDate });
   const saveBoard = trpc.bulletin.save.useMutation();
   const [content, setContent] = useState("");
+  const [diary, setDiary] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setContent(board?.content || "");
-  }, [board?.content, selectedDate]);
+    setDiary((board as any)?.diary || "");
+  }, [board?.content, (board as any)?.diary, selectedDate]);
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const contentTimeout = useRef<NodeJS.Timeout | null>(null);
+  const diaryTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newVal = e.target.value;
-    setContent(newVal);
+  const triggerSave = (newContent: string, newDiary: string) => {
+    setIsSaving(true);
+    saveBoard.mutate({ content: newContent, diary: newDiary, date: selectedDate }, {
+      onSettled: () => setIsSaving(false)
+    });
+  };
 
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      setIsSaving(true);
-      saveBoard.mutate({ content: newVal, date: selectedDate }, {
-        onSettled: () => setIsSaving(false)
-      });
-    }, 1000);
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
+    if (contentTimeout.current) clearTimeout(contentTimeout.current);
+    contentTimeout.current = setTimeout(() => triggerSave(val, diary), 1000);
+  };
+
+  const handleDiaryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setDiary(val);
+    if (diaryTimeout.current) clearTimeout(diaryTimeout.current);
+    diaryTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
   };
 
   const handleReset = async () => {
     if (confirm("現在表示している掲示板の内容をすべて削除します。よろしいですか？")) {
       setContent("");
+      setDiary("");
       setIsSaving(true);
-      await saveBoard.mutateAsync({ content: "", date: selectedDate });
+      await saveBoard.mutateAsync({ content: "", diary: "", date: selectedDate });
       setIsSaving(false);
       refetch();
     }
@@ -2688,36 +2700,51 @@ function BulletinBoard() {
     setBaseDate(newBase);
   };
 
-  // 選択日を見やすく整形
   const selectedDateObj = new Date(selectedDate);
   const displaySelectedDateStr = `${selectedDateObj.getMonth() + 1}/${selectedDateObj.getDate()}(${weekdays[selectedDateObj.getDay()]})`;
 
   return (
     <section className="mb-6 p-0 rounded-xl border border-stone-300 bg-[#fefdfb] shadow-sm relative overflow-hidden">
-      <div className="p-4 flex flex-col h-[280px]">
-        <div className="flex items-center justify-between mb-3 border-b border-stone-200 pb-2 shrink-0">
-          <h2 className="text-sm font-bold flex items-center gap-1.5 text-stone-700">
-            <span className="text-lg text-rose-500">📌</span> 
-            掲示板 (Notice Board) <span className="ml-1 text-base">{displaySelectedDateStr}</span>
-            {isSaving && <span className="text-[10px] text-stone-400 ml-2 italic">Saving...</span>}
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReset}
-            className="h-7 text-xs bg-stone-50 hover:bg-red-50 hover:text-red-600 text-stone-500"
-          >
-            <Trash2 className="w-3 h-3 mr-1" /> リセット
-          </Button>
-        </div>
-        <textarea
-          value={content}
-          onChange={handleChange}
-          placeholder="自由に書き込めます..."
-          className="flex-1 w-full bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed custom-scrollbar"
-        />
+      {/* Header */}
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-stone-200">
+        <h2 className="text-sm font-bold flex items-center gap-1.5 text-stone-700">
+          <span className="text-lg text-rose-500">📌</span>
+          掲示板 (Notice Board) <span className="ml-1 text-base">{displaySelectedDateStr}</span>
+          {isSaving && <span className="text-[10px] text-stone-400 ml-2 italic">Saving...</span>}
+        </h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleReset}
+          className="h-7 text-xs bg-stone-50 hover:bg-red-50 hover:text-red-600 text-stone-500"
+        >
+          <Trash2 className="w-3 h-3 mr-1" /> リセット
+        </Button>
       </div>
 
+      {/* Two text areas stacked */}
+      <div className="flex flex-col divide-y divide-stone-200">
+        <div className="p-3 flex flex-col gap-1">
+          <div className="text-[11px] font-bold text-stone-500 mb-1">📝 自由欄</div>
+          <textarea
+            value={content}
+            onChange={handleContentChange}
+            placeholder="自由に書き込めます..."
+            className="w-full min-h-[80px] bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-y text-stone-700 leading-relaxed custom-scrollbar"
+          />
+        </div>
+        <div className="p-3 flex flex-col gap-1">
+          <div className="text-[11px] font-bold text-amber-600 mb-1">📔 日記欄</div>
+          <textarea
+            value={diary}
+            onChange={handleDiaryChange}
+            placeholder="今日の出来事、感じたことなど..."
+            className="w-full min-h-[80px] bg-transparent text-sm focus:outline-none placeholder:text-amber-300 resize-y text-amber-900 leading-relaxed custom-scrollbar"
+          />
+        </div>
+      </div>
+
+      {/* Date picker */}
       <div className="flex border-t border-stone-300 bg-white">
         <button onClick={handlePrevDays} className="px-3 bg-[#4a72aa] hover:bg-[#345b91] text-white transition flex items-center justify-center shrink-0">
           <span className="text-lg">◀</span>
@@ -2731,8 +2758,8 @@ function BulletinBoard() {
                 key={dateStr}
                 onClick={() => setSelectedDate(dateStr)}
                 className={`flex flex-col items-center justify-center py-2 transition-colors ${
-                  isSelected 
-                    ? 'bg-amber-50 font-bold text-amber-900 shadow-[inset_0_-3px_0_theme(colors.amber.500)]' 
+                  isSelected
+                    ? 'bg-amber-50 font-bold text-amber-900 shadow-[inset_0_-3px_0_theme(colors.amber.500)]'
                     : 'text-stone-500 hover:bg-stone-50'
                 }`}
               >
