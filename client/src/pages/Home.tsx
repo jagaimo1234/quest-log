@@ -2647,6 +2647,18 @@ function BulletinBoard() {
 
   const contentTimeout = useRef<NodeJS.Timeout | null>(null);
   const diaryTimeout = useRef<NodeJS.Timeout | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const diaryRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+
+  // Re-adjust height when content loaded from DB
+  useEffect(() => { autoResize(contentRef.current); }, [content]);
+  useEffect(() => { autoResize(diaryRef.current); }, [diary]);
 
   const triggerSave = (newContent: string, newDiary: string) => {
     setIsSaving(true);
@@ -2658,6 +2670,7 @@ function BulletinBoard() {
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setContent(val);
+    autoResize(e.target);
     if (contentTimeout.current) clearTimeout(contentTimeout.current);
     contentTimeout.current = setTimeout(() => triggerSave(val, diary), 1000);
   };
@@ -2665,6 +2678,7 @@ function BulletinBoard() {
   const handleDiaryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setDiary(val);
+    autoResize(e.target);
     if (diaryTimeout.current) clearTimeout(diaryTimeout.current);
     diaryTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
   };
@@ -2727,19 +2741,23 @@ function BulletinBoard() {
         <div className="p-3 flex flex-col gap-1">
           <div className="text-[11px] font-bold text-stone-500 mb-1">📝 自由欄</div>
           <textarea
+            ref={contentRef}
             value={content}
             onChange={handleContentChange}
             placeholder="自由に書き込めます..."
-            className="w-full min-h-[80px] bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-y text-stone-700 leading-relaxed custom-scrollbar"
+            rows={1}
+            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
           />
         </div>
         <div className="p-3 flex flex-col gap-1">
           <div className="text-[11px] font-bold text-amber-600 mb-1">📔 日記欄</div>
           <textarea
+            ref={diaryRef}
             value={diary}
             onChange={handleDiaryChange}
             placeholder="今日の出来事、感じたことなど..."
-            className="w-full min-h-[80px] bg-transparent text-sm focus:outline-none placeholder:text-amber-300 resize-y text-amber-900 leading-relaxed custom-scrollbar"
+            rows={1}
+            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-amber-300 resize-none text-amber-900 leading-relaxed"
           />
         </div>
       </div>
@@ -2800,6 +2818,17 @@ function MonthlyGoalBoard() {
 
   const contentTimeout = useRef<NodeJS.Timeout | null>(null);
   const awarenessTimeout = useRef<NodeJS.Timeout | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const awarenessRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+
+  useEffect(() => { autoResize(contentRef.current); }, [content]);
+  useEffect(() => { autoResize(awarenessRef.current); }, [awareness]);
 
   const triggerSave = (newContent: string, newAwareness: string) => {
     setIsSaving(true);
@@ -2811,6 +2840,7 @@ function MonthlyGoalBoard() {
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setContent(val);
+    autoResize(e.target);
     if (contentTimeout.current) clearTimeout(contentTimeout.current);
     contentTimeout.current = setTimeout(() => triggerSave(val, awareness), 1000);
   };
@@ -2818,6 +2848,7 @@ function MonthlyGoalBoard() {
   const handleAwarenessChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setAwareness(val);
+    autoResize(e.target);
     if (awarenessTimeout.current) clearTimeout(awarenessTimeout.current);
     awarenessTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
   };
@@ -2857,10 +2888,12 @@ function MonthlyGoalBoard() {
             <span>🏃</span> 行動
           </div>
           <textarea
+            ref={contentRef}
             value={content}
             onChange={handleContentChange}
             placeholder="今月やること、取り組む行動..."
-            className="w-full min-h-[90px] bg-transparent text-sm focus:outline-none placeholder:text-emerald-800/30 resize-y text-emerald-900 leading-relaxed custom-scrollbar"
+            rows={1}
+            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-emerald-800/30 resize-none text-emerald-900 leading-relaxed"
           />
         </div>
         <div className="p-3 flex flex-col gap-1">
@@ -2868,10 +2901,12 @@ function MonthlyGoalBoard() {
             <span>🧠</span> 意識
           </div>
           <textarea
+            ref={awarenessRef}
             value={awareness}
             onChange={handleAwarenessChange}
             placeholder="意識したいこと、マインド..."
-            className="w-full min-h-[90px] bg-transparent text-sm focus:outline-none placeholder:text-teal-800/30 resize-y text-teal-900 leading-relaxed custom-scrollbar"
+            rows={1}
+            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-800/30 resize-none text-teal-900 leading-relaxed"
           />
         </div>
       </div>
