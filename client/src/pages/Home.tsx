@@ -2754,34 +2754,45 @@ function BulletinBoard() {
 function MonthlyGoalBoard() {
   const [selectedMonthDate, setSelectedMonthDate] = useState(() => {
     const d = new Date();
-    d.setDate(1); // Set to 1st of month to avoid edge cases
+    d.setDate(1);
     return d;
   });
 
   const selectedMonthStr = `${selectedMonthDate.getFullYear()}-${String(selectedMonthDate.getMonth() + 1).padStart(2, '0')}`;
 
-  const { data: goal, refetch } = trpc.monthlyGoal.get.useQuery({ month: selectedMonthStr });
+  const { data: goal } = trpc.monthlyGoal.get.useQuery({ month: selectedMonthStr });
   const saveGoal = trpc.monthlyGoal.save.useMutation();
   const [content, setContent] = useState("");
+  const [awareness, setAwareness] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setContent(goal?.content || "");
-  }, [goal?.content, selectedMonthStr]);
+    setAwareness((goal as any)?.awareness || "");
+  }, [goal?.content, (goal as any)?.awareness, selectedMonthStr]);
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const contentTimeout = useRef<NodeJS.Timeout | null>(null);
+  const awarenessTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newVal = e.target.value;
-    setContent(newVal);
+  const triggerSave = (newContent: string, newAwareness: string) => {
+    setIsSaving(true);
+    saveGoal.mutate({ content: newContent, awareness: newAwareness, month: selectedMonthStr }, {
+      onSettled: () => setIsSaving(false)
+    });
+  };
 
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      setIsSaving(true);
-      saveGoal.mutate({ content: newVal, month: selectedMonthStr }, {
-        onSettled: () => setIsSaving(false)
-      });
-    }, 1000);
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
+    if (contentTimeout.current) clearTimeout(contentTimeout.current);
+    contentTimeout.current = setTimeout(() => triggerSave(val, awareness), 1000);
+  };
+
+  const handleAwarenessChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setAwareness(val);
+    if (awarenessTimeout.current) clearTimeout(awarenessTimeout.current);
+    awarenessTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
   };
 
   const handlePrevMonth = () => {
@@ -2804,7 +2815,7 @@ function MonthlyGoalBoard() {
         </button>
         <h2 className="text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 text-emerald-800">
           <span className="flex items-center gap-1.5">
-            <span className="text-lg">🎯</span> 
+            <span className="text-lg">🎯</span>
             <span>{selectedMonthDate.getFullYear()}年{selectedMonthDate.getMonth() + 1}月の目標</span>
           </span>
           {isSaving && <span className="text-[10px] text-emerald-600/60 sm:ml-2 italic">Saving...</span>}
@@ -2813,13 +2824,29 @@ function MonthlyGoalBoard() {
           ▶
         </button>
       </div>
-      <div className="p-3">
-        <textarea
-          value={content}
-          onChange={handleChange}
-          placeholder={`${selectedMonthDate.getFullYear()}年${selectedMonthDate.getMonth() + 1}月の目標をここに書き込みましょう...`}
-          className="w-full min-h-[80px] bg-transparent text-sm focus:outline-none placeholder:text-emerald-800/30 resize-y text-emerald-900 leading-relaxed custom-scrollbar"
-        />
+      <div className="grid grid-cols-2 divide-x divide-emerald-100">
+        <div className="p-3 flex flex-col gap-1">
+          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 mb-1">
+            <span>🏃</span> 行動
+          </div>
+          <textarea
+            value={content}
+            onChange={handleContentChange}
+            placeholder="今月やること、取り組む行動..."
+            className="w-full min-h-[90px] bg-transparent text-sm focus:outline-none placeholder:text-emerald-800/30 resize-y text-emerald-900 leading-relaxed custom-scrollbar"
+          />
+        </div>
+        <div className="p-3 flex flex-col gap-1">
+          <div className="flex items-center gap-1 text-[11px] font-bold text-teal-700 mb-1">
+            <span>🧠</span> 意識
+          </div>
+          <textarea
+            value={awareness}
+            onChange={handleAwarenessChange}
+            placeholder="意識したいこと、マインド..."
+            className="w-full min-h-[90px] bg-transparent text-sm focus:outline-none placeholder:text-teal-800/30 resize-y text-teal-900 leading-relaxed custom-scrollbar"
+          />
+        </div>
       </div>
     </section>
   );

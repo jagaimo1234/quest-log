@@ -227,10 +227,10 @@ export const appRouter = router({
               eq(monthlyGoals.month, input.month)
             )
           );
-        return goal || { content: "", updatedAt: new Date() };
+        return goal || { content: "", awareness: "", updatedAt: new Date() };
       }),
     save: protectedProcedure
-      .input(z.object({ content: z.string(), month: z.string() }))
+      .input(z.object({ content: z.string(), awareness: z.string(), month: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -246,13 +246,14 @@ export const appRouter = router({
           
         if (existing) {
           await db.update(monthlyGoals)
-            .set({ content: input.content, updatedAt: new Date() })
+            .set({ content: input.content, awareness: input.awareness, updatedAt: new Date() })
             .where(eq(monthlyGoals.id, existing.id));
         } else {
           await db.insert(monthlyGoals).values({
             userId: ctx.user!.id,
             month: input.month,
             content: input.content,
+            awareness: input.awareness,
             updatedAt: new Date(),
           });
         }

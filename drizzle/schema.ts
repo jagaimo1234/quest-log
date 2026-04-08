@@ -343,7 +343,8 @@ export const monthlyGoals = sqliteTable("monthly_goals", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("userId").notNull(),
   month: text("month").notNull(), // 'YYYY-MM'
-  content: text("content").notNull().default(""),
+  content: text("content").notNull().default(""),       // 行動目標
+  awareness: text("awareness").notNull().default(""),   // 意識目標
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 }, (table) => {
   return {
