@@ -2824,7 +2824,7 @@ function MonthlyGoalBoard() {
           ▶
         </button>
       </div>
-      <div className="grid grid-cols-2 divide-x divide-emerald-100">
+      <div className="flex flex-col divide-y divide-emerald-100">
         <div className="p-3 flex flex-col gap-1">
           <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 mb-1">
             <span>🏃</span> 行動
