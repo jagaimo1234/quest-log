@@ -1865,6 +1865,13 @@ export default function Home() {
   const toggleInsightApplied = trpc.dailyInsight.toggleApplied.useMutation();
   const deleteInsight = trpc.dailyInsight.delete.useMutation();
 
+  const generalInsights = insightsList?.filter((i: any) => !i.date.startsWith('inv-'));
+  const invInsights = insightsList?.filter((i: any) => i.date.startsWith('inv-'));
+
+  const [isInvInsightOpen, setIsInvInsightOpen] = useState(false);
+  const [invInsightInput, setInvInsightInput] = useState("");
+  const [invInsightActionInput, setInvInsightActionInput] = useState("");
+
   const handleSaveInsight = async () => {
     if (!insightInput.trim()) return;
     await createInsight.mutateAsync({ insight: insightInput.trim(), action: insightActionInput.trim(), date: targetDateStr });
@@ -1872,6 +1879,15 @@ export default function Home() {
     setInsightActionInput("");
     refetchInsights();
     toast.success("Insight saved");
+  };
+
+  const handleSaveInvInsight = async () => {
+    if (!invInsightInput.trim()) return;
+    await createInsight.mutateAsync({ insight: invInsightInput.trim(), action: invInsightActionInput.trim(), date: `inv-${targetDateStr}` });
+    setInvInsightInput("");
+    setInvInsightActionInput("");
+    refetchInsights();
+    toast.success("Investment Insight saved");
   };
   const handleDeleteInsight = async (id: number) => {
     await deleteInsight.mutateAsync({ id });
@@ -2454,9 +2470,9 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {!insightsList?.length ? <div className="text-xs text-muted-foreground px-1 italic">No insights yet.</div> : (
+                  {!generalInsights?.length ? <div className="text-xs text-muted-foreground px-1 italic">No insights yet.</div> : (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                      {insightsList.map((insight: any) => (
+                      {generalInsights.map((insight: any) => (
                         <div key={insight.id} className={`group flex items-start gap-2 p-3 rounded-lg border ${insight.applied ? 'border-sky-100 bg-sky-50/30' : 'border-slate-100 bg-white'} text-xs relative`}>
                           <button
                             onClick={() => handleToggleInsight(insight.id, insight.applied)}
@@ -2572,6 +2588,88 @@ export default function Home() {
             {/* SHELF 11: INVESTMENT (投資) */}
             <div className="h-px bg-border/50 my-6" />
             <InvestmentBoard />
+
+            <section className="mt-4">
+              <div
+                onClick={(e) => { e.stopPropagation(); setIsInvInsightOpen(!isInvInsightOpen); }}
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+                    <Lightbulb className="w-3 h-3" /> INVESTMENT INSIGHT
+                  </h2>
+                  <span className="text-[10px] text-emerald-600/70 bg-emerald-50 px-1.5 rounded-sm">投資の気づきとアクション</span>
+                </div>
+                <div className="text-emerald-500">
+                  {isInvInsightOpen ? "▼" : "▶"}
+                </div>
+              </div>
+
+              {isInvInsightOpen && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3">
+                  <div className="flex flex-col gap-2 p-2 border border-emerald-100 rounded-lg bg-white/50">
+                    <div className="flex gap-2">
+                      <Input
+                        value={invInsightInput}
+                        onChange={(e) => setInvInsightInput(e.target.value)}
+                        placeholder="💡 投資での気づきを入力... (必須)"
+                        className="text-xs flex-1"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={invInsightActionInput}
+                        onChange={(e) => setInvInsightActionInput(e.target.value)}
+                        placeholder="▶ アクション・ルール化... (任意)"
+                        className="text-xs flex-1"
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveInvInsight(); } }}
+                      />
+                      <Button size="sm" onClick={handleSaveInvInsight} disabled={createInsight.isPending || !invInsightInput.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3">
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+
+                  {!invInsights?.length ? <div className="text-xs text-muted-foreground px-1 italic">No investment insights yet.</div> : (
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                      {invInsights.map((insight: any) => (
+                        <div key={insight.id} className={`group flex items-start gap-2 p-3 rounded-lg border ${insight.applied ? 'border-emerald-100 bg-emerald-50/30' : 'border-slate-100 bg-white'} text-xs relative`}>
+                          <button
+                            onClick={() => handleToggleInsight(insight.id, insight.applied)}
+                            title={insight.applied ? "ルール化済み" : "ルールとして適用する"}
+                            className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${insight.applied ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-400'}`}
+                          >
+                            {insight.applied && <CheckCircle2 className="w-3 h-3" />}
+                          </button>
+
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className={`font-medium text-slate-700 whitespace-pre-wrap ${insight.applied ? 'opacity-70 line-through' : ''}`}>
+                              {insight.insight}
+                            </div>
+                            {insight.action && (
+                              <div className={`text-[11px] text-emerald-700/80 flex items-start gap-1 mt-1 ${insight.applied ? 'opacity-70 line-through' : ''}`}>
+                                <ArrowRight className="w-3 h-3 shrink-0" />
+                                <span className="whitespace-pre-wrap">{insight.action}</span>
+                              </div>
+                            )}
+                            <div className="text-[9px] text-slate-300 pt-1">{new Date(insight.createdAt).toLocaleDateString()}</div>
+                          </div>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-destructive shrink-0"
+                            onClick={() => handleDeleteInsight(insight.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
 
           </TabsContent>
 
