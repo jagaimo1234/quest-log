@@ -1898,7 +1898,7 @@ export default function Home() {
   if (authLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground select-none" onClick={() => setIsRelaxOpen(false)}>
+    <div className="min-h-screen bg-background text-foreground" onClick={() => setIsRelaxOpen(false)}>
       <main className="layout-container py-8 mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold tracking-tight">Quest Log</h1>
@@ -2083,7 +2083,7 @@ export default function Home() {
                 <img src="/yasuda.png" alt="Yasuda Yogurt" className="w-48 h-auto object-contain" />
               </div>
               <div
-                className="flex items-center justify-between mb-3 cursor-pointer select-none group"
+                className="flex items-center justify-between mb-3 cursor-pointer group"
                 onClick={() => setIsLunchCounterOpen(!isLunchCounterOpen)}
               >
                 <h2 className="text-sm font-black text-sky-800 flex items-center gap-1.5 transition-transform group-active:scale-95">
@@ -2247,7 +2247,7 @@ export default function Home() {
             <section>
               <div
                 onClick={(e) => { e.stopPropagation(); setIsRelaxOpen(!isRelaxOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors select-none"
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
@@ -2299,7 +2299,7 @@ export default function Home() {
             <section>
               <div
                 onClick={(e) => { e.stopPropagation(); setIsHistoryOpen(!isHistoryOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-slate-50/50 rounded-md py-1 transition-colors select-none"
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-slate-50/50 rounded-md py-1 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
@@ -2350,7 +2350,7 @@ export default function Home() {
             <section>
               <div
                 onClick={(e) => { e.stopPropagation(); setIsMemoOpen(!isMemoOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-amber-50/50 rounded-md py-1 transition-colors select-none"
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-amber-50/50 rounded-md py-1 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <h2 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
@@ -2416,7 +2416,7 @@ export default function Home() {
             <section>
               <div
                 onClick={(e) => { e.stopPropagation(); setIsInsightOpen(!isInsightOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-sky-50/50 rounded-md py-1 transition-colors select-none"
+                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-sky-50/50 rounded-md py-1 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <h2 className="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center gap-1">
@@ -2945,7 +2945,7 @@ function MoaiActivityBoard({ targetDateStr }: { targetDateStr: string }) {
     <section className="mb-4">
       <div
         onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-        className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-indigo-50/50 rounded-md py-1 transition-colors select-none"
+        className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-indigo-50/50 rounded-md py-1 transition-colors"
       >
         <div className="flex items-center gap-2">
           <h2 className="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
