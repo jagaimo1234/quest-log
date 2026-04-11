@@ -2569,6 +2569,10 @@ export default function Home() {
               )}
             </section>
 
+            {/* SHELF 11: INVESTMENT (投資) */}
+            <div className="h-px bg-border/50 my-6" />
+            <InvestmentBoard />
+
           </TabsContent>
 
           <TabsContent value="calendar" className="animate-fade-in">
@@ -2871,6 +2875,258 @@ function BulletinBoard() {
           })}
         </div>
         <button onClick={handleNextDays} className="px-3 bg-[#4a72aa] hover:bg-[#345b91] text-white transition flex items-center justify-center shrink-0">
+          <span className="text-lg">▶</span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// Investment Board Component
+function InvestmentBoard() {
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [baseDate, setBaseDate] = useState(new Date());
+
+  const selectedDateObj = new Date(selectedDate);
+  const selectedMonthStr = "inv-" + format(selectedDateObj, "yyyy-MM");
+  const selectedWeekStr = "inv-" + format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "yyyy-MM-dd") + "_W";
+  const invSelectedDate = "inv-" + selectedDate;
+
+  const { data: board, refetch } = trpc.bulletin.get.useQuery({ date: invSelectedDate });
+  const { data: monthBoard, refetch: refetchMonth } = trpc.bulletin.get.useQuery({ date: selectedMonthStr });
+  const { data: weekBoard, refetch: refetchWeek } = trpc.bulletin.get.useQuery({ date: selectedWeekStr });
+  const saveBoard = trpc.bulletin.save.useMutation();
+
+  const [content, setContent] = useState("");
+  const [diary, setDiary] = useState("");
+  const [monthContent, setMonthContent] = useState("");
+  const [weekContent, setWeekContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setContent(board?.content || "");
+    setDiary((board as any)?.diary || "");
+  }, [board?.content, (board as any)?.diary, invSelectedDate]);
+
+  useEffect(() => {
+    setMonthContent(monthBoard?.content || "");
+  }, [monthBoard?.content, selectedMonthStr]);
+
+  useEffect(() => {
+    setWeekContent(weekBoard?.content || "");
+  }, [weekBoard?.content, selectedWeekStr]);
+
+  const contentTimeout = useRef<NodeJS.Timeout | null>(null);
+  const diaryTimeout = useRef<NodeJS.Timeout | null>(null);
+  const monthTimeout = useRef<NodeJS.Timeout | null>(null);
+  const weekTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const diaryRef = useRef<HTMLTextAreaElement>(null);
+  const monthRef = useRef<HTMLTextAreaElement>(null);
+  const weekRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+
+  useEffect(() => { autoResize(contentRef.current); }, [content]);
+  useEffect(() => { autoResize(diaryRef.current); }, [diary]);
+  useEffect(() => { autoResize(monthRef.current); }, [monthContent]);
+  useEffect(() => { autoResize(weekRef.current); }, [weekContent]);
+
+  const triggerSave = (newContent: string, newDiary: string) => {
+    setIsSaving(true);
+    saveBoard.mutate({ content: newContent, diary: newDiary, date: invSelectedDate }, {
+      onSettled: () => setIsSaving(false)
+    });
+  };
+
+  const triggerSaveMonth = (newContent: string) => {
+    setIsSaving(true);
+    saveBoard.mutate({ content: newContent, diary: "", date: selectedMonthStr }, {
+      onSettled: () => setIsSaving(false)
+    });
+  };
+
+  const triggerSaveWeek = (newContent: string) => {
+    setIsSaving(true);
+    saveBoard.mutate({ content: newContent, diary: "", date: selectedWeekStr }, {
+      onSettled: () => setIsSaving(false)
+    });
+  };
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
+    autoResize(e.target);
+    if (contentTimeout.current) clearTimeout(contentTimeout.current);
+    contentTimeout.current = setTimeout(() => triggerSave(val, diary), 1000);
+  };
+
+  const handleDiaryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setDiary(val);
+    autoResize(e.target);
+    if (diaryTimeout.current) clearTimeout(diaryTimeout.current);
+    diaryTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
+  };
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setMonthContent(val);
+    autoResize(e.target);
+    if (monthTimeout.current) clearTimeout(monthTimeout.current);
+    monthTimeout.current = setTimeout(() => triggerSaveMonth(val), 1000);
+  };
+
+  const handleWeekChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setWeekContent(val);
+    autoResize(e.target);
+    if (weekTimeout.current) clearTimeout(weekTimeout.current);
+    weekTimeout.current = setTimeout(() => triggerSaveWeek(val), 1000);
+  };
+
+  const handleReset = async () => {
+    if (confirm("現在表示している基準日に関する投資用の「月・週・日」掲示板をすべて削除します。よろしいですか？")) {
+      setContent("");
+      setDiary("");
+      setMonthContent("");
+      setWeekContent("");
+      setIsSaving(true);
+      await Promise.all([
+        saveBoard.mutateAsync({ content: "", diary: "", date: invSelectedDate }),
+        saveBoard.mutateAsync({ content: "", diary: "", date: selectedMonthStr }),
+        saveBoard.mutateAsync({ content: "", diary: "", date: selectedWeekStr }),
+      ]);
+      setIsSaving(false);
+      refetch();
+      refetchMonth();
+      refetchWeek();
+    }
+  };
+
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  const days: Date[] = [];
+  for (let i = -3; i <= 3; i++) {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+
+  const handlePrevDays = () => {
+    const newBase = new Date(baseDate);
+    newBase.setDate(newBase.getDate() - 1);
+    setBaseDate(newBase);
+  };
+
+  const handleNextDays = () => {
+    const newBase = new Date(baseDate);
+    newBase.setDate(newBase.getDate() + 1);
+    setBaseDate(newBase);
+  };
+
+  const displaySelectedDateStr = `${selectedDateObj.getMonth() + 1}/${selectedDateObj.getDate()}(${weekdays[selectedDateObj.getDay()]})`;
+
+  return (
+    <section className="mb-6 p-0 rounded-xl border border-teal-300 bg-[#f4fbf9] shadow-sm relative overflow-hidden">
+      {/* Header */}
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-teal-200">
+        <h2 className="text-sm font-bold flex items-center gap-1.5 text-teal-800">
+          <span className="text-lg">📈</span>
+          投資掲示板 (Investment) <span className="ml-1 text-base">{displaySelectedDateStr}</span>
+          {isSaving && <span className="text-[10px] text-teal-600/70 ml-2 italic">Saving...</span>}
+        </h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleReset}
+          className="h-7 text-xs bg-teal-50 hover:bg-red-50 hover:text-red-600 text-teal-700 border-teal-200"
+        >
+          <Trash2 className="w-3 h-3 mr-1" /> リセット
+        </Button>
+      </div>
+
+      {/* Text areas stacked */}
+      <div className="flex flex-col divide-y divide-teal-200">
+        <div className="p-3 flex flex-col gap-1 bg-teal-50/50">
+          <div className="text-[11px] font-bold text-teal-700 mb-1">📅 月間投資目標 / 総資産メモ {format(selectedDateObj, "yyyy年M月")}</div>
+          <textarea
+            ref={monthRef}
+            value={monthContent}
+            onChange={handleMonthChange}
+            placeholder="今月の投資方針、目標利益、資産の変動など..."
+            rows={1}
+            className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-300 resize-none text-teal-900 leading-relaxed"
+          />
+        </div>
+        <div className="p-3 flex flex-col gap-1 bg-teal-50/30">
+          <div className="text-[11px] font-bold text-teal-700 mb-1">📆 週間相場観 / ウォッチリスト ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)</div>
+          <textarea
+            ref={weekRef}
+            value={weekContent}
+            onChange={handleWeekChange}
+            placeholder="今週注目している銘柄、予想されるイベントなど..."
+            rows={1}
+            className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-300 resize-none text-teal-900 leading-relaxed"
+          />
+        </div>
+        <div className="p-3 flex flex-col gap-1">
+          <div className="text-[11px] font-bold text-teal-700 mb-1">📝 今日のトレード記録 (自由欄)</div>
+          <textarea
+            ref={contentRef}
+            value={content}
+            onChange={handleContentChange}
+            placeholder="今日のトレード内容、決済の理由など..."
+            rows={1}
+            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-400 resize-none text-teal-900 leading-relaxed"
+          />
+        </div>
+        <div className="p-3 flex flex-col gap-1">
+          <div className="text-[11px] font-bold text-emerald-700 mb-1">📔 今日の所感 (日記欄)</div>
+          <textarea
+            ref={diaryRef}
+            value={diary}
+            onChange={handleDiaryChange}
+            placeholder="相場の熱量、メンタルの状況など..."
+            rows={1}
+            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-emerald-400/70 resize-none text-emerald-900 leading-relaxed"
+          />
+        </div>
+      </div>
+
+      {/* Date picker */}
+      <div className="flex border-t border-teal-300 bg-white">
+        <button onClick={handlePrevDays} className="px-3 bg-teal-600 hover:bg-teal-700 text-white transition flex items-center justify-center shrink-0">
+          <span className="text-lg">◀</span>
+        </button>
+        <div className="flex-1 grid grid-cols-7 divide-x divide-teal-100 text-center">
+          {days.map(d => {
+            const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+            const isSelected = selectedDate === dateStr;
+            return (
+              <button
+                key={dateStr}
+                onClick={() => setSelectedDate(dateStr)}
+                className={`flex flex-col items-center justify-center py-2 transition-colors ${
+                  isSelected
+                    ? 'bg-teal-50 font-bold text-teal-900 shadow-[inset_0_-3px_0_theme(colors.teal.500)]'
+                    : 'text-teal-600/70 hover:bg-teal-50/50'
+                }`}
+              >
+                <div className="text-[11px] leading-tight">{d.getMonth() + 1}/{d.getDate()}</div>
+                <div className="text-[10px] leading-tight">{weekdays[d.getDay()]}</div>
+              </button>
+            );
+          })}
+        </div>
+        <button onClick={handleNextDays} className="px-3 bg-teal-600 hover:bg-teal-700 text-white transition flex items-center justify-center shrink-0">
           <span className="text-lg">▶</span>
         </button>
       </div>
