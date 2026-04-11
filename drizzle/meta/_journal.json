@@ -29,6 +29,13 @@
       "when": 1773235798941,
       "tag": "0003_freezing_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1775912960684,
+      "tag": "0004_typical_cloak",
+      "breakpoints": true
     }
   ]
 }

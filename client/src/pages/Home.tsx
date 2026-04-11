@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -2671,6 +2671,10 @@ export default function Home() {
               )}
             </section>
 
+            {/* SHELF 12: INVESTMENT FLOW TRACKER */}
+            <div className="h-px bg-border/50 my-6" />
+            <InvestmentFlowTracker />
+
           </TabsContent>
 
           <TabsContent value="calendar" className="animate-fade-in">
@@ -3516,5 +3520,193 @@ function MediaItem({
         <Trash2 className="w-3 h-3" />
       </Button>
     </div>
+  );
+}
+
+// Investment Flow Tracker Component
+function InvestmentFlowTracker() {
+  const [tickerInput, setTickerInput] = useState("");
+  const { data: tickers, refetch } = trpc.investmentTicker.list.useQuery();
+  const createMutation = trpc.investmentTicker.create.useMutation();
+  const updateStepMutation = trpc.investmentTicker.updateStep.useMutation();
+  const updateStopLossMutation = trpc.investmentTicker.updateStopLoss.useMutation();
+  const deleteMutation = trpc.investmentTicker.delete.useMutation();
+
+  const handleAddTicker = async () => {
+    if (!tickerInput.trim()) return;
+    await createMutation.mutateAsync({ ticker: tickerInput.trim() });
+    setTickerInput("");
+    refetch();
+    toast.success("Ticker added to watchlist");
+  };
+
+  const steps = [
+    { key: "step1", label: "日足確認" },
+    { key: "step2", label: "判定" },
+    { key: "step3", label: "5つのエントリールール確認" },
+    { key: "step4", label: "損切りライン設定" },
+    { key: "step5", label: "エントリー" },
+    { key: "step6", label: "利確条件" },
+    { key: "step7", label: "利確/損切り" },
+  ] as const;
+
+  const statusCycle = ["unstarted", "in_progress", "cleared", "failed"] as const;
+
+  const getNextStatus = (current: string) => {
+    const idx = statusCycle.indexOf(current as any);
+    return statusCycle[(idx + 1) % statusCycle.length];
+  };
+
+  const statusColors: Record<string, string> = {
+    unstarted: "bg-white border-slate-300",
+    in_progress: "bg-amber-400 border-amber-500",
+    cleared: "bg-emerald-500 border-emerald-600",
+    failed: "bg-red-500 border-red-600",
+  };
+
+  const handleStepClick = async (ticker: any, stepKey: string, index: number) => {
+    // Progression lock: check if previous step is cleared
+    if (index > 0) {
+      const prevStepKey = steps[index - 1].key;
+      if (ticker[prevStepKey] !== "cleared") {
+        toast.error("前のステップをクリアしてください");
+        return;
+      }
+    }
+
+    const currentStatus = ticker[stepKey];
+    const nextStatus = getNextStatus(currentStatus);
+
+    await updateStepMutation.mutateAsync({
+      id: ticker.id,
+      stepKey: stepKey as any,
+      status: nextStatus,
+    });
+    refetch();
+  };
+
+  const handleDelete = async (id: number) => {
+    if (confirm("この銘柄を監視リストから削除しますか？")) {
+      await deleteMutation.mutateAsync({ id });
+      refetch();
+    }
+  };
+
+  return (
+    <section className="mb-6">
+      <div className="flex items-center gap-2 mb-4 px-1">
+        <h2 className="text-xs font-bold text-teal-700 uppercase tracking-wider flex items-center gap-1">
+          <Activity className="w-3 h-3" /> INVESTMENT FLOW TRACKER
+        </h2>
+        <span className="text-[10px] text-teal-600/70 bg-teal-50 px-1.5 rounded-sm">短期銘柄・進捗管理</span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Screening Block */}
+        <div className="md:col-span-1 p-4 rounded-xl border border-teal-200 bg-teal-50/50 flex flex-col gap-3">
+          <div className="text-[11px] font-bold text-teal-800 flex items-center gap-1">
+            <span>🔍</span> スクリーニング
+          </div>
+          <div className="text-[10px] text-teal-600/80 bg-white p-2 rounded border border-teal-100 italic">
+            週足パーフェクトオーダ
+          </div>
+          <div className="flex flex-col gap-2">
+            <Input
+              value={tickerInput}
+              onChange={(e) => setTickerInput(e.target.value)}
+              placeholder="銘柄コード/名称..."
+              className="text-xs border-teal-200 focus-visible:ring-teal-400"
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddTicker(); }}
+            />
+            <Button
+              onClick={handleAddTicker}
+              disabled={createMutation.isPending || !tickerInput.trim()}
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white text-xs h-8"
+            >
+              監視銘柄入力
+            </Button>
+          </div>
+        </div>
+
+        {/* Watchlist Block */}
+        <div className="md:col-span-3 p-4 rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
+          {!tickers?.length ? (
+            <div className="text-xs text-muted-foreground italic text-center py-8">
+              監視中の銘柄はありません。
+            </div>
+          ) : (
+            <div className="min-w-[600px] flex flex-col gap-4">
+              {tickers.map((t: any) => (
+                <div key={t.id} className="relative group flex items-center gap-4 py-2 border-b border-slate-50 last:border-0">
+                  {/* Ticker Name */}
+                  <div className="w-20 shrink-0">
+                    <div className="text-sm font-bold text-slate-800">{t.ticker}</div>
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      className="text-[10px] text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      削除
+                    </button>
+                  </div>
+
+                  {/* Flow Line */}
+                  <div className="flex-1 flex items-center relative gap-0">
+                    {/* Background line */}
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -translate-y-1/2 -z-10" />
+
+                    {steps.map((step, idx) => (
+                      <div key={step.key} className="flex-1 flex flex-col items-center gap-2 group/step relative">
+                        {/* Label */}
+                        <div className={`text-[9px] text-center leading-tight h-6 flex items-end justify-center px-1 transition-colors ${t[step.key] === 'cleared' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
+                          {step.label}
+                        </div>
+
+                        {/* Node */}
+                        <button
+                          onClick={() => handleStepClick(t, step.key, idx)}
+                          className={`w-4 h-4 rounded-full border-2 transition-all transform active:scale-90 z-10 ${statusColors[t[step.key]]}`}
+                          title={step.label}
+                        />
+
+                        {/* Extra for Step 4 (Stop Loss) */}
+                        {step.key === "step4" && (
+                          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
+                            <input
+                              type="text"
+                              value={t.stopLossText}
+                              onChange={async (e) => {
+                                await updateStopLossMutation.mutateAsync({ id: t.id, stopLossText: e.target.value });
+                                refetch();
+                              }}
+                              className="w-10 text-[9px] text-center border border-slate-200 rounded bg-slate-50 text-slate-600"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-8 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-1.5 text-[9px] text-slate-500">
+                  <div className="w-2.5 h-2.5 rounded-full border border-slate-300 bg-white" /> 未着手
+                </div>
+                <div className="flex items-center gap-1.5 text-[9px] text-slate-500">
+                  <div className="w-2.5 h-2.5 rounded-full border border-amber-500 bg-amber-400" /> 着手中
+                </div>
+                <div className="flex items-center gap-1.5 text-[9px] text-slate-500">
+                  <div className="w-2.5 h-2.5 rounded-full border border-emerald-600 bg-emerald-500" /> クリア
+                </div>
+                <div className="flex items-center gap-1.5 text-[9px] text-slate-500">
+                  <div className="w-2.5 h-2.5 rounded-full border border-red-600 bg-red-500" /> 断念/見送り
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

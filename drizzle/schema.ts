@@ -371,3 +371,30 @@ export const moaiActivities = sqliteTable("moai_activities", {
 
 export type MoaiActivity = typeof moaiActivities.$inferSelect;
 export type InsertMoaiActivity = typeof moaiActivities.$inferInsert;
+
+/**
+ * 投資フロー管理テーブル (Investment Tickers)
+ */
+export const investmentTickers = sqliteTable("investment_tickers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  ticker: text("ticker").notNull(),
+
+  // ステップステータス ('unstarted', 'in_progress', 'cleared', 'failed')
+  step1: text("step1").default("unstarted").notNull(),
+  step2: text("step2").default("unstarted").notNull(),
+  step3: text("step3").default("unstarted").notNull(),
+  step4: text("step4").default("unstarted").notNull(),
+  step5: text("step5").default("unstarted").notNull(),
+  step6: text("step6").default("unstarted").notNull(),
+  step7: text("step7").default("unstarted").notNull(),
+
+  // カスタム入力
+  stopLossText: text("stopLossText").default("-5%").notNull(),
+
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type InvestmentTicker = typeof investmentTickers.$inferSelect;
+export type InsertInvestmentTicker = typeof investmentTickers.$inferInsert;
