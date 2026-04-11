@@ -2634,10 +2634,19 @@ function BulletinBoard() {
   });
   const [baseDate, setBaseDate] = useState(new Date());
 
+  const selectedDateObj = new Date(selectedDate);
+  const selectedMonthStr = format(selectedDateObj, "yyyy-MM");
+  const selectedWeekStr = format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "yyyy-MM-dd") + "_W";
+
   const { data: board, refetch } = trpc.bulletin.get.useQuery({ date: selectedDate });
+  const { data: monthBoard, refetch: refetchMonth } = trpc.bulletin.get.useQuery({ date: selectedMonthStr });
+  const { data: weekBoard, refetch: refetchWeek } = trpc.bulletin.get.useQuery({ date: selectedWeekStr });
   const saveBoard = trpc.bulletin.save.useMutation();
+
   const [content, setContent] = useState("");
   const [diary, setDiary] = useState("");
+  const [monthContent, setMonthContent] = useState("");
+  const [weekContent, setWeekContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -2645,10 +2654,23 @@ function BulletinBoard() {
     setDiary((board as any)?.diary || "");
   }, [board?.content, (board as any)?.diary, selectedDate]);
 
+  useEffect(() => {
+    setMonthContent(monthBoard?.content || "");
+  }, [monthBoard?.content, selectedMonthStr]);
+
+  useEffect(() => {
+    setWeekContent(weekBoard?.content || "");
+  }, [weekBoard?.content, selectedWeekStr]);
+
   const contentTimeout = useRef<NodeJS.Timeout | null>(null);
   const diaryTimeout = useRef<NodeJS.Timeout | null>(null);
+  const monthTimeout = useRef<NodeJS.Timeout | null>(null);
+  const weekTimeout = useRef<NodeJS.Timeout | null>(null);
+
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const diaryRef = useRef<HTMLTextAreaElement>(null);
+  const monthRef = useRef<HTMLTextAreaElement>(null);
+  const weekRef = useRef<HTMLTextAreaElement>(null);
 
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -2659,10 +2681,26 @@ function BulletinBoard() {
   // Re-adjust height when content loaded from DB
   useEffect(() => { autoResize(contentRef.current); }, [content]);
   useEffect(() => { autoResize(diaryRef.current); }, [diary]);
+  useEffect(() => { autoResize(monthRef.current); }, [monthContent]);
+  useEffect(() => { autoResize(weekRef.current); }, [weekContent]);
 
   const triggerSave = (newContent: string, newDiary: string) => {
     setIsSaving(true);
     saveBoard.mutate({ content: newContent, diary: newDiary, date: selectedDate }, {
+      onSettled: () => setIsSaving(false)
+    });
+  };
+
+  const triggerSaveMonth = (newContent: string) => {
+    setIsSaving(true);
+    saveBoard.mutate({ content: newContent, diary: "", date: selectedMonthStr }, {
+      onSettled: () => setIsSaving(false)
+    });
+  };
+
+  const triggerSaveWeek = (newContent: string) => {
+    setIsSaving(true);
+    saveBoard.mutate({ content: newContent, diary: "", date: selectedWeekStr }, {
       onSettled: () => setIsSaving(false)
     });
   };
@@ -2683,14 +2721,38 @@ function BulletinBoard() {
     diaryTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
   };
 
+  const handleMonthChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setMonthContent(val);
+    autoResize(e.target);
+    if (monthTimeout.current) clearTimeout(monthTimeout.current);
+    monthTimeout.current = setTimeout(() => triggerSaveMonth(val), 1000);
+  };
+
+  const handleWeekChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setWeekContent(val);
+    autoResize(e.target);
+    if (weekTimeout.current) clearTimeout(weekTimeout.current);
+    weekTimeout.current = setTimeout(() => triggerSaveWeek(val), 1000);
+  };
+
   const handleReset = async () => {
-    if (confirm("現在表示している掲示板の内容をすべて削除します。よろしいですか？")) {
+    if (confirm("現在表示している基準日に関する「月・週・日」の掲示板をすべて削除します。よろしいですか？")) {
       setContent("");
       setDiary("");
+      setMonthContent("");
+      setWeekContent("");
       setIsSaving(true);
-      await saveBoard.mutateAsync({ content: "", diary: "", date: selectedDate });
+      await Promise.all([
+        saveBoard.mutateAsync({ content: "", diary: "", date: selectedDate }),
+        saveBoard.mutateAsync({ content: "", diary: "", date: selectedMonthStr }),
+        saveBoard.mutateAsync({ content: "", diary: "", date: selectedWeekStr }),
+      ]);
       setIsSaving(false);
       refetch();
+      refetchMonth();
+      refetchWeek();
     }
   };
 
@@ -2714,7 +2776,6 @@ function BulletinBoard() {
     setBaseDate(newBase);
   };
 
-  const selectedDateObj = new Date(selectedDate);
   const displaySelectedDateStr = `${selectedDateObj.getMonth() + 1}/${selectedDateObj.getDate()}(${weekdays[selectedDateObj.getDay()]})`;
 
   return (
@@ -2736,21 +2797,43 @@ function BulletinBoard() {
         </Button>
       </div>
 
-      {/* Two text areas stacked */}
+      {/* Text areas stacked */}
       <div className="flex flex-col divide-y divide-stone-200">
+        <div className="p-3 flex flex-col gap-1 bg-stone-50/50">
+          <div className="text-[11px] font-bold text-stone-500 mb-1">📅 月間掲示板 {format(selectedDateObj, "yyyy年M月")}</div>
+          <textarea
+            ref={monthRef}
+            value={monthContent}
+            onChange={handleMonthChange}
+            placeholder="今月の目標、領収書のメモ、忘れたくないこと..."
+            rows={1}
+            className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
+          />
+        </div>
+        <div className="p-3 flex flex-col gap-1 bg-stone-50/30">
+          <div className="text-[11px] font-bold text-stone-500 mb-1">📆 週間掲示板 ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)</div>
+          <textarea
+            ref={weekRef}
+            value={weekContent}
+            onChange={handleWeekChange}
+            placeholder="今週の予定、メモ..."
+            rows={1}
+            className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
+          />
+        </div>
         <div className="p-3 flex flex-col gap-1">
-          <div className="text-[11px] font-bold text-stone-500 mb-1">📝 自由欄</div>
+          <div className="text-[11px] font-bold text-stone-500 mb-1">📝 日間掲示板 (自由欄)</div>
           <textarea
             ref={contentRef}
             value={content}
             onChange={handleContentChange}
-            placeholder="自由に書き込めます..."
+            placeholder="今日の自由に書き込めるメモ..."
             rows={1}
             className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
           />
         </div>
         <div className="p-3 flex flex-col gap-1">
-          <div className="text-[11px] font-bold text-amber-600 mb-1">📔 日記欄</div>
+          <div className="text-[11px] font-bold text-amber-600 mb-1">📔 日間掲示板 (日記欄)</div>
           <textarea
             ref={diaryRef}
             value={diary}
