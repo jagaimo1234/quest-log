@@ -3528,9 +3528,6 @@ function InvestmentFlowTracker() {
   const [tickerInput, setTickerInput] = useState("");
   const { data: tickers, refetch } = trpc.investmentTicker.list.useQuery();
   const createMutation = trpc.investmentTicker.create.useMutation();
-  const updateStepMutation = trpc.investmentTicker.updateStep.useMutation();
-  const updateStopLossMutation = trpc.investmentTicker.updateStopLoss.useMutation();
-  const deleteMutation = trpc.investmentTicker.delete.useMutation();
 
   const handleAddTicker = async () => {
     if (!tickerInput.trim()) return;
@@ -3543,54 +3540,12 @@ function InvestmentFlowTracker() {
   const steps = [
     { key: "step1", label: "日足確認" },
     { key: "step2", label: "判定" },
-    { key: "step3", label: "5つのエントリールール確認" },
-    { key: "step4", label: "損切りライン設定" },
+    { key: "step3", label: "エントリールール" },
+    { key: "step4", label: "損切り設定" },
     { key: "step5", label: "エントリー" },
     { key: "step6", label: "利確条件" },
     { key: "step7", label: "利確/損切り" },
   ] as const;
-
-  const statusCycle = ["unstarted", "in_progress", "cleared", "failed"] as const;
-
-  const getNextStatus = (current: string) => {
-    const idx = statusCycle.indexOf(current as any);
-    return statusCycle[(idx + 1) % statusCycle.length];
-  };
-
-  const statusColors: Record<string, string> = {
-    unstarted: "bg-white border-slate-300",
-    in_progress: "bg-amber-400 border-amber-500",
-    cleared: "bg-emerald-500 border-emerald-600",
-    failed: "bg-red-500 border-red-600",
-  };
-
-  const handleStepClick = async (ticker: any, stepKey: string, index: number) => {
-    // Progression lock: check if previous step is cleared
-    if (index > 0) {
-      const prevStepKey = steps[index - 1].key;
-      if (ticker[prevStepKey] !== "cleared") {
-        toast.error("前のステップをクリアしてください");
-        return;
-      }
-    }
-
-    const currentStatus = ticker[stepKey];
-    const nextStatus = getNextStatus(currentStatus);
-
-    await updateStepMutation.mutateAsync({
-      id: ticker.id,
-      stepKey: stepKey as any,
-      status: nextStatus,
-    });
-    refetch();
-  };
-
-  const handleDelete = async (id: number) => {
-    if (confirm("この銘柄を監視リストから削除しますか？")) {
-      await deleteMutation.mutateAsync({ id });
-      refetch();
-    }
-  };
 
   return (
     <section className="mb-6">
@@ -3602,8 +3557,7 @@ function InvestmentFlowTracker() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Screening Block */}
-        <div className="md:col-span-1 p-4 rounded-xl border border-teal-200 bg-teal-50/50 flex flex-col gap-3">
+        <div className="md:col-span-1 p-4 rounded-xl border border-teal-200 bg-teal-50/50 flex flex-col gap-3 h-fit">
           <div className="text-[11px] font-bold text-teal-800 flex items-center gap-1">
             <span>🔍</span> スクリーニング
           </div>
@@ -3628,68 +3582,18 @@ function InvestmentFlowTracker() {
           </div>
         </div>
 
-        {/* Watchlist Block */}
-        <div className="md:col-span-3 p-4 rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
+        <div className="md:col-span-3 p-4 rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto min-h-[150px]">
           {!tickers?.length ? (
             <div className="text-xs text-muted-foreground italic text-center py-8">
               監視中の銘柄はありません。
             </div>
           ) : (
-            <div className="min-w-[600px] flex flex-col gap-4">
+            <div className="min-w-[650px] flex flex-col gap-6">
               {tickers.map((t: any) => (
-                <div key={t.id} className="relative group flex items-center gap-4 py-2 border-b border-slate-50 last:border-0">
-                  {/* Ticker Name */}
-                  <div className="w-20 shrink-0">
-                    <div className="text-sm font-bold text-slate-800">{t.ticker}</div>
-                    <button
-                      onClick={() => handleDelete(t.id)}
-                      className="text-[10px] text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      削除
-                    </button>
-                  </div>
-
-                  {/* Flow Line */}
-                  <div className="flex-1 flex items-center relative gap-0">
-                    {/* Background line */}
-                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 -translate-y-1/2 -z-10" />
-
-                    {steps.map((step, idx) => (
-                      <div key={step.key} className="flex-1 flex flex-col items-center gap-2 group/step relative">
-                        {/* Label */}
-                        <div className={`text-[9px] text-center leading-tight h-6 flex items-end justify-center px-1 transition-colors ${t[step.key] === 'cleared' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
-                          {step.label}
-                        </div>
-
-                        {/* Node */}
-                        <button
-                          onClick={() => handleStepClick(t, step.key, idx)}
-                          className={`w-4 h-4 rounded-full border-2 transition-all transform active:scale-90 z-10 ${statusColors[t[step.key]]}`}
-                          title={step.label}
-                        />
-
-                        {/* Extra for Step 4 (Stop Loss) */}
-                        {step.key === "step4" && (
-                          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
-                            <input
-                              type="text"
-                              value={t.stopLossText}
-                              onChange={async (e) => {
-                                await updateStopLossMutation.mutateAsync({ id: t.id, stopLossText: e.target.value });
-                                refetch();
-                              }}
-                              className="w-10 text-[9px] text-center border border-slate-200 rounded bg-slate-50 text-slate-600"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <TickerRow key={t.id} ticker={t} steps={steps} onUpdate={refetch} />
               ))}
 
-              {/* Legend */}
-              <div className="flex items-center gap-4 mt-8 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-1.5 text-[9px] text-slate-500">
                   <div className="w-2.5 h-2.5 rounded-full border border-slate-300 bg-white" /> 未着手
                 </div>
@@ -3708,5 +3612,115 @@ function InvestmentFlowTracker() {
         </div>
       </div>
     </section>
+  );
+}
+
+function TickerRow({ ticker, steps, onUpdate }: { ticker: any, steps: any[], onUpdate: () => void }) {
+  const [stopLoss, setStopLoss] = useState(ticker.stopLossText || "");
+  const updateStepMutation = trpc.investmentTicker.updateStep.useMutation();
+  const updateStopLossMutation = trpc.investmentTicker.updateStopLoss.useMutation();
+  const deleteMutation = trpc.investmentTicker.delete.useMutation();
+
+  const handleStopLossBlur = async () => {
+    if (stopLoss !== ticker.stopLossText) {
+      await updateStopLossMutation.mutateAsync({ id: ticker.id, stopLossText: stopLoss });
+      onUpdate();
+    }
+  };
+
+  const statusCycle = ["unstarted", "in_progress", "cleared", "failed"] as const;
+  const statusColors: Record<string, string> = {
+    unstarted: "bg-white border-slate-300",
+    in_progress: "bg-amber-400 border-amber-500",
+    cleared: "bg-emerald-500 border-emerald-600",
+    failed: "bg-red-500 border-red-600",
+  };
+
+  const handleStepClick = async (stepKey: string, index: number) => {
+    if (index > 0) {
+      const prevStepKey = steps[index - 1].key;
+      if (ticker[prevStepKey] !== "cleared") {
+        toast.error("前のステップをクリアしてください");
+        return;
+      }
+    }
+
+    const currentStatus = ticker[stepKey];
+    const idx = statusCycle.indexOf(currentStatus as any);
+    const nextStatus = statusCycle[(idx + 1) % statusCycle.length];
+
+    await updateStepMutation.mutateAsync({
+      id: ticker.id,
+      stepKey: stepKey as any,
+      status: nextStatus,
+    });
+    onUpdate();
+  };
+
+  const handleDelete = async () => {
+    if (confirm("監視リストから削除しますか？")) {
+      await deleteMutation.mutateAsync({ id: ticker.id });
+      onUpdate();
+    }
+  };
+
+  return (
+    <div className="relative group flex items-start gap-4 py-3">
+      <div className="w-20 shrink-0 pt-1">
+        <div className="text-sm font-bold text-slate-800 truncate">{ticker.ticker}</div>
+        <button onClick={handleDelete} className="text-[10px] text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+          削除
+        </button>
+      </div>
+
+      <div className="flex-1 flex items-start relative px-2">
+        {/* Connection Lines */}
+        <div className="absolute top-[35px] left-[calc(100%/14)] right-[calc(100%/14)] h-0.5 bg-slate-100 -z-10" />
+        
+        {steps.map((step, idx) => {
+          const status = ticker[step.key];
+          const isFinalStep = idx === steps.length - 1;
+          
+          // Show progress line to the right if current step is cleared
+          const showConnector = !isFinalStep;
+          const isConnectorActive = status === 'cleared';
+
+          return (
+            <div key={step.key} className="flex-1 flex flex-col items-center gap-2 group/step relative">
+              <div className={`text-[9px] text-center leading-tight h-7 flex items-end justify-center px-0.5 transition-colors ${status === 'cleared' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
+                {step.label}
+              </div>
+
+              <div className="relative">
+                <button
+                  onClick={() => handleStepClick(step.key, idx)}
+                  className={`w-4 h-4 rounded-full border-2 transition-all transform active:scale-90 z-10 ${statusColors[status]}`}
+                />
+                
+                {/* Active connector segment */}
+                {showConnector && (
+                  <div className={`absolute top-1/2 left-full w-[calc(100%*6.5)] h-0.5 -translate-y-1/2 -z-20 transition-colors ${isConnectorActive ? 'bg-emerald-500' : 'bg-transparent'}`} 
+                       style={{ width: `${(1 / (steps.length - 1)) * 500}%` }}
+                  />
+                )}
+              </div>
+
+              {step.key === "step4" && (
+                <div className="absolute top-[52px] left-1/2 -translate-x-1/2 flex flex-col items-center">
+                  <input
+                    type="text"
+                    value={stopLoss}
+                    onChange={(e) => setStopLoss(e.target.value)}
+                    onBlur={handleStopLossBlur}
+                    placeholder="-%"
+                    className="w-14 text-[10px] text-center border border-teal-200 rounded bg-teal-50/50 text-teal-800 focus:outline-none focus:ring-1 focus:ring-teal-400 font-bold p-0.5"
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
