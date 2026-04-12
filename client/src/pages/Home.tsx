@@ -3615,7 +3615,7 @@ function InvestmentFlowTracker() {
   );
 }
 
-function TickerRow({ ticker, steps, onUpdate }: { ticker: any, steps: any[], onUpdate: () => void }) {
+function TickerRow({ ticker, steps, onUpdate }: { ticker: any, steps: readonly any[], onUpdate: () => void }) {
   const [stopLoss, setStopLoss] = useState(ticker.stopLossText || "");
   const updateStepMutation = trpc.investmentTicker.updateStep.useMutation();
   const updateStopLossMutation = trpc.investmentTicker.updateStopLoss.useMutation();
@@ -3685,6 +3685,13 @@ function TickerRow({ ticker, steps, onUpdate }: { ticker: any, steps: any[], onU
           const showConnector = !isFinalStep;
           const isConnectorActive = status === 'cleared';
 
+          // Deadline alert (blinking) for Step 1
+          const isStep1Blinking = step.key === 'step1' && 
+                                  status !== 'cleared' && 
+                                  status !== 'failed' && 
+                                  ticker.step1StartedAt && 
+                                  (new Date().getTime() - new Date(ticker.step1StartedAt).getTime()) / (1000 * 60 * 60 * 24) >= 9;
+
           return (
             <div key={step.key} className="flex-1 flex flex-col items-center gap-2 group/step relative">
               <div className={`text-[9px] text-center leading-tight h-7 flex items-end justify-center px-0.5 transition-colors ${status === 'cleared' ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>
@@ -3694,7 +3701,7 @@ function TickerRow({ ticker, steps, onUpdate }: { ticker: any, steps: any[], onU
               <div className="relative">
                 <button
                   onClick={() => handleStepClick(step.key, idx)}
-                  className={`w-4 h-4 rounded-full border-2 transition-all transform active:scale-90 z-10 ${statusColors[status]}`}
+                  className={`w-4 h-4 rounded-full border-2 transition-all transform active:scale-90 z-10 ${statusColors[status]} ${isStep1Blinking ? 'animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]' : ''}`}
                 />
                 
                 {/* Active connector segment */}

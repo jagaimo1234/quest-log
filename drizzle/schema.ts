@@ -392,6 +392,9 @@ export const investmentTickers = sqliteTable("investment_tickers", {
   // カスタム入力
   stopLossText: text("stopLossText").default("-5%").notNull(),
 
+  // 期限管理用
+  step1StartedAt: integer("step1StartedAt", { mode: "timestamp" }),
+
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });

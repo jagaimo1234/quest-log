@@ -53,8 +53,21 @@ export const investmentTickerRouter = router({
         }))
         .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: { id: number; stepKey: StepKey; status: string } }) => {
             const db = await getDb();
+            
+            // Get existing record to check if step1StartedAt needs to be set
+            const [existing] = await db
+                .select()
+                .from(investmentTickers)
+                .where(and(eq(investmentTickers.id, input.id), eq(investmentTickers.userId, ctx.user!.id)));
+
             const updateData: any = { updatedAt: new Date() };
             updateData[input.stepKey] = input.status;
+            
+            // If starting step1 for the first time
+            if (input.stepKey === "step1" && input.status !== "unstarted" && !existing?.step1StartedAt) {
+                updateData.step1StartedAt = new Date();
+            }
+
             const result = await db
                 .update(investmentTickers)
                 .set(updateData)
