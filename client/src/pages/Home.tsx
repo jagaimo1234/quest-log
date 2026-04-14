@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -1075,6 +1075,68 @@ function RestoreHistoryDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function FeedbackSection({ targetType, targetId }: { targetType: "daily" | "moai", targetId: number }) {
+  const [content, setContent] = useState("");
+  const { data: feedbacks, refetch } = trpc.insightFeedback.list.useQuery({ targetType, targetId });
+  const createMutation = trpc.insightFeedback.create.useMutation();
+  const deleteMutation = trpc.insightFeedback.delete.useMutation();
+
+  const handleAdd = async () => {
+    if (!content.trim()) return;
+    await createMutation.mutateAsync({ targetType, targetId, content: content.trim() });
+    setContent("");
+    refetch();
+    if (window.navigator?.vibrate) window.navigator.vibrate(20);
+  };
+
+  const handleDelete = async (id: number) => {
+    await deleteMutation.mutateAsync({ id });
+    refetch();
+  };
+
+  return (
+    <div className="mt-2 ml-5 space-y-2 border-l-2 border-slate-100/50 pl-3 pb-1">
+      {feedbacks?.map((f: any) => (
+        <div key={f.id} className="group relative text-[11px] text-slate-500 bg-slate-50/50 p-2 rounded-md transition-colors hover:bg-slate-50">
+          <div className="flex items-start gap-1 justify-between">
+            <div className="flex items-start gap-1">
+              <CornerDownRight className="w-3 h-3 mt-0.5 shrink-0 opacity-40" />
+              <span className="whitespace-pre-wrap">{f.content}</span>
+            </div>
+            <button 
+              onClick={() => handleDelete(f.id)}
+              className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-opacity p-1"
+            >
+              <Trash2 className="w-2.5 h-2.5" />
+            </button>
+          </div>
+          <div className="text-[8px] text-slate-300 mt-0.5 pl-4">
+            {new Date(f.createdAt).toLocaleString()}
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 mt-1 px-1">
+        <Input
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="フィードバックを追記..."
+          className="h-7 text-[10px] flex-1 bg-white/40 border-slate-100 focus-visible:ring-indigo-100 py-0"
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
+        />
+        <Button 
+          size="sm" 
+          variant="ghost" 
+          onClick={handleAdd} 
+          disabled={createMutation.isPending || !content.trim()}
+          className="h-7 w-7 p-0 text-slate-300 hover:text-indigo-500 hover:bg-indigo-50"
+        >
+          <Plus className="w-3 h-3" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -2493,6 +2555,9 @@ export default function Home() {
                               </div>
                             )}
                             <div className="text-[9px] text-slate-300 pt-1">{new Date(insight.createdAt).toLocaleDateString()}</div>
+                            
+                            {/* Feedback Comments */}
+                            <FeedbackSection targetType="daily" targetId={insight.id} />
                           </div>
 
                           <Button
@@ -2653,6 +2718,9 @@ export default function Home() {
                               </div>
                             )}
                             <div className="text-[9px] text-slate-300 pt-1">{new Date(insight.createdAt).toLocaleDateString()}</div>
+
+                            {/* Feedback Comments */}
+                            <FeedbackSection targetType="daily" targetId={insight.id} />
                           </div>
 
                           <Button
@@ -3447,6 +3515,9 @@ function MoaiActivityBoard({ targetDateStr }: { targetDateStr: string }) {
                       </div>
                     )}
                     <div className="text-[9px] text-slate-300 pt-1">{new Date(item.createdAt).toLocaleDateString()}</div>
+
+                    {/* Feedback Comments */}
+                    <FeedbackSection targetType="moai" targetId={item.id} />
                   </div>
 
                   <Button

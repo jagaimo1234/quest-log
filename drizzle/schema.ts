@@ -401,3 +401,18 @@ export const investmentTickers = sqliteTable("investment_tickers", {
 
 export type InvestmentTicker = typeof investmentTickers.$inferSelect;
 export type InsertInvestmentTicker = typeof investmentTickers.$inferInsert;
+
+/**
+ * インサイトフィードバック（コメント）テーブル
+ */
+export const insightFeedback = sqliteTable("insight_feedback", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  targetType: text("targetType").notNull(), // 'daily' or 'moai'
+  targetId: integer("targetId").notNull(),
+  content: text("content").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type InsightFeedback = typeof insightFeedback.$inferSelect;
+export type InsertInsightFeedback = typeof insightFeedback.$inferInsert;
