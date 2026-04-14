@@ -2404,7 +2404,7 @@ export default function Home() {
                             {memo.done && <CheckCircle2 className="w-3 h-3" />}
                           </button>
                           <div className="min-w-0 flex-1">
-                            <div className={`text-slate-700 whitespace-pre-wrap ${memo.done ? 'line-through opacity-50' : ''}`}>{memo.content}</div>
+                            <div className={`text-slate-700 whitespace-pre-wrap ${memo.done ? 'opacity-50' : ''}`}>{memo.content}</div>
                             <div className="text-[9px] text-slate-300 mt-1">{new Date(memo.createdAt).toLocaleDateString()}</div>
                           </div>
                           <Button
@@ -2483,11 +2483,11 @@ export default function Home() {
                           </button>
 
                           <div className="min-w-0 flex-1 space-y-1">
-                            <div className={`font-medium text-slate-700 whitespace-pre-wrap ${insight.applied ? 'opacity-70 line-through' : ''}`}>
+                            <div className={`font-medium text-slate-700 whitespace-pre-wrap ${insight.applied ? 'opacity-70' : ''}`}>
                               {insight.insight}
                             </div>
                             {insight.action && (
-                              <div className={`text-[11px] text-sky-600/90 flex items-start gap-1 mt-1 ${insight.applied ? 'opacity-70 line-through' : ''}`}>
+                              <div className={`text-[11px] text-sky-600/90 flex items-start gap-1 mt-1 ${insight.applied ? 'opacity-70' : ''}`}>
                                 <ArrowRight className="w-3 h-3 shrink-0" />
                                 <span className="whitespace-pre-wrap">{insight.action}</span>
                               </div>
@@ -2643,11 +2643,11 @@ export default function Home() {
                           </button>
 
                           <div className="min-w-0 flex-1 space-y-1">
-                            <div className={`font-medium text-slate-700 whitespace-pre-wrap ${insight.applied ? 'opacity-70 line-through' : ''}`}>
+                            <div className={`font-medium text-slate-700 whitespace-pre-wrap ${insight.applied ? 'opacity-70' : ''}`}>
                               {insight.insight}
                             </div>
                             {insight.action && (
-                              <div className={`text-[11px] text-emerald-700/80 flex items-start gap-1 mt-1 ${insight.applied ? 'opacity-70 line-through' : ''}`}>
+                              <div className={`text-[11px] text-emerald-700/80 flex items-start gap-1 mt-1 ${insight.applied ? 'opacity-70' : ''}`}>
                                 <ArrowRight className="w-3 h-3 shrink-0" />
                                 <span className="whitespace-pre-wrap">{insight.action}</span>
                               </div>
@@ -3437,11 +3437,11 @@ function MoaiActivityBoard({ targetDateStr }: { targetDateStr: string }) {
                   </button>
 
                   <div className="min-w-0 flex-1 space-y-1">
-                    <div className={`font-medium text-slate-700 whitespace-pre-wrap ${item.applied ? 'opacity-70 line-through' : ''}`}>
+                    <div className={`font-medium text-slate-700 whitespace-pre-wrap ${item.applied ? 'opacity-70' : ''}`}>
                       {item.insight}
                     </div>
                     {item.action && (
-                      <div className={`text-[11px] text-indigo-600/90 flex items-start gap-1 mt-1 ${item.applied ? 'opacity-70 line-through' : ''}`}>
+                      <div className={`text-[11px] text-indigo-600/90 flex items-start gap-1 mt-1 ${item.applied ? 'opacity-70' : ''}`}>
                         <ArrowRight className="w-3 h-3 shrink-0" />
                         <span className="whitespace-pre-wrap">{item.action}</span>
                       </div>
