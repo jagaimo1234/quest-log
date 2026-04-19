@@ -666,35 +666,49 @@ function NonFixItem({ template, history, onReceive, onDragStart }: { template: a
 
   const quota = template.frequency || 1;
   const isCompleted = doneCount >= quota;
+  const isExcellent = doneCount > quota;
 
   return (
-    <div className={`relative group flex items-center gap-2 p-2 rounded-lg border border-fuchsia-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-fuchsia-50'}`}>
+    <div 
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('.drag-handle')) return;
+        onReceive();
+      }}
+      className={`relative group flex items-center gap-2 p-2 rounded-lg border transition-all shadow-sm cursor-pointer ${isExcellent ? 'border-amber-400 bg-amber-50/10' : isCompleted ? 'border-fuchsia-200 bg-fuchsia-50/5' : 'border-fuchsia-200 hover:bg-fuchsia-50'}`}
+    >
       {isCompleted && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
-          <div className="text-2xl font-black text-fuchsia-500/50 -rotate-12 border-4 border-fuchsia-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
-            CLEAR
-          </div>
+          {isExcellent ? (
+            <div className="text-2xl font-black text-amber-500 -rotate-12 border-4 border-amber-500 rounded px-4 py-1 tracking-widest bg-white/90 backdrop-blur-sm shadow-xl uppercase">
+              EXCELLENT
+            </div>
+          ) : (
+            <div className="text-2xl font-black text-fuchsia-500/50 -rotate-12 border-4 border-fuchsia-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
+              CLEAR
+            </div>
+          )}
         </div>
       )}
       {/* Drag handle */}
       <div
-        className="shrink-0 cursor-grab text-fuchsia-200 hover:text-fuchsia-400 p-1 -ml-1 touch-none"
+        className="shrink-0 cursor-grab text-fuchsia-200 hover:text-fuchsia-400 p-1 -ml-1 touch-none drag-handle z-20"
         onMouseDown={(e) => { e.stopPropagation(); onDragStart && onDragStart(e); }}
         onTouchStart={(e) => { e.stopPropagation(); onDragStart && onDragStart(e); }}
       >
         <GripVertical className="w-3 h-3" />
       </div>
-      {/* Main click area */}
-      <div onClick={isCompleted ? undefined : onReceive} className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-fuchsia-50 text-fuchsia-300' : 'bg-fuchsia-100 text-fuchsia-600 group-hover:bg-fuchsia-200 transition-colors'}`}>
+      {/* Content area */}
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${isExcellent ? 'bg-amber-100 text-amber-600' : isCompleted ? 'bg-fuchsia-50 text-fuchsia-300' : 'bg-fuchsia-100 text-fuchsia-600 group-hover:bg-fuchsia-200'}`}>
           {isCompleted ? <CheckCircle2 className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-center mb-0.5">
-            <div className={`text-xs font-bold truncate ${isCompleted ? 'text-fuchsia-700/60' : 'text-fuchsia-900'}`}>
+            <div className={`text-xs font-bold truncate ${isExcellent ? 'text-amber-700' : isCompleted ? 'text-fuchsia-700/60' : 'text-fuchsia-900'}`}>
               {template.projectName ? `${template.questName} -${template.projectName}-` : template.questName}
             </div>
-            <span className={`text-[9px] font-bold ml-1 shrink-0 ${isCompleted ? 'text-fuchsia-300' : 'text-fuchsia-400'}`}>{doneCount}/{quota}</span>
+            <span className={`text-[9px] font-bold ml-1 shrink-0 ${isExcellent ? 'text-amber-500' : isCompleted ? 'text-fuchsia-300' : 'text-fuchsia-400'}`}>{doneCount}/{quota}</span>
           </div>
           <div className="flex justify-between items-end">
             <div className="flex flex-col gap-0.5">
@@ -703,7 +717,7 @@ function NonFixItem({ template, history, onReceive, onDragStart }: { template: a
             </div>
             <div className="flex gap-1">
               {Array.from({ length: quota }).map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full border border-fuchsia-200 ${i < doneCount ? 'bg-green-500 border-green-600' : 'bg-gray-100'}`} />
+                <div key={i} className={`w-2 h-2 rounded-full border border-fuchsia-200 ${i < doneCount ? 'bg-green-500 border-green-600' : (isExcellent ? 'bg-amber-200' : 'bg-gray-100')}`} />
               ))}
             </div>
           </div>
