@@ -245,7 +245,9 @@ export const memos = sqliteTable("memos", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("userId").notNull(),
   content: text("content").notNull(),
+  action: text("action"),
   done: integer("done", { mode: "boolean" }).default(false).notNull(),
+  likes: integer("likes").default(0).notNull(),
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
 
@@ -408,9 +410,10 @@ export type InsertInvestmentTicker = typeof investmentTickers.$inferInsert;
 export const insightFeedback = sqliteTable("insight_feedback", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("userId").notNull(),
-  targetType: text("targetType").notNull(), // 'daily' or 'moai'
+  targetType: text("targetType").notNull(), // 'daily', 'moai', or 'kaizen'
   targetId: integer("targetId").notNull(),
   content: text("content").notNull(),
+  likes: integer("likes").default(0).notNull(),
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
 

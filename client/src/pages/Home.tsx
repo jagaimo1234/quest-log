@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -1092,11 +1092,13 @@ function RestoreHistoryDialog({
   );
 }
 
-function FeedbackSection({ targetType, targetId }: { targetType: "daily" | "moai", targetId: number }) {
+function FeedbackSection({ targetType, targetId }: { targetType: "daily" | "moai" | "kaizen", targetId: number }) {
   const [content, setContent] = useState("");
   const { data: feedbacks, refetch } = trpc.insightFeedback.list.useQuery({ targetType, targetId });
   const createMutation = trpc.insightFeedback.create.useMutation();
   const deleteMutation = trpc.insightFeedback.delete.useMutation();
+  const likeMutation = trpc.insightFeedback.like.useMutation();
+  const [animatingId, setAnimatingId] = useState<number | null>(null);
 
   const handleAdd = async () => {
     if (!content.trim()) return;
@@ -1111,21 +1113,44 @@ function FeedbackSection({ targetType, targetId }: { targetType: "daily" | "moai
     refetch();
   };
 
+  const handleLike = async (id: number) => {
+    setAnimatingId(id);
+    await likeMutation.mutateAsync({ id });
+    refetch();
+    if (window.navigator?.vibrate) window.navigator.vibrate(10);
+    setTimeout(() => setAnimatingId(null), 300);
+  };
+
   return (
     <div className="mt-2 ml-5 space-y-2 border-l-2 border-slate-100/50 pl-3 pb-1">
       {feedbacks?.map((f: any) => (
         <div key={f.id} className="group relative text-[11px] text-slate-500 bg-slate-50/50 p-2 rounded-md transition-colors hover:bg-slate-50">
           <div className="flex items-start gap-1 justify-between">
-            <div className="flex items-start gap-1">
+            <div className="flex items-start gap-1 flex-1 min-w-0">
               <CornerDownRight className="w-3 h-3 mt-0.5 shrink-0 opacity-40" />
               <span className="whitespace-pre-wrap">{f.content}</span>
             </div>
-            <button 
-              onClick={() => handleDelete(f.id)}
-              className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-opacity p-1"
-            >
-              <Trash2 className="w-2.5 h-2.5" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0 ml-1">
+              <button
+                onClick={() => handleLike(f.id)}
+                className="flex items-center gap-0.5 text-slate-300 hover:text-rose-400 transition-colors p-0.5"
+              >
+                <Heart
+                  className={`w-3 h-3 transition-all duration-200 ${
+                    (f.likes || 0) > 0 ? 'fill-rose-400 text-rose-400' : ''
+                  } ${animatingId === f.id ? 'scale-150' : 'scale-100'}`}
+                />
+                {(f.likes || 0) > 0 && (
+                  <span className="text-[9px] text-rose-400 font-bold">{f.likes}</span>
+                )}
+              </button>
+              <button 
+                onClick={() => handleDelete(f.id)}
+                className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-opacity p-0.5"
+              >
+                <Trash2 className="w-2.5 h-2.5" />
+              </button>
+            </div>
           </div>
           <div className="text-[8px] text-slate-300 mt-0.5 pl-4">
             {new Date(f.createdAt).toLocaleString()}
@@ -1136,7 +1161,7 @@ function FeedbackSection({ targetType, targetId }: { targetType: "daily" | "moai
         <Input
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="フィードバックを追記..."
+          placeholder="リプを追記..."
           className="h-7 text-[10px] flex-1 bg-white/40 border-slate-100 focus-visible:ring-indigo-100 py-0"
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
         />
@@ -1909,19 +1934,23 @@ export default function Home() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const { data: historyItems } = trpc.quest.getQuestHistory.useQuery({ type: "Free", limit: 20 });
 
-  // Memo
+  // Memo (KAIZEN MEMO - 気付き＆アクション)
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [memoInput, setMemoInput] = useState("");
+  const [memoActionInput, setMemoActionInput] = useState("");
   const { data: memoList, refetch: refetchMemos } = trpc.memo.list.useQuery();
   const createMemo = trpc.memo.create.useMutation();
   const deleteMemo = trpc.memo.delete.useMutation();
   const toggleMemo = trpc.memo.toggle.useMutation();
+  const likeMemo = trpc.memo.like.useMutation();
+  const [memoLikeAnimId, setMemoLikeAnimId] = useState<number | null>(null);
   const handleSaveMemo = async () => {
     if (!memoInput.trim()) return;
-    await createMemo.mutateAsync({ content: memoInput.trim() });
+    await createMemo.mutateAsync({ content: memoInput.trim(), action: memoActionInput.trim() || undefined });
     setMemoInput("");
+    setMemoActionInput("");
     refetchMemos();
-    toast.success("Memo saved");
+    toast.success("気付きを保存しました");
   };
   const handleDeleteMemo = async (id: number) => {
     await deleteMemo.mutateAsync({ id });
@@ -1930,6 +1959,13 @@ export default function Home() {
   const handleToggleMemo = async (id: number, currentDone: boolean) => {
     await toggleMemo.mutateAsync({ id, done: !currentDone });
     refetchMemos();
+  };
+  const handleLikeMemo = async (id: number) => {
+    setMemoLikeAnimId(id);
+    await likeMemo.mutateAsync({ id });
+    refetchMemos();
+    if (window.navigator?.vibrate) window.navigator.vibrate(10);
+    setTimeout(() => setMemoLikeAnimId(null), 300);
   };
 
   // Daily Insight
@@ -2438,7 +2474,7 @@ export default function Home() {
 
             <div className="h-px bg-border/50 my-6" />
 
-            {/* SHELF 7: KAIZEN MEMO (Collapsible) */}
+            {/* SHELF 7: KAIZEN MEMO (Collapsible) - 気付き＆アクション */}
             <section>
               <div
                 onClick={(e) => { e.stopPropagation(); setIsMemoOpen(!isMemoOpen); }}
@@ -2448,7 +2484,7 @@ export default function Home() {
                   <h2 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
                     <MessageSquarePlus className="w-3 h-3" /> KAIZEN MEMO
                   </h2>
-                  <span className="text-[10px] text-muted-foreground bg-amber-50 px-1.5 rounded-sm">Improvements</span>
+                  <span className="text-[10px] text-muted-foreground bg-amber-50 px-1.5 rounded-sm">気付き＆アクション</span>
                 </div>
                 <div className="text-amber-400">
                   {isMemoOpen ? "▼" : "▶"}
@@ -2457,36 +2493,75 @@ export default function Home() {
 
               {isMemoOpen && (
                 <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3">
-                  <div className="flex gap-2">
-                    <Input
-                      value={memoInput}
-                      onChange={(e) => setMemoInput(e.target.value)}
-                      placeholder="改善アイデアを入力..."
-                      className="text-xs flex-1"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveMemo(); } }}
-                    />
-                    <Button size="sm" onClick={handleSaveMemo} disabled={createMemo.isPending || !memoInput.trim()} className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3">
-                      Save
-                    </Button>
+                  <div className="flex flex-col gap-2 p-2 border border-amber-100 rounded-lg bg-white/50">
+                    <div className="flex gap-2">
+                      <Input
+                        value={memoInput}
+                        onChange={(e) => setMemoInput(e.target.value)}
+                        placeholder="💡 気付きを入力... (必須)"
+                        className="text-xs flex-1 border-amber-100 focus-visible:ring-amber-300"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={memoActionInput}
+                        onChange={(e) => setMemoActionInput(e.target.value)}
+                        placeholder="▶ アクション... (任意)"
+                        className="text-xs flex-1 border-amber-100 focus-visible:ring-amber-300"
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveMemo(); } }}
+                      />
+                      <Button size="sm" onClick={handleSaveMemo} disabled={createMemo.isPending || !memoInput.trim()} className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3">
+                        Save
+                      </Button>
+                    </div>
                   </div>
-                  {!memoList?.length ? <div className="text-xs text-muted-foreground px-1 italic">No memos yet.</div> : (
-                    <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                  {!memoList?.length ? <div className="text-xs text-muted-foreground px-1 italic">No insights yet.</div> : (
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                       {memoList.map((memo: any) => (
-                        <div key={memo.id} className={`group flex items-start gap-2 p-2 rounded-lg border ${memo.done ? 'border-emerald-100 bg-emerald-50/30' : 'border-amber-100 bg-white'} text-xs`}>
+                        <div key={memo.id} className={`group flex items-start gap-2 p-3 rounded-lg border ${memo.done ? 'border-emerald-100 bg-emerald-50/30' : 'border-amber-100 bg-white'} text-xs relative`}>
                           <button
                             onClick={() => handleToggleMemo(memo.id, memo.done)}
+                            title={memo.done ? "アクション済み" : "アクションを実行する"}
                             className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${memo.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-amber-400'}`}
                           >
                             {memo.done && <CheckCircle2 className="w-3 h-3" />}
                           </button>
-                          <div className="min-w-0 flex-1">
-                            <div className={`text-slate-700 whitespace-pre-wrap ${memo.done ? 'opacity-50' : ''}`}>{memo.content}</div>
-                            <div className="text-[9px] text-slate-300 mt-1">{new Date(memo.createdAt).toLocaleDateString()}</div>
+
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className={`font-medium text-slate-700 whitespace-pre-wrap ${memo.done ? 'opacity-70' : ''}`}>
+                              {memo.content}
+                            </div>
+                            {memo.action && (
+                              <div className={`text-[11px] text-amber-600/90 flex items-start gap-1 mt-1 ${memo.done ? 'opacity-70' : ''}`}>
+                                <ArrowRight className="w-3 h-3 shrink-0" />
+                                <span className="whitespace-pre-wrap">{memo.action}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-3 pt-1">
+                              <div className="text-[9px] text-slate-300">{new Date(memo.createdAt).toLocaleDateString()}</div>
+                              <button
+                                onClick={() => handleLikeMemo(memo.id)}
+                                className="flex items-center gap-0.5 text-slate-300 hover:text-rose-400 transition-colors"
+                              >
+                                <Heart
+                                  className={`w-3.5 h-3.5 transition-all duration-200 ${
+                                    (memo.likes || 0) > 0 ? 'fill-rose-400 text-rose-400' : ''
+                                  } ${memoLikeAnimId === memo.id ? 'scale-150' : 'scale-100'}`}
+                                />
+                                {(memo.likes || 0) > 0 && (
+                                  <span className="text-[10px] text-rose-400 font-bold">{memo.likes}</span>
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Reply Section */}
+                            <FeedbackSection targetType="kaizen" targetId={memo.id} />
                           </div>
+
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="w-5 h-5 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-destructive shrink-0 ml-1"
+                            className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-destructive shrink-0"
                             onClick={() => handleDeleteMemo(memo.id)}
                           >
                             <Trash2 className="w-3 h-3" />

@@ -3,12 +3,12 @@ import { router, protectedProcedure } from "../_core/trpc.js";
 import type { TrpcContext } from "../_core/context.js";
 import { insightFeedback } from "../../drizzle/schema.js";
 import { getDb } from "../db.js";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 
 export const insightFeedbackRouter = router({
     list: protectedProcedure
         .input(z.object({ 
-            targetType: z.enum(["daily", "moai"]), 
+            targetType: z.enum(["daily", "moai", "kaizen"]), 
             targetId: z.number() 
         }))
         .query(async ({ ctx, input }: { ctx: TrpcContext, input: { targetType: string; targetId: number } }) => {
@@ -27,7 +27,7 @@ export const insightFeedbackRouter = router({
 
     create: protectedProcedure
         .input(z.object({
-            targetType: z.enum(["daily", "moai"]),
+            targetType: z.enum(["daily", "moai", "kaizen"]),
             targetId: z.number(),
             content: z.string().min(1)
         }))
@@ -56,6 +56,19 @@ export const insightFeedbackRouter = router({
                         eq(insightFeedback.id, input.id),
                         eq(insightFeedback.userId, ctx.user!.id)
                     )
+                );
+            return { success: true };
+        }),
+
+    like: protectedProcedure
+        .input(z.object({ id: z.number() }))
+        .mutation(async ({ ctx, input }: { ctx: TrpcContext, input: { id: number } }) => {
+            const db = await getDb();
+            await db
+                .update(insightFeedback)
+                .set({ likes: sql`likes + 1` })
+                .where(
+                    eq(insightFeedback.id, input.id)
                 );
             return { success: true };
         }),

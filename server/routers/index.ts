@@ -796,13 +796,14 @@ export const appRouter = router({
     }),
 
     create: protectedProcedure
-      .input(z.object({ content: z.string().min(1) }))
+      .input(z.object({ content: z.string().min(1), action: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const result = await db.insert(memos).values({
           userId: ctx.user!.id,
           content: input.content,
+          action: input.action || null,
         }).returning();
         return result[0];
       }),
@@ -825,6 +826,17 @@ export const appRouter = router({
         if (!db) throw new Error("Database not available");
         await db.update(memos)
           .set({ done: input.done })
+          .where(and(eq(memos.id, input.id), eq(memos.userId, ctx.user!.id)));
+        return { success: true };
+      }),
+
+    like: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.update(memos)
+          .set({ likes: sql`likes + 1` })
           .where(and(eq(memos.id, input.id), eq(memos.userId, ctx.user!.id)));
         return { success: true };
       }),
