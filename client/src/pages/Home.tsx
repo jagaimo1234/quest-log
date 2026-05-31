@@ -201,9 +201,18 @@ function TodayItem({
   const incrementCount = trpc.quest.incrementCount.useMutation();
   const template = templates.find(t => t.id === quest.templateId);
 
-  const isCompleted = quest.status === "cleared";
-  const isFailed = quest.status === "failed";
-  const isChallenging = quest.status === "challenging" || quest.status === "almost";
+  // Optimistic local status for instant UI response
+  const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
+  const displayStatus = optimisticStatus ?? quest.status;
+
+  // Reset optimistic state when server data arrives
+  useEffect(() => {
+    setOptimisticStatus(null);
+  }, [quest.status]);
+
+  const isCompleted = displayStatus === "cleared";
+  const isFailed = displayStatus === "failed";
+  const isChallenging = displayStatus === "challenging" || displayStatus === "almost";
   const isPending = updateStatus.isPending || incrementCount.isPending;
   const updateQuest = trpc.quest.update.useMutation();
   const createBook = trpc.book.create.useMutation();
@@ -230,12 +239,19 @@ function TodayItem({
   const handleNext = async () => {
     if (isPreviousDay) return; // 過去分は操作不可
     if (updateStatus.isPending || incrementCount.isPending) return;
-    if (quest.status === "failed" || quest.status === "cleared") return;
+    if (displayStatus === "failed" || displayStatus === "cleared") return;
 
     // Normal clear
-    const nextStatus = quest.status === "accepted" ? "challenging" : quest.status === "challenging" ? "cleared" : "cleared";
-    await updateStatus.mutateAsync({ questId: quest.id, status: nextStatus });
-    onStatusChange();
+    const nextStatus = displayStatus === "accepted" ? "challenging" : displayStatus === "challenging" ? "cleared" : "cleared";
+
+    // Optimistic: update UI instantly
+    setOptimisticStatus(nextStatus);
+    if (window.navigator?.vibrate) window.navigator.vibrate(15);
+
+    // Fire mutation in background (don't await)
+    updateStatus.mutateAsync({ questId: quest.id, status: nextStatus })
+      .then(() => onStatusChange())
+      .catch(() => setOptimisticStatus(null)); // Rollback on error
   };
 
   const handleDelete = async (skipConfirm = false) => {
@@ -249,8 +265,13 @@ function TodayItem({
   const handleAbort = async (skipConfirm = false) => {
     if (isPreviousDay) return; // 過去分は操作不可
     if (skipConfirm || confirm("Abort (Fail) this quest?")) {
-      await updateStatus.mutateAsync({ questId: quest.id, status: "failed" });
-      onStatusChange();
+      // Optimistic: update UI instantly
+      setOptimisticStatus("failed");
+      if (window.navigator?.vibrate) window.navigator.vibrate(15);
+
+      updateStatus.mutateAsync({ questId: quest.id, status: "failed" })
+        .then(() => onStatusChange())
+        .catch(() => setOptimisticStatus(null));
     }
   };
 
