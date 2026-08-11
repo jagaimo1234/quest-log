@@ -130,62 +130,7 @@ function DayColumn({
         />
       </div>
 
-      {/* Sub-column 1: Timeline Column */}
-      <div className={`flex flex-col gap-1 shrink-0 ${TIME_SLOT_WIDTH} z-10`}>
-        <div className="text-[10px] font-bold text-muted-foreground/60 mb-2 px-1 select-none text-center">
-          TIMELINE
-        </div>
-        {timeSlots.map(slot => {
-          const isUsed = quests.some(q => {
-            if (!q.plannedTimeSlot) return false;
-            try {
-              const parsed = JSON.parse(q.plannedTimeSlot);
-              if (Array.isArray(parsed)) return parsed.includes(slot.id);
-              return parsed === slot.id;
-            } catch {
-              return q.plannedTimeSlot === slot.id;
-            }
-          });
-
-          return (
-            <div
-              key={slot.id}
-              data-slot-id={slot.id}
-              data-slot-date={dateStr}
-              className="rounded-md border bg-card/60 p-0.5 min-h-[22px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative"
-            >
-              <div className="text-[8px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">
-                {slot.label}
-              </div>
-              {!isUsed && (
-                <>
-                  {isJobModeActive && isJobSlot(slot.label) ? (
-                    <>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-50 -rotate-12 select-none" />
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-30 -rotate-12 select-none" />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Sub-column 2: Day Info & Card List */}
+      {/* Sub-column 1: Day Info & Card List */}
       <div className="flex flex-col gap-3 flex-1 min-w-[200px] z-20">
         {/* Header */}
         <div className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none">
@@ -249,6 +194,61 @@ function DayColumn({
             ))
           )}
         </div>
+      </div>
+
+      {/* Sub-column 2: Timeline Column */}
+      <div className={`flex flex-col gap-1 shrink-0 ${TIME_SLOT_WIDTH} z-10`}>
+        <div className="text-[10px] font-bold text-muted-foreground/60 mb-2 px-1 select-none text-center">
+          TIMELINE
+        </div>
+        {timeSlots.map(slot => {
+          const isUsed = quests.some(q => {
+            if (!q.plannedTimeSlot) return false;
+            try {
+              const parsed = JSON.parse(q.plannedTimeSlot);
+              if (Array.isArray(parsed)) return parsed.includes(slot.id);
+              return parsed === slot.id;
+            } catch {
+              return q.plannedTimeSlot === slot.id;
+            }
+          });
+
+          return (
+            <div
+              key={slot.id}
+              data-slot-id={slot.id}
+              data-slot-date={dateStr}
+              className="rounded-md border bg-card/60 p-0.5 min-h-[22px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative"
+            >
+              <div className="text-[8px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">
+                {slot.label}
+              </div>
+              {!isUsed && (
+                <>
+                  {isJobModeActive && isJobSlot(slot.label) ? (
+                    <>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-50 -rotate-12 select-none" />
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-30 -rotate-12 select-none" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
