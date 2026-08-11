@@ -58,6 +58,15 @@ function parseLocalDate(dateStr: string): Date {
   return new Date(y, m - 1, d);
 }
 
+function getOffsetFromToday(date: Date): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const diffTime = target.getTime() - today.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+}
+
 // ------------------------------------------------------------------
 // COMPONENTS
 // ------------------------------------------------------------------
@@ -75,6 +84,9 @@ function DayColumn({
   handleTouchStart,
   handleMouseDown,
   isToday,
+  colSpacing,
+  isSelected,
+  onSelect,
 }: {
   date: Date;
   quests: any[];
@@ -88,6 +100,9 @@ function DayColumn({
   handleTouchStart: any;
   handleMouseDown: any;
   isToday: boolean;
+  colSpacing: number;
+  isSelected: boolean;
+  onSelect: () => void;
 }) {
   const columnRef = useRef<HTMLDivElement>(null);
   const dateStr = format(date, "yyyy-MM-dd");
@@ -116,9 +131,13 @@ function DayColumn({
   return (
     <div
       ref={columnRef}
-      className={`flex gap-4 p-3 rounded-xl border bg-card/40 shrink-0 relative min-w-[340px] ${
+      data-column-date={dateStr}
+      className={`flex p-3 rounded-xl border bg-card/40 shrink-0 relative min-w-[340px] transition-all duration-200 ${
+        isSelected ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/[0.01]' : ''
+      } ${
         isToday ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.1)] bg-amber-500/[0.02]' : 'border-border/60'
       }`}
+      style={{ gap: `${colSpacing}px` }}
     >
       {/* SVG Connecting Lines inside this column */}
       <div className="absolute inset-0 pointer-events-none z-10 overflow-visible">
@@ -133,9 +152,10 @@ function DayColumn({
       {/* Sub-column 1: Day Info & Card List */}
       <div className="flex flex-col gap-3 flex-1 min-w-[200px] z-20">
         {/* Header */}
-        <div className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none">
-          <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-muted-foreground'}`}>
-            {format(date, "EEEE M/d")}
+        <div onClick={onSelect} className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none cursor-pointer hover:opacity-85 transition-opacity">
+          <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-muted-foreground'} flex items-center gap-1.5`}>
+            {format(date, "E M/d")}
+            {isSelected && <span className="text-[8px] font-black text-primary bg-primary/10 px-1 py-0.5 rounded leading-none border border-primary/20">🎯 選択中</span>}
           </span>
           <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
             {quests.length} tasks
@@ -1650,11 +1670,29 @@ export default function Home() {
     });
   }, [templates, history, targetDateStr]);
 
-  const timeSlots = Array.from({ length: 36 }, (_, i) => {
-    const totalMinutes = i * 30 + 6 * 60; // 06:00開始
+  const [timelineInterval, setTimelineInterval] = useState<30 | 60>(() => {
+    try {
+      const saved = localStorage.getItem('timeline_interval');
+      return saved === '60' ? 60 : 30;
+    } catch {
+      return 30;
+    }
+  });
+
+  const [colSpacing, setColSpacing] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('column_spacing');
+      return saved ? Number(saved) : 32;
+    } catch {
+      return 32;
+    }
+  });
+
+  const timeSlots = Array.from({ length: timelineInterval === 30 ? 36 : 18 }, (_, i) => {
+    const totalMinutes = i * timelineInterval + 6 * 60; // 06:00開始
     const startHour = Math.floor(totalMinutes / 60);
     const startMin = totalMinutes % 60;
-    const endTotalMinutes = totalMinutes + 30;
+    const endTotalMinutes = totalMinutes + timelineInterval;
     const endHour = Math.floor(endTotalMinutes / 60);
     const endMin = endTotalMinutes % 60;
 
@@ -1787,6 +1825,7 @@ export default function Home() {
       if (dragState.mode === 'plan') {
         const elements = document.elementsFromPoint(clientX, clientY);
         const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
+        const columnElement = elements.find(el => el.getAttribute('data-column-date'));
 
         if (slotElement && dragState.itemId) {
           const slotId = slotElement.getAttribute('data-slot-id');
@@ -1830,6 +1869,26 @@ export default function Home() {
               }
             } catch (err) {
               toast.error("Failed to plan");
+            }
+          }
+        } else if (columnElement && dragState.itemId) {
+          const colDateStr = columnElement.getAttribute('data-column-date');
+          const quest = activeQuests?.find(q => q.id === dragState.itemId);
+          if (colDateStr && quest) {
+            try {
+              const currentStartDateStr = quest.startDate ? format(new Date(quest.startDate), "yyyy-MM-dd") : null;
+              if (colDateStr !== currentStartDateStr) {
+                const newDate = parseLocalDate(colDateStr);
+                await updateQuest.mutateAsync({
+                  questId: dragState.itemId,
+                  startDate: newDate,
+                  plannedTimeSlot: null
+                });
+                toast.success(`Moved to ${colDateStr}`);
+                refreshAll();
+              }
+            } catch (err) {
+              toast.error("Failed to reschedule");
             }
           }
         }
@@ -2317,8 +2376,8 @@ export default function Home() {
             {/* SHELF 1: TODAY / WEEKLY PLANNING */}
             <section className="space-y-4">
               {/* Header and Toggle Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1 select-none">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-1 select-none">
+                <div className="flex flex-wrap items-center gap-3">
                   <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                     {planningViewMode === 'today'
                       ? (planningDayOffset === 0 ? "Today" : "Tomorrow") + " Planning"
@@ -2380,41 +2439,92 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Toggle Control buttons matching user screenshot */}
-                <div className="flex bg-muted p-0.5 rounded-lg text-xs self-start sm:self-auto shadow-inner">
-                  <button
-                    onClick={() => {
-                      setPlanningViewMode('today');
-                      try { localStorage.setItem('planning_view_mode', 'today'); } catch {}
-                    }}
-                    className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${
-                      planningViewMode === 'today'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    🎯 今日集中表示 (Day)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setPlanningViewMode('weekly');
-                      try { localStorage.setItem('planning_view_mode', 'weekly'); } catch {}
-                    }}
-                    className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${
-                      planningViewMode === 'weekly'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    📅 1週間表示 (7 Days)
-                  </button>
+                {/* Granularity, Spacing & View controls */}
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Spacing / Gap Slider */}
+                  <div className="flex items-center gap-2 text-xs bg-muted px-2 py-1.5 rounded-lg shadow-inner">
+                    <span className="font-bold text-muted-foreground">横幅:</span>
+                    <input
+                      type="range"
+                      min="12"
+                      max="120"
+                      value={colSpacing}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setColSpacing(val);
+                        try { localStorage.setItem('column_spacing', String(val)); } catch {}
+                      }}
+                      className="w-20 sm:w-24 accent-primary cursor-ew-resize h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none"
+                    />
+                    <span className="font-mono text-[10px] text-muted-foreground w-8">{colSpacing}px</span>
+                  </div>
+
+                  {/* Granularity Toggle */}
+                  <div className="flex bg-muted p-0.5 rounded-lg text-xs shadow-inner">
+                    <button
+                      onClick={() => {
+                        setTimelineInterval(30);
+                        try { localStorage.setItem('timeline_interval', '30'); } catch {}
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                        timelineInterval === 30
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      30分
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTimelineInterval(60);
+                        try { localStorage.setItem('timeline_interval', '60'); } catch {}
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                        timelineInterval === 60
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      1時間
+                    </button>
+                  </div>
+
+                  {/* Main View Toggle Buttons */}
+                  <div className="flex bg-muted p-0.5 rounded-lg text-xs shadow-inner font-sans">
+                    <button
+                      onClick={() => {
+                        setPlanningViewMode('today');
+                        try { localStorage.setItem('planning_view_mode', 'today'); } catch {}
+                      }}
+                      className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${
+                        planningViewMode === 'today'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      🎯 今日集中表示 (Day)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPlanningViewMode('weekly');
+                        try { localStorage.setItem('planning_view_mode', 'weekly'); } catch {}
+                      }}
+                      className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${
+                        planningViewMode === 'weekly'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      📅 1週間表示 (7 Days)
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {planningViewMode === 'today' ? (
-                /* TODAY VIEW (Original Layout, but 30-min slots) */
+                /* TODAY VIEW (Original Layout, but dynamic slots) */
                 <div className="relative">
-                  <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]">
+                  <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]" style={{ gap: `${colSpacing}px` }}>
                     <ConnectionLines quests={todayQuests} parentRef={containerRef as React.RefObject<HTMLDivElement>} templates={templates || []} onUnlink={handleUnlink} />
 
                     <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
@@ -2515,6 +2625,7 @@ export default function Home() {
                       const isColToday = format(colDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                       const isColWeekday = colDate.getDay() !== 0 && colDate.getDay() !== 6;
                       const colJobActive = isColWeekday && !dailyConfig?.jobModeDisabled;
+                      const colOffset = getOffsetFromToday(colDate);
 
                       return (
                         <DayColumn
@@ -2531,6 +2642,9 @@ export default function Home() {
                           handleTouchStart={handleTouchStart}
                           handleMouseDown={handleMouseDown}
                           isToday={isColToday}
+                          colSpacing={colSpacing}
+                          isSelected={planningDayOffset === colOffset}
+                          onSelect={() => setPlanningDayOffset(colOffset)}
                         />
                       );
                     })}
