@@ -208,7 +208,10 @@ function DayColumn({
                     if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
                     else handleMouseDown(e as any, q.id, 'plan');
                   }}
-                  onReorderStart={() => {}}
+                  onReorderStart={(e) => {
+                    if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
+                    else handleMouseDown(e as any, q.id, 'sort');
+                  }}
                 />
               </div>
             ))
