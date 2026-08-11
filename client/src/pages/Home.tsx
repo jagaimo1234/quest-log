@@ -1121,8 +1121,8 @@ function ConnectionLines({ quests, parentRef, templates, onUnlink }: { quests: a
       }
 
       slots.forEach(slotId => {
-        const sourceEl = parentRef.current ? parentRef.current.querySelector(`#source-${q.id}`) : document.getElementById(`source-${q.id}`);
-        const targetEl = parentRef.current ? parentRef.current.querySelector(`[data-slot-id="${slotId}"]`) : document.querySelector(`[data-slot-id="${slotId}"]`);
+        const sourceEl = parentRef.current?.querySelector(`#source-${q.id}`) || document.getElementById(`source-${q.id}`);
+        const targetEl = parentRef.current?.querySelector(`[data-slot-id="${slotId}"]`);
         if (sourceEl && targetEl) {
           const sourceRect = sourceEl.getBoundingClientRect();
           const targetRect = targetEl.getBoundingClientRect();
