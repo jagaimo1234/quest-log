@@ -62,6 +62,150 @@ function parseLocalDate(dateStr: string): Date {
 // COMPONENTS
 // ------------------------------------------------------------------
 
+function DayColumn({
+  date,
+  quests,
+  templates,
+  timeSlots,
+  isJobModeActive,
+  isJobSlot,
+  handleUnlink,
+  refreshAll,
+  dragState,
+  handleTouchStart,
+  handleMouseDown,
+  isToday,
+}: {
+  date: Date;
+  quests: any[];
+  templates: any[];
+  timeSlots: any[];
+  isJobModeActive: boolean;
+  isJobSlot: (label: string) => boolean;
+  handleUnlink: (questId: number, slotId: string) => void;
+  refreshAll: () => void;
+  dragState: any;
+  handleTouchStart: any;
+  handleMouseDown: any;
+  isToday: boolean;
+}) {
+  const columnRef = useRef<HTMLDivElement>(null);
+  const dateStr = format(date, "yyyy-MM-dd");
+
+  return (
+    <div
+      ref={columnRef}
+      className={`flex flex-col gap-3 p-3 rounded-xl border bg-card/40 w-[240px] shrink-0 relative ${
+        isToday ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.1)] bg-amber-500/[0.02]' : 'border-border/60'
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none">
+        <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-muted-foreground'}`}>
+          {format(date, "E M/d")}
+        </span>
+        <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+          {quests.length} tasks
+        </span>
+      </div>
+
+      {/* SVG Connecting Lines inside this column */}
+      <div className="absolute inset-0 pointer-events-none z-10 overflow-visible">
+        <ConnectionLines
+          quests={quests}
+          parentRef={columnRef as React.RefObject<HTMLDivElement>}
+          templates={templates}
+          onUnlink={handleUnlink}
+        />
+      </div>
+
+      {/* Quests list */}
+      <div className="flex flex-col gap-2 min-h-[100px] z-20">
+        {quests.length === 0 ? (
+          <div className="text-[10px] text-muted-foreground/30 italic text-center py-4 select-none">No tasks</div>
+        ) : (
+          quests.map(q => (
+            <div
+              id={`source-${q.id}`}
+              key={q.id}
+              data-sort-id={q.id}
+              className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${
+                dragState.itemId === q.id && dragState.mode === 'sort'
+                  ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
+                  : 'hover:scale-[1.02]'
+              }`}
+            >
+              <TodayItem
+                quest={q}
+                templates={templates}
+                onStatusChange={refreshAll}
+                onDragStart={(e) => {
+                  if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
+                  else handleMouseDown(e as any, q.id, 'plan');
+                }}
+                onReorderStart={() => {}}
+              />
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Time slots */}
+      <div className="flex flex-col gap-1 w-full pb-4 z-10">
+        <div className="text-[9px] font-bold text-muted-foreground/60 mb-1 px-1 select-none">Log</div>
+        {timeSlots.map(slot => {
+          const isUsed = quests.some(q => {
+            if (!q.plannedTimeSlot) return false;
+            try {
+              const parsed = JSON.parse(q.plannedTimeSlot);
+              if (Array.isArray(parsed)) return parsed.includes(slot.id);
+              return parsed === slot.id;
+            } catch {
+              return q.plannedTimeSlot === slot.id;
+            }
+          });
+
+          return (
+            <div
+              key={slot.id}
+              data-slot-id={slot.id}
+              data-slot-date={dateStr}
+              className="rounded-md border bg-card/60 p-0.5 min-h-[22px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative"
+            >
+              <div className="text-[8px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">
+                {slot.label}
+              </div>
+              {!isUsed && (
+                <>
+                  {isJobModeActive && isJobSlot(slot.label) ? (
+                    <>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-50 -rotate-12 select-none" />
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-30 -rotate-12 select-none" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: () => void, planningDayOffset?: number }) {
   const [open, setOpen] = useState(false);
   const [questType, setQuestType] = useState("Free");
@@ -1372,30 +1516,40 @@ export default function Home() {
     }
   }, [activeQuests]);
 
-  const todayQuests = React.useMemo(() => {
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + planningDayOffset);
-    targetDate.setHours(0, 0, 0, 0);
-    const targetDateStr = format(targetDate, "yyyy-MM-dd");
-    // Filter active quests for the selected planning date
+  const [planningViewMode, setPlanningViewMode] = useState<'today' | 'weekly'>(() => {
+    try {
+      const mode = localStorage.getItem('planning_view_mode');
+      return (mode === 'weekly' || mode === 'today') ? mode : 'today';
+    } catch {
+      return 'today';
+    }
+  });
+
+  const [weeklyActiveDate, setWeeklyActiveDate] = useState(() => {
+    // Get the JST start of week (Monday)
+    const now = new Date();
+    return startOfWeek(now, { weekStartsOn: 1 });
+  });
+
+  const getQuestsForDate = React.useCallback((date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const isToday = dateStr === todayStr;
+
     const filtered = activeQuests?.filter(q => {
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
-      if (planningDayOffset > 0) {
-        // Tomorrow view: only show quests whose startDate matches tomorrow
-        if (!q.startDate) return false;
-        const startStr = format(new Date(q.startDate), "yyyy-MM-dd");
-        if (startStr !== targetDateStr) return false;
+      
+      const startStr = q.startDate ? format(new Date(q.startDate), "yyyy-MM-dd") : null;
+      if (isToday) {
+        // Today column: show if startDate <= today (carry over), or if no startDate
+        if (startStr && startStr > dateStr) return false;
       } else {
-        // Today view: hide quests with future startDate
-        if (q.startDate) {
-          const startStr = format(new Date(q.startDate), "yyyy-MM-dd");
-          if (startStr > targetDateStr) return false;
-        }
+        // Other days: only show if specifically scheduled for this day
+        if (!startStr || startStr !== dateStr) return false;
       }
       return true;
     }) || [];
 
-    // Sort based on local orderedIds state (optimistic UI)
     return filtered.sort((a, b) => {
       const indexA = orderedIds.indexOf(a.id);
       const indexB = orderedIds.indexOf(b.id);
@@ -1404,7 +1558,13 @@ export default function Home() {
       if (indexB === -1) return -1;
       return indexA - indexB;
     });
-  }, [activeQuests, orderedIds, planningDayOffset]);
+  }, [activeQuests, orderedIds]);
+
+  const todayQuests = React.useMemo(() => {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + planningDayOffset);
+    return getQuestsForDate(targetDate);
+  }, [getQuestsForDate, planningDayOffset]);
 
   const oneOffTemplates = React.useMemo(() => {
     return (templates || []).filter(t => {
@@ -1428,9 +1588,15 @@ export default function Home() {
     });
   }, [templates, history, targetDateStr]);
 
-  const timeSlots = Array.from({ length: 18 }, (_, i) => {
-    const hour = i + 6;
-    const label = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
+  const timeSlots = Array.from({ length: 36 }, (_, i) => {
+    const totalMinutes = i * 30 + 6 * 60; // 06:00開始
+    const startHour = Math.floor(totalMinutes / 60);
+    const startMin = totalMinutes % 60;
+    const endTotalMinutes = totalMinutes + 30;
+    const endHour = Math.floor(endTotalMinutes / 60);
+    const endMin = endTotalMinutes % 60;
+
+    const label = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}-${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
     return { id: label, label };
   });
 
@@ -1557,13 +1723,12 @@ export default function Home() {
       }
 
       if (dragState.mode === 'plan') {
-        // ... (existing planing logic)
         const elements = document.elementsFromPoint(clientX, clientY);
         const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
-        const slotElementInDrag = slotElement; // renaming for clarity
 
-        if (slotElementInDrag && dragState.itemId) {
-          const slotId = slotElementInDrag.getAttribute('data-slot-id');
+        if (slotElement && dragState.itemId) {
+          const slotId = slotElement.getAttribute('data-slot-id');
+          const slotDateStr = slotElement.getAttribute('data-slot-date');
           const quest = activeQuests?.find(q => q.id === dragState.itemId);
 
           if (slotId && quest) {
@@ -1578,11 +1743,28 @@ export default function Home() {
               } catch {
                 if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
               }
-              if (!currentSlots.includes(slotId)) {
-                const newSlots = [...currentSlots, slotId];
-                await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
-                toast.success(`Planned for ${slotId}`);
+
+              const currentStartDateStr = quest.startDate ? format(new Date(quest.startDate), "yyyy-MM-dd") : null;
+
+              if (slotDateStr && slotDateStr !== currentStartDateStr) {
+                // Reschedule to a different day
+                const newDate = parseLocalDate(slotDateStr);
+                const newSlots = [slotId];
+                await updateQuest.mutateAsync({
+                  questId: dragState.itemId,
+                  startDate: newDate,
+                  plannedTimeSlot: JSON.stringify(newSlots)
+                });
+                toast.success(`Rescheduled to ${slotDateStr} at ${slotId}`);
                 refreshAll();
+              } else {
+                // Link on the same day
+                if (!currentSlots.includes(slotId)) {
+                  const newSlots = [...currentSlots, slotId];
+                  await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
+                  toast.success(`Planned for ${slotId}`);
+                  refreshAll();
+                }
               }
             } catch (err) {
               toast.error("Failed to plan");
@@ -2070,137 +2252,236 @@ export default function Home() {
 
           <TabsContent value="today" className="space-y-8 animate-fade-in">
 
-            {/* SHELF 1: TODAY */}
+            {/* SHELF 1: TODAY / WEEKLY PLANNING */}
             <section className="space-y-4">
-              <div className="flex items-center gap-2 px-1">
-                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                  {planningDayOffset === 0 ? "Today" : "Tomorrow"} Planning
-                </h2>
-                <div className="flex items-center gap-0.5">
+              {/* Header and Toggle Controls */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1 select-none">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                    {planningViewMode === 'today'
+                      ? (planningDayOffset === 0 ? "Today" : "Tomorrow") + " Planning"
+                      : "1-Week Planning & Insights"
+                    }
+                  </h2>
+
+                  {planningViewMode === 'today' && (
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={() => setPlanningDayOffset(Math.max(0, planningDayOffset - 1))}
+                        disabled={planningDayOffset === 0}
+                        className="p-0.5 rounded hover:bg-muted disabled:opacity-20 transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={() => setPlanningDayOffset(Math.min(1, planningDayOffset + 1))}
+                        disabled={planningDayOffset === 1}
+                        className="p-0.5 rounded hover:bg-muted disabled:opacity-20 transition-colors"
+                      >
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </div>
+                  )}
+
+                  {planningViewMode === 'weekly' && (
+                    <div className="flex items-center gap-1 bg-muted/50 p-0.5 rounded-lg text-xs">
+                      <button
+                        onClick={() => setWeeklyActiveDate(prev => {
+                          const d = new Date(prev);
+                          d.setDate(d.getDate() - 7);
+                          return d;
+                        })}
+                        className="p-1 hover:bg-background rounded transition-colors"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setWeeklyActiveDate(startOfWeek(new Date(), { weekStartsOn: 1 }))}
+                        className="px-2 py-0.5 hover:bg-background rounded transition-colors font-bold text-[10px]"
+                      >
+                        今週
+                      </button>
+                      <button
+                        onClick={() => setWeeklyActiveDate(prev => {
+                          const d = new Date(prev);
+                          d.setDate(d.getDate() + 7);
+                          return d;
+                        })}
+                        className="p-1 hover:bg-background rounded transition-colors"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[10px] text-muted-foreground px-1 font-mono">
+                        {format(weeklyActiveDate, "yyyy/MM/dd")} - {format(new Date(weeklyActiveDate.getTime() + 6 * 24 * 60 * 60 * 1000), "yyyy/MM/dd")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Toggle Control buttons matching user screenshot */}
+                <div className="flex bg-muted p-0.5 rounded-lg text-xs self-start sm:self-auto shadow-inner">
                   <button
-                    onClick={() => setPlanningDayOffset(Math.max(0, planningDayOffset - 1))}
-                    disabled={planningDayOffset === 0}
-                    className="p-0.5 rounded hover:bg-muted disabled:opacity-20 transition-colors"
+                    onClick={() => {
+                      setPlanningViewMode('today');
+                      try { localStorage.setItem('planning_view_mode', 'today'); } catch {}
+                    }}
+                    className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${
+                      planningViewMode === 'today'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
-                    <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                    🎯 今日集中表示 (Day)
                   </button>
                   <button
-                    onClick={() => setPlanningDayOffset(Math.min(1, planningDayOffset + 1))}
-                    disabled={planningDayOffset === 1}
-                    className="p-0.5 rounded hover:bg-muted disabled:opacity-20 transition-colors"
+                    onClick={() => {
+                      setPlanningViewMode('weekly');
+                      try { localStorage.setItem('planning_view_mode', 'weekly'); } catch {}
+                    }}
+                    className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${
+                      planningViewMode === 'weekly'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    📅 1週間表示 (7 Days)
                   </button>
                 </div>
-                <span className="text-xs text-muted-foreground">{todayQuests.length} tasks</span>
               </div>
-              <div className="relative">
-                {/* RELAX COLUMN (Absolute Overlay or Side Column?) Using flex to sit beside. */}
-                {/* 
-                   Requirement: 
-                   RELAX列は デフォルトでは折りたたみ状態 
-                   RELAXボタン（見出し）をタップすると：登録済みRELAXミッション一覧が展開される
-                   画面外（サイド）をタップすると：RELAX列は再び折りたたまれる
-                */}
-                <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]">
-                  <ConnectionLines quests={todayQuests} parentRef={containerRef as React.RefObject<HTMLDivElement>} templates={templates || []} onUnlink={handleUnlink} />
 
-                  <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
-                    {todayQuests.map(q => (
-                      <div
-                        id={`source-${q.id}`}
-                        key={q.id}
-                        data-sort-id={q.id}
-                        className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${dragState.itemId === q.id && dragState.mode === 'sort' ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary' : 'hover:scale-[1.02]'}`}
-                      >
-                        <TodayItem
-                          quest={q}
-                          templates={templates || []}
-                          onStatusChange={() => refreshAll()}
-                          onDragStart={(e) => {
-                            if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
-                            else handleMouseDown(e as any, q.id, 'plan');
-                          }}
-                          onReorderStart={(e) => {
-                            if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
-                            else handleMouseDown(e as any, q.id, 'sort');
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
+              {planningViewMode === 'today' ? (
+                /* TODAY VIEW (Original Layout, but 30-min slots) */
+                <div className="relative">
+                  <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]">
+                    <ConnectionLines quests={todayQuests} parentRef={containerRef as React.RefObject<HTMLDivElement>} templates={templates || []} onUnlink={handleUnlink} />
 
-                  <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
-                    <div className="flex flex-col gap-1 w-full pb-10">
-                      <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
-                      {timeSlots.map(slot => {
-                        // Check if slot is used (use activeQuests to include failed/other statuses as "occupied" in log)
-                        const isUsed = todayQuests.some(q => {
-                          if (!q.plannedTimeSlot) return false;
-                          try {
-                            const parsed = JSON.parse(q.plannedTimeSlot);
-                            if (Array.isArray(parsed)) return parsed.includes(slot.id);
-                            return parsed === slot.id;
-                          } catch {
-                            return q.plannedTimeSlot === slot.id;
-                          }
-                        });
-
-                        return (
-                          <div key={slot.id} data-slot-id={slot.id} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
-                            <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
-                            {/* Wait, the user specified: "job mode time slots are released if a mission card is linked" - which means if isUsed is true, we don't show the JOB stamp either! */}
-                            {!isUsed && (
-                              <>
-                                {isJobModeActive && isJobSlot(slot.label) ? (
-                                  <>
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                      <img src="/job_stamp.png" alt="job" className="w-16 opacity-50 -rotate-12 select-none" />
-                                    </div>
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                      <img src="/job_stamp.png" alt="job" className="w-12 opacity-30 -rotate-12 select-none" />
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                      <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
-                                    </div>
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                      <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
-                                    </div>
-                                  </>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
+                    <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
+                      {todayQuests.map(q => (
+                        <div
+                          id={`source-${q.id}`}
+                          key={q.id}
+                          data-sort-id={q.id}
+                          className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${dragState.itemId === q.id && dragState.mode === 'sort' ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary' : 'hover:scale-[1.02]'}`}
+                        >
+                          <TodayItem
+                            quest={q}
+                            templates={templates || []}
+                            onStatusChange={() => refreshAll()}
+                            onDragStart={(e) => {
+                              if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
+                              else handleMouseDown(e as any, q.id, 'plan');
+                            }}
+                            onReorderStart={(e) => {
+                              if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
+                              else handleMouseDown(e as any, q.id, 'sort');
+                            }}
+                          />
+                        </div>
+                      ))}
                     </div>
 
-                    {/* Job Mode Disable Button */}
-                    {isJobModeActive && (
-                      <div className="absolute bottom-0 left-0 right-0 flex justify-center w-full px-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full text-[10px] h-6 border-dashed"
-                          onClick={handleDisableJobMode}
-                        >
-                          Job Mode 解除
-                        </Button>
+                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
+                      <div className="flex flex-col gap-1 w-full pb-10">
+                        <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
+                        {timeSlots.map(slot => {
+                          const isUsed = todayQuests.some(q => {
+                            if (!q.plannedTimeSlot) return false;
+                            try {
+                              const parsed = JSON.parse(q.plannedTimeSlot);
+                              if (Array.isArray(parsed)) return parsed.includes(slot.id);
+                              return parsed === slot.id;
+                            } catch {
+                              return q.plannedTimeSlot === slot.id;
+                            }
+                          });
+
+                          return (
+                            <div key={slot.id} data-slot-id={slot.id} data-slot-date={format(targetDate, "yyyy-MM-dd")} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
+                              <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
+                              {!isUsed && (
+                                <>
+                                  {isJobModeActive && isJobSlot(slot.label) ? (
+                                    <>
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-50 -rotate-12 select-none" />
+                                      </div>
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-30 -rotate-12 select-none" />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
+                                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
+                                      </div>
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
+                                      </div>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
+
+                      {/* Job Mode Disable Button */}
+                      {isJobModeActive && (
+                        <div className="absolute bottom-0 left-0 right-0 flex justify-center w-full px-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-[10px] h-6 border-dashed"
+                            onClick={handleDisableJobMode}
+                          >
+                            Job Mode 解除
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* WEEKLY VIEW (7 Columns, Mon-Sun) */
+                <div className="overflow-x-auto pb-4 -mx-4 px-4 scrollbar-thin">
+                  <div className="flex gap-4 min-w-[1400px]">
+                    {Array.from({ length: 7 }).map((_, i) => {
+                      const colDate = new Date(weeklyActiveDate);
+                      colDate.setDate(colDate.getDate() + i);
+                      const colQuests = getQuestsForDate(colDate);
+                      const isColToday = format(colDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+                      const isColWeekday = colDate.getDay() !== 0 && colDate.getDay() !== 6;
+                      const colJobActive = isColWeekday && !dailyConfig?.jobModeDisabled;
+
+                      return (
+                        <DayColumn
+                          key={i}
+                          date={colDate}
+                          quests={colQuests}
+                          templates={templates || []}
+                          timeSlots={timeSlots}
+                          isJobModeActive={colJobActive}
+                          isJobSlot={isJobSlot}
+                          handleUnlink={handleUnlink}
+                          refreshAll={refreshAll}
+                          dragState={dragState}
+                          handleTouchStart={handleTouchStart}
+                          handleMouseDown={handleMouseDown}
+                          isToday={isColToday}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </section>
 
             {
               dragState.active && dragState.itemId && (
                 <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
                   {(() => {
-                    const q = todayQuests.find(i => i.id === dragState.itemId);
+                    const q = activeQuests?.find(i => i.id === dragState.itemId);
                     if (!q) return null;
                     return (
                       <TodayItem
