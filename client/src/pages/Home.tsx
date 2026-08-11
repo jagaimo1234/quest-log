@@ -2230,7 +2230,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground" onClick={() => setIsRelaxOpen(false)}>
-      <main className="layout-container py-8 mx-auto">
+      <main className={`${planningViewMode === 'weekly' ? 'w-full max-w-none px-4 sm:px-8 py-8' : 'layout-container py-8'} mx-auto`}>
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold tracking-tight">Quest Log</h1>
           <div className="flex gap-4">
