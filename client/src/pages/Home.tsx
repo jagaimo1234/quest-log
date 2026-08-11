@@ -92,23 +92,34 @@ function DayColumn({
   const columnRef = useRef<HTMLDivElement>(null);
   const dateStr = format(date, "yyyy-MM-dd");
 
+  // Query & mutation for daily bulletin board content
+  const { data: board, refetch: refetchBoard } = trpc.bulletin.get.useQuery({ date: dateStr });
+  const saveBoard = trpc.bulletin.save.useMutation();
+  const [localContent, setLocalContent] = useState("");
+
+  useEffect(() => {
+    setLocalContent(board?.content || "");
+  }, [board?.content]);
+
+  const handleBlur = () => {
+    if (localContent !== (board?.content || "")) {
+      saveBoard.mutate({
+        content: localContent,
+        diary: board?.diary || "",
+        date: dateStr
+      }, {
+        onSuccess: () => refetchBoard()
+      });
+    }
+  };
+
   return (
     <div
       ref={columnRef}
-      className={`flex flex-col gap-3 p-3 rounded-xl border bg-card/40 w-[240px] shrink-0 relative ${
+      className={`flex gap-4 p-3 rounded-xl border bg-card/40 shrink-0 relative min-w-[340px] ${
         isToday ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.1)] bg-amber-500/[0.02]' : 'border-border/60'
       }`}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none">
-        <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-muted-foreground'}`}>
-          {format(date, "E M/d")}
-        </span>
-        <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
-          {quests.length} tasks
-        </span>
-      </div>
-
       {/* SVG Connecting Lines inside this column */}
       <div className="absolute inset-0 pointer-events-none z-10 overflow-visible">
         <ConnectionLines
@@ -119,40 +130,11 @@ function DayColumn({
         />
       </div>
 
-      {/* Quests list */}
-      <div className="flex flex-col gap-2 min-h-[100px] z-20">
-        {quests.length === 0 ? (
-          <div className="text-[10px] text-muted-foreground/30 italic text-center py-4 select-none">No tasks</div>
-        ) : (
-          quests.map(q => (
-            <div
-              id={`source-${q.id}`}
-              key={q.id}
-              data-sort-id={q.id}
-              className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${
-                dragState.itemId === q.id && dragState.mode === 'sort'
-                  ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
-                  : 'hover:scale-[1.02]'
-              }`}
-            >
-              <TodayItem
-                quest={q}
-                templates={templates}
-                onStatusChange={refreshAll}
-                onDragStart={(e) => {
-                  if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
-                  else handleMouseDown(e as any, q.id, 'plan');
-                }}
-                onReorderStart={() => {}}
-              />
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Time slots */}
-      <div className="flex flex-col gap-1 w-full pb-4 z-10">
-        <div className="text-[9px] font-bold text-muted-foreground/60 mb-1 px-1 select-none">Log</div>
+      {/* Sub-column 1: Timeline Column */}
+      <div className={`flex flex-col gap-1 shrink-0 ${TIME_SLOT_WIDTH} z-10`}>
+        <div className="text-[10px] font-bold text-muted-foreground/60 mb-2 px-1 select-none text-center">
+          TIMELINE
+        </div>
         {timeSlots.map(slot => {
           const isUsed = quests.some(q => {
             if (!q.plannedTimeSlot) return false;
@@ -202,11 +184,87 @@ function DayColumn({
           );
         })}
       </div>
+
+      {/* Sub-column 2: Day Info & Card List */}
+      <div className="flex flex-col gap-3 flex-1 min-w-[200px] z-20">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none">
+          <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-muted-foreground'}`}>
+            {format(date, "EEEE M/d")}
+          </span>
+          <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+            {quests.length} tasks
+          </span>
+        </div>
+
+        {/* Bulletin Board Daily Note (Focus / Reflection) */}
+        <div>
+          <textarea
+            value={localContent}
+            onChange={(e) => setLocalContent(e.target.value)}
+            onBlur={handleBlur}
+            placeholder="本日のフォーカス・振り返り..."
+            className="w-full text-[10px] p-2 border border-slate-100 rounded-lg bg-white/60 focus:bg-white focus:ring-1 focus:ring-amber-300 resize-none min-h-[48px] placeholder-slate-300 outline-none transition-all scrollbar-none"
+          />
+        </div>
+
+        {/* Create Quest Dialog trigger inside this day */}
+        <QuestCreateDialog
+          onCreated={refreshAll}
+          defaultDate={date}
+          trigger={
+            <button className="w-full py-1.5 text-[10px] font-bold border border-dashed border-slate-300 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all select-none">
+              + 新規タスク
+            </button>
+          }
+        />
+
+        {/* Quests list */}
+        <div className="flex flex-col gap-2 min-h-[100px]">
+          {quests.length === 0 ? (
+            <div className="text-[10px] text-muted-foreground/30 italic text-center py-8 select-none">No tasks</div>
+          ) : (
+            quests.map(q => (
+              <div
+                id={`source-${q.id}`}
+                key={q.id}
+                data-sort-id={q.id}
+                className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${
+                  dragState.itemId === q.id && dragState.mode === 'sort'
+                    ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
+                    : 'hover:scale-[1.02]'
+                }`}
+              >
+                <TodayItem
+                  quest={q}
+                  templates={templates}
+                  onStatusChange={refreshAll}
+                  onDragStart={(e) => {
+                    if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
+                    else handleMouseDown(e as any, q.id, 'plan');
+                  }}
+                  onReorderStart={() => {}}
+                />
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: () => void, planningDayOffset?: number }) {
+function QuestCreateDialog({
+  onCreated,
+  planningDayOffset = 0,
+  defaultDate,
+  trigger
+}: {
+  onCreated: () => void;
+  planningDayOffset?: number;
+  defaultDate?: Date;
+  trigger?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [questType, setQuestType] = useState("Free");
   const [startDateVal, setStartDateVal] = useState("");
@@ -216,10 +274,12 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
 
   const createTemplate = trpc.template.create.useMutation();
 
-  // When dialog opens, auto-fill startDate based on planning offset
+  // When dialog opens, auto-fill startDate based on planning offset or defaultDate
   useEffect(() => {
     if (open) {
-      if (planningDayOffset > 0) {
+      if (defaultDate) {
+        setStartDateVal(format(defaultDate, "yyyy-MM-dd"));
+      } else if (planningDayOffset > 0) {
         const d = new Date();
         d.setDate(d.getDate() + planningDayOffset);
         setStartDateVal(format(d, "yyyy-MM-dd"));
@@ -229,7 +289,7 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
       setDeadlineVal("");
       setTargetCountVal("1");
     }
-  }, [open, planningDayOffset]);
+  }, [open, planningDayOffset, defaultDate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -259,6 +319,8 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
       let startDate: Date | undefined;
       if (startDateVal) {
         startDate = parseLocalDate(startDateVal);
+      } else if (defaultDate) {
+        startDate = defaultDate;
       } else if (planningDayOffset > 0) {
         // Fallback: even if startDateVal wasn't set by useEffect, compute from offset
         const d = new Date();
@@ -284,7 +346,7 @@ function QuestCreateDialog({ onCreated, planningDayOffset = 0 }: { onCreated: ()
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="icon" variant="ghost" className="h-6 w-6"><Plus className="w-4 h-4" /></Button>
+        {trigger || <Button size="icon" variant="ghost" className="h-6 w-6"><Plus className="w-4 h-4" /></Button>}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Create Mission{planningDayOffset > 0 ? " (Tomorrow)" : ""}</DialogTitle></DialogHeader>
@@ -2445,7 +2507,7 @@ export default function Home() {
               ) : (
                 /* WEEKLY VIEW (7 Columns, Mon-Sun) */
                 <div className="overflow-x-auto pb-4 -mx-4 px-4 scrollbar-thin">
-                  <div className="flex gap-4 min-w-[1400px]">
+                  <div className="flex gap-4 min-w-max">
                     {Array.from({ length: 7 }).map((_, i) => {
                       const colDate = new Date(weeklyActiveDate);
                       colDate.setDate(colDate.getDate() + i);
