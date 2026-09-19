@@ -710,12 +710,13 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
   if (!db) return [];
 
   const now = new Date();
-  const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
-  const currentDayOfWeek = now.getDay(); // 0-6
-  const currentDate = now.getDate(); // 1-31
+  const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const today = jstNow.toISOString().split('T')[0]; // YYYY-MM-DD
+  const currentDayOfWeek = jstNow.getUTCDay(); // 0-6 in JST
+  const currentDate = jstNow.getUTCDate(); // 1-31 in JST
   // Week calculation
   const currentWeekOfMonth = Math.ceil(currentDate / 7);
-  const currentMonth = now.getMonth() + 1; // 1-12
+  const currentMonth = jstNow.getUTCMonth() + 1; // 1-12 in JST
 
   const generatedQuests: Quest[] = [];
 
@@ -840,9 +841,16 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
 
     if (!isTodayValid) continue;
 
-    // 2. Already Active? (Prevent duplication)
-    const existingQuest = activeQuests.find((q: Quest) => q.templateId === template.id);
-    if (existingQuest) continue; // Already have one, don't generate another until it's done.
+    // 2. Already Active for Today? (Prevent duplication for today)
+    const existingQuest = activeQuests.find((q: Quest) => {
+      if (q.templateId !== template.id) return false;
+      const qDate = q.startDate || q.createdAt;
+      if (!qDate) return false;
+      const qJst = new Date(new Date(qDate).getTime() + 9 * 60 * 60 * 1000);
+      const qDateStr = qJst.toISOString().split('T')[0];
+      return qDateStr === today;
+    });
+    if (existingQuest) continue; // Already generated for today
 
     // 3. Frequency Check (Goal Met?)
     const freq = template.frequency || 1;
@@ -864,6 +872,7 @@ export async function generateQuestsFromTemplates(userId: number): Promise<Quest
       difficulty: template.difficulty,
       templateId: template.id,
       autoDeadline: true,
+      startDate: now,
     });
 
     generatedQuests.push(quest);

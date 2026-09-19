@@ -1673,20 +1673,17 @@ export default function Home() {
 
   const getQuestsForDate = React.useCallback((date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    const isToday = dateStr === todayStr;
 
     const filtered = activeQuests?.filter(q => {
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
       
-      const startStr = q.startDate ? format(new Date(q.startDate), "yyyy-MM-dd") : null;
-      if (isToday) {
-        // Today column: show if startDate <= today (carry over), or if no startDate
-        if (startStr && startStr > dateStr) return false;
-      } else {
-        // Other days: only show if specifically scheduled for this day
-        if (!startStr || startStr !== dateStr) return false;
-      }
+      const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
+      if (!qDate) return false;
+      const qDateStr = format(qDate, "yyyy-MM-dd");
+
+      // Strictly match date: do not carry over uncleared tasks to the next day
+      if (qDateStr !== dateStr) return false;
+
       return true;
     }) || [];
 
@@ -2017,7 +2014,10 @@ export default function Home() {
     unreceivedQuests?.forEach(q => {
       if (q.questType === "Project" || q.questType === "Relax") return;
       if (!q.templateId) {
-        arr.push({ ...q, isSynthesized: false });
+        const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
+        if (qDate && format(qDate, "yyyy-MM-dd") === targetStr) {
+          arr.push({ ...q, isSynthesized: false });
+        }
       }
     });
 
@@ -2063,17 +2063,22 @@ export default function Home() {
 
       if (!isTemplateValidForDate(t, targetDate)) return;
 
-      const alreadyPlanned = activeQuests?.some(aq =>
-        aq.templateId === t.id &&
-        aq.startDate && format(new Date(aq.startDate), "yyyy-MM-dd") === targetStr
-      ) || history?.some(hq =>
+      const alreadyPlanned = activeQuests?.some(aq => {
+        if (aq.templateId !== t.id) return false;
+        const qDate = aq.startDate ? new Date(aq.startDate) : (aq.createdAt ? new Date(aq.createdAt) : null);
+        return qDate && format(qDate, "yyyy-MM-dd") === targetStr;
+      }) || history?.some(hq =>
         hq.templateId === t.id &&
         hq.recordedAt && format(new Date(hq.recordedAt), "yyyy-MM-dd") === targetStr
       );
 
       if (alreadyPlanned) return;
 
-      const existingUnreceived = unreceivedQuests?.find(q => q.templateId === t.id);
+      const existingUnreceived = unreceivedQuests?.find(q => {
+        if (q.templateId !== t.id) return false;
+        const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
+        return qDate && format(qDate, "yyyy-MM-dd") === targetStr;
+      });
 
       if (existingUnreceived && planningDayOffset === 0) {
         // We have a real quest generated for today
@@ -2100,7 +2105,8 @@ export default function Home() {
     activeQuests?.forEach(q => {
       if (q.questType === "Project" || q.questType === "Relax" || q.questType === "Free") return;
       if (q.status !== "cleared") return;
-      if (q.startDate && format(new Date(q.startDate), "yyyy-MM-dd") !== targetStr) return;
+      const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
+      if (!qDate || format(qDate, "yyyy-MM-dd") !== targetStr) return;
 
       const t = templates?.find(tp => tp.id === q.templateId);
       if (!t) return;
@@ -2199,10 +2205,11 @@ export default function Home() {
 
   // Helper: compute startDate for planning offset
   const getPlanningStartDate = () => {
-    if (planningDayOffset <= 0) return undefined;
     const d = new Date();
-    d.setDate(d.getDate() + planningDayOffset);
-    d.setHours(0, 0, 0, 0);
+    if (planningDayOffset > 0) {
+      d.setDate(d.getDate() + planningDayOffset);
+      d.setHours(0, 0, 0, 0);
+    }
     return d;
   };
 
