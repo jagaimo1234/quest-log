@@ -3577,14 +3577,17 @@ function BulletinBoard() {
           />
         </div>
         <div className="p-3 flex flex-col gap-1">
-          <div className="text-[11px] font-bold text-amber-600 mb-1">📔 日間掲示板 (日記欄)</div>
+          <div className="flex items-baseline gap-2 flex-wrap mb-1">
+            <span className="text-[11px] font-bold text-amber-600">📔 日間掲示板 (日記欄)</span>
+            <span className="text-[10px] text-amber-700/80 font-normal">── ここはあなたの避難場所。いつでも寄りなさい。</span>
+          </div>
           <textarea
             ref={diaryRef}
             value={diary}
             onChange={handleDiaryChange}
-            placeholder="今日の出来事、感じたことなど..."
+            placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
             rows={1}
-            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-amber-300 resize-none text-amber-900 leading-relaxed"
+            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-amber-300/80 resize-none text-amber-900 leading-relaxed"
           />
         </div>
       </div>
