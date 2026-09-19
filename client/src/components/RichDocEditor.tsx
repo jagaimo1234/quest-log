@@ -18,11 +18,12 @@ export function parseDocBlocks(raw: string): DocBlock[] {
 
   while ((match = regex.exec(raw)) !== null) {
     const textBefore = raw.substring(lastIndex, match.index);
-    if (textBefore.trim() !== "" || blocks.length === 0) {
+    const cleanedBefore = textBefore.replace(/\n+$/, "");
+    if (cleanedBefore.trim() !== "" || blocks.length === 0) {
       blocks.push({
         id: `b-txt-${counter++}`,
         type: "text",
-        text: textBefore.replace(/^\n+/, "").replace(/\n+$/, ""),
+        text: cleanedBefore,
       });
     }
 
@@ -36,12 +37,12 @@ export function parseDocBlocks(raw: string): DocBlock[] {
     lastIndex = regex.lastIndex;
   }
 
-  const remaining = raw.substring(lastIndex);
+  const remaining = raw.substring(lastIndex).replace(/^\n+/, "");
   if (remaining.trim() !== "" || blocks.length === 0) {
     blocks.push({
       id: `b-txt-${counter++}`,
       type: "text",
-      text: remaining.replace(/^\n+/, "").replace(/\n+$/, ""),
+      text: remaining,
     });
   }
 
@@ -56,7 +57,7 @@ export function serializeDocBlocks(blocks: DocBlock[]): string {
   return blocks
     .map((b) => {
       if (b.type === "image") {
-        return `\n\n![${b.caption || "image"}](${b.src})\n\n`;
+        return `![${b.caption || "image"}](${b.src})`;
       }
       return b.text;
     })
@@ -157,10 +158,10 @@ export function RichDocEditor({
       if (targetBlock && targetBlock.type === "text" && currentEl) {
         const cursorStart = currentEl.selectionStart || 0;
         const cursorEnd = currentEl.selectionEnd || 0;
-        textBefore = targetBlock.text.slice(0, cursorStart);
-        textAfter = targetBlock.text.slice(cursorEnd);
+        textBefore = targetBlock.text.slice(0, cursorStart).replace(/\n+$/, "");
+        textAfter = targetBlock.text.slice(cursorEnd).replace(/^\n+/, "");
       } else if (targetBlock && targetBlock.type === "text") {
-        textBefore = targetBlock.text;
+        textBefore = targetBlock.text.replace(/\n+$/, "");
         textAfter = "";
       }
 
@@ -341,13 +342,13 @@ export function RichDocEditor({
       />
 
       {/* Editor Body */}
-      <div className="flex-1 space-y-1.5" style={{ minHeight: `${minHeight}px` }}>
+      <div className="flex-1 space-y-0.5" style={{ minHeight: `${minHeight}px` }}>
         {blocks.map((block, index) => {
           if (block.type === "image") {
             return (
               <div
                 key={block.id}
-                className={`group relative my-2.5 max-w-lg rounded-xl overflow-hidden border ${themeStyles.cardBorder} shadow-md bg-stone-900/10 transition-all hover:shadow-lg`}
+                className={`group relative my-1 max-w-lg rounded-xl overflow-hidden border ${themeStyles.cardBorder} shadow-md bg-stone-900/10 transition-all hover:shadow-lg`}
               >
                 <img
                   src={block.src}
@@ -399,7 +400,7 @@ export function RichDocEditor({
               onPaste={(e) => handlePasteInBlock(index, e)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               rows={index === 0 && blocks.length === 1 ? 4 : 1}
-              className={`w-full bg-transparent outline-none resize-none placeholder:text-stone-400/70 ${textAreaClassName}`}
+              className={`w-full bg-transparent outline-none resize-none placeholder:text-stone-400/70 p-0 m-0 block ${textAreaClassName}`}
             />
           );
         })}
