@@ -87,6 +87,7 @@ function DayColumn({
   colSpacing,
   isSelected,
   onSelect,
+  isDragHovered,
 }: {
   date: Date;
   quests: any[];
@@ -103,6 +104,7 @@ function DayColumn({
   colSpacing: number;
   isSelected: boolean;
   onSelect: () => void;
+  isDragHovered?: boolean;
 }) {
   const columnRef = useRef<HTMLDivElement>(null);
   const dateStr = format(date, "yyyy-MM-dd");
@@ -132,10 +134,14 @@ function DayColumn({
     <div
       ref={columnRef}
       data-column-date={dateStr}
-      className={`flex p-3 rounded-xl border bg-card/40 shrink-0 relative min-w-[340px] transition-all duration-200 ${
-        isSelected ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/[0.01]' : ''
-      } ${
-        isToday ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.1)] bg-amber-500/[0.02]' : 'border-border/60'
+      className={`flex p-3 rounded-xl border shrink-0 relative min-w-[340px] transition-all duration-200 ${
+        isDragHovered
+          ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-500/[0.08] shadow-lg scale-[1.01]'
+          : isSelected
+            ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/[0.01]'
+            : isToday
+              ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.1)] bg-amber-500/[0.02]'
+              : 'border-border/60 bg-card/40'
       }`}
       style={{ gap: `${colSpacing}px` }}
     >
@@ -1753,7 +1759,7 @@ export default function Home() {
   const [dragState, setDragState] = useState<{
     active: boolean,
     itemId: number | null,
-    mode: 'plan' | 'sort', // 'plan' = time slot, 'sort' = reorder
+    mode: 'plan' | 'sort', // 'plan' = time slot / move, 'sort' = reorder
     startX: number,
     startY: number,
     currentX: number,
@@ -1761,6 +1767,7 @@ export default function Home() {
   }>({
     active: false, itemId: null, mode: 'plan', startX: 0, startY: 0, currentX: 0, currentY: 0
   });
+  const [hoveredColumnDate, setHoveredColumnDate] = useState<string | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
     e.preventDefault();
@@ -1795,10 +1802,15 @@ export default function Home() {
       if (!dragState.active) return;
       setDragState(prev => ({ ...prev, currentX: e.clientX, currentY: e.clientY }));
 
-      // Reorder Logic (Swiss Swap)
+      // Track hovered column
+      const elementsUnder = document.elementsFromPoint(e.clientX, e.clientY);
+      const colEl = elementsUnder.map(el => el.closest('[data-column-date]')).find(Boolean);
+      const hDate = colEl ? colEl.getAttribute('data-column-date') : null;
+      setHoveredColumnDate(hDate);
+
+      // Reorder Logic (Swiss Swap) when dragging sort handle within same column
       if (dragState.mode === 'sort' && dragState.itemId) {
-        const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
-        const sortTarget = elementUnder?.closest('[data-sort-id]');
+        const sortTarget = elementsUnder.map(el => el.closest('[data-sort-id]')).find(Boolean);
         if (sortTarget) {
           const targetId = Number(sortTarget.getAttribute('data-sort-id'));
           if (targetId && targetId !== dragState.itemId) {
@@ -1807,14 +1819,8 @@ export default function Home() {
               const fromIndex = newOrder.indexOf(dragState.itemId!);
               const toIndex = newOrder.indexOf(targetId);
               if (fromIndex !== -1 && toIndex !== -1) {
-                // Remove and insert
                 newOrder.splice(fromIndex, 1);
                 newOrder.splice(toIndex, 0, dragState.itemId!);
-
-                // Debounce server update? Or just trigger it on drop?
-                // For simpler implementation, let's trigger it on drop (MouseUp) to avoid spamming.
-                // But wait, MouseUp logic doesn't have reference to the new order easily unless we store it.
-                // Actually, 'orderedIds' state is updated here.
                 return newOrder;
               }
               return prev;
@@ -1836,10 +1842,15 @@ export default function Home() {
         }
       }
 
+      // Track hovered column
+      const elementsUnder = document.elementsFromPoint(touch.clientX, touch.clientY);
+      const colEl = elementsUnder.map(el => el.closest('[data-column-date]')).find(Boolean);
+      const hDate = colEl ? colEl.getAttribute('data-column-date') : null;
+      setHoveredColumnDate(hDate);
+
       // Reorder Logic (Swiss Swap) - Touch
       if (dragState.mode === 'sort' && dragState.itemId) {
-        const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
-        const sortTarget = elementUnder?.closest('[data-sort-id]');
+        const sortTarget = elementsUnder.map(el => el.closest('[data-sort-id]')).find(Boolean);
         if (sortTarget) {
           const targetId = Number(sortTarget.getAttribute('data-sort-id'));
           if (targetId && targetId !== dragState.itemId) {
@@ -1862,7 +1873,8 @@ export default function Home() {
     const handleMouseUp = async (e: MouseEvent | TouchEvent) => {
       if (!dragState.active) return;
 
-      let clientX, clientY;
+      let clientX: number;
+      let clientY: number;
       if ('changedTouches' in e) {
         clientX = e.changedTouches[0].clientX;
         clientY = e.changedTouches[0].clientY;
@@ -1871,17 +1883,18 @@ export default function Home() {
         clientY = (e as MouseEvent).clientY;
       }
 
-      if (dragState.mode === 'plan') {
-        const elements = document.elementsFromPoint(clientX, clientY);
-        const slotElement = elements.find(el => el.getAttribute('data-slot-id'));
-        const columnElement = elements.find(el => el.getAttribute('data-column-date'));
+      const elements = document.elementsFromPoint(clientX, clientY);
+      const slotElement = elements.map(el => el.closest('[data-slot-id]')).find(Boolean);
+      const columnElement = elements.map(el => el.closest('[data-column-date]')).find(Boolean);
 
-        if (slotElement && dragState.itemId) {
+      if (dragState.itemId) {
+        const quest = activeQuests?.find(q => q.id === dragState.itemId);
+
+        if (slotElement && quest) {
           const slotId = slotElement.getAttribute('data-slot-id');
           const slotDateStr = slotElement.getAttribute('data-slot-date');
-          const quest = activeQuests?.find(q => q.id === dragState.itemId);
 
-          if (slotId && quest) {
+          if (slotId) {
             try {
               let currentSlots: string[] = [];
               try {
@@ -1897,7 +1910,7 @@ export default function Home() {
               const currentStartDateStr = quest.startDate ? format(new Date(quest.startDate), "yyyy-MM-dd") : null;
 
               if (slotDateStr && slotDateStr !== currentStartDateStr) {
-                // Reschedule to a different day
+                // Reschedule to a different day + assign to slot
                 const newDate = parseLocalDate(slotDateStr);
                 const newSlots = [slotId];
                 await updateQuest.mutateAsync({
@@ -1905,7 +1918,7 @@ export default function Home() {
                   startDate: newDate,
                   plannedTimeSlot: JSON.stringify(newSlots)
                 });
-                toast.success(`Rescheduled to ${slotDateStr} at ${slotId}`);
+                toast.success(`${format(newDate, "M/d (E)")} ${slotId} に配置しました`);
                 refreshAll();
               } else {
                 // Link on the same day
@@ -1920,10 +1933,9 @@ export default function Home() {
               toast.error("Failed to plan");
             }
           }
-        } else if (columnElement && dragState.itemId) {
+        } else if (columnElement && quest) {
           const colDateStr = columnElement.getAttribute('data-column-date');
-          const quest = activeQuests?.find(q => q.id === dragState.itemId);
-          if (colDateStr && quest) {
+          if (colDateStr) {
             try {
               const currentStartDateStr = quest.startDate ? format(new Date(quest.startDate), "yyyy-MM-dd") : null;
               if (colDateStr !== currentStartDateStr) {
@@ -1933,7 +1945,7 @@ export default function Home() {
                   startDate: newDate,
                   plannedTimeSlot: null
                 });
-                toast.success(`Moved to ${colDateStr}`);
+                toast.success(`${format(newDate, "M/d (E)")} に移動しました`);
                 refreshAll();
               }
             } catch (err) {
@@ -1942,11 +1954,12 @@ export default function Home() {
           }
         }
       }
+
       setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
+      setHoveredColumnDate(null);
 
       // Trigger server update if order changed
       if (dragState.mode === 'sort') {
-        // Create updates array
         const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
         updateOrderMutation.mutate(updates);
       }
@@ -1964,7 +1977,7 @@ export default function Home() {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleMouseUp);
     };
-  }, [dragState.active, dragState.itemId, activeQuests]);
+  }, [dragState.active, dragState.itemId, dragState.mode, activeQuests, orderedIds]);
 
   const handleUnlink = async (questId: number, slotId: string) => {
     const quest = activeQuests?.find(q => q.id === questId);
@@ -2676,6 +2689,8 @@ export default function Home() {
                       const colJobActive = isColWeekday && !dailyConfig?.jobModeDisabled;
                       const colOffset = getOffsetFromToday(colDate);
 
+                      const colDateStr = format(colDate, "yyyy-MM-dd");
+
                       return (
                         <DayColumn
                           key={i}
@@ -2694,6 +2709,7 @@ export default function Home() {
                           colSpacing={colSpacing}
                           isSelected={planningDayOffset === colOffset}
                           onSelect={() => setPlanningDayOffset(colOffset)}
+                          isDragHovered={hoveredColumnDate === colDateStr && dragState.active}
                         />
                       );
                     })}
