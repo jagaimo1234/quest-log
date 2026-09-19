@@ -56,7 +56,7 @@ export function BonfireDiary({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = Math.max(100, textareaRef.current.scrollHeight) + "px";
+      textareaRef.current.style.height = Math.max(120, textareaRef.current.scrollHeight) + "px";
     }
     setCharCount(value?.length || 0);
     updateMetrics(value?.length || 0);
@@ -83,7 +83,7 @@ export function BonfireDiary({
   };
 
   // ==========================================
-  // CANVA ENGINE (Gentle Living Hearth)
+  // CANVA ENGINE (Gentle Living Hearth - Top Banner)
   // ==========================================
   useEffect(() => {
     if (!isBonfireMode) return;
@@ -101,8 +101,9 @@ export function BonfireDiary({
       const rect = canvas.getBoundingClientRect();
       width = canvas.width = rect.width;
       height = canvas.height = rect.height;
-      fireBaseX = width * 0.56;
-      fireBaseY = height - 38;
+      // Centered fire in the horizontal top banner
+      fireBaseX = width * 0.52;
+      fireBaseY = height - 26;
     };
     resize();
     window.addEventListener("resize", resize);
@@ -381,7 +382,6 @@ export function BonfireDiary({
   const spawnWordSpark = () => {
     if (!textareaRef.current || !canvasRef.current) return;
     const spark = document.createElement("div");
-    spark.className = "flying-spark-runtime";
     spark.innerText = "✨";
 
     const textRect = textareaRef.current.getBoundingClientRect();
@@ -389,8 +389,8 @@ export function BonfireDiary({
     const startY = textRect.top + 30 + Math.random() * 80;
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
-    const targetX = canvasRect.left + canvasRect.width * 0.56 - startX;
-    const targetY = canvasRect.top + canvasRect.height - 38 - startY;
+    const targetX = canvasRect.left + canvasRect.width * 0.52 - startX;
+    const targetY = canvasRect.top + canvasRect.height - 26 - startY;
 
     spark.style.cssText = `
       position: fixed;
@@ -419,8 +419,8 @@ export function BonfireDiary({
     if (!rippleLayerRef.current || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const ring = document.createElement("div");
-    const cx = rect.width * 0.56;
-    const cy = rect.height - 38;
+    const cx = rect.width * 0.52;
+    const cy = rect.height - 26;
 
     ring.style.cssText = `
       position: absolute;
@@ -547,7 +547,7 @@ export function BonfireDiary({
           </div>
           <button
             onClick={toggleMode}
-            className="text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100/70 hover:bg-amber-200/80 border border-amber-300/80 px-2 py-0.5 rounded transition-all flex items-center gap-1 shadow-xs"
+            className="text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100/70 hover:bg-amber-200/80 border border-amber-300/80 px-2 py-0.5 rounded transition-all flex items-center gap-1 shadow-xs cursor-pointer"
           >
             <span>🔥</span> 焚き火モードに切替
           </button>
@@ -557,18 +557,19 @@ export function BonfireDiary({
           value={value}
           onChange={handleInput}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
-          rows={1}
+          rows={3}
           className="w-full min-h-[70px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-amber-300/80 resize-none text-amber-950 leading-relaxed"
         />
       </div>
     );
   }
 
-  // BONFIRE SANCTUARY MODE
+  // BONFIRE SANCTUARY MODE (VERTICAL STACK: Top Bonfire Banner + Bottom Full Notebook)
   return (
-    <div className="p-3 sm:p-4 bg-gradient-to-b from-stone-900 to-[#120a05] border-t-2 border-amber-900/60 transition-all">
-      {/* Top Header Toolbar */}
-      <div className="flex items-center justify-between pb-2 mb-3 border-b border-amber-900/50">
+    <div className="p-3 sm:p-4 bg-gradient-to-b from-stone-900 via-[#140c06] to-[#0f0904] border-t-2 border-amber-900/60 transition-all space-y-3">
+      
+      {/* 1. Top Header Toolbar */}
+      <div className="flex items-center justify-between pb-2 border-b border-amber-900/40 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span className="text-base">🏕️</span>
           <div>
@@ -588,7 +589,7 @@ export function BonfireDiary({
           {/* Audio toggle */}
           <button
             onClick={toggleFireSound}
-            className="px-2 py-0.5 bg-black/60 hover:bg-black/80 border border-amber-500/40 text-[10px] text-amber-300 rounded font-bold transition-all flex items-center gap-1"
+            className="px-2 py-0.5 bg-black/60 hover:bg-black/80 border border-amber-500/40 text-[10px] text-amber-300 rounded font-bold transition-all flex items-center gap-1 cursor-pointer"
           >
             <span>{isSoundOn ? "🔊" : "🔇"}</span>
             <span>{isSoundOn ? "焚き火音中" : "音: OFF"}</span>
@@ -597,7 +598,7 @@ export function BonfireDiary({
           {/* Simple Mode Toggle */}
           <button
             onClick={toggleMode}
-            className="px-2 py-0.5 bg-stone-800 hover:bg-stone-700 border border-stone-600 text-[10px] text-stone-300 rounded font-bold transition-all flex items-center gap-1"
+            className="px-2 py-0.5 bg-stone-800 hover:bg-stone-700 border border-stone-600 text-[10px] text-stone-300 rounded font-bold transition-all flex items-center gap-1 cursor-pointer"
           >
             <span>📄</span>
             <span>シンプル表示</span>
@@ -605,56 +606,36 @@ export function BonfireDiary({
         </div>
       </div>
 
-      {/* Main Grid: Left Canvas + Right Parchment */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-stretch">
+      {/* 2. TOP BANNER: Bonfire Camp Stage (高さ固定で間延びを完全に防止) */}
+      <div className="w-full h-32 sm:h-36 rounded-xl border border-amber-900/50 bg-[#080b12] relative overflow-hidden shadow-inner flex items-center justify-between px-3 sm:px-4">
         
-        {/* LEFT: Hearth Canvas (4 cols) */}
-        <div className="md:col-span-4 rounded-xl border border-amber-900/50 bg-[#080b12] relative overflow-hidden flex flex-col justify-between min-h-[220px] shadow-inner">
-          {/* Ambient Glow */}
-          <div
-            ref={ambientGlowRef}
-            className="absolute bottom-6 left-1/2 w-48 h-48 -translate-x-1/2 rounded-full pointer-events-none filter blur-2xl transition-transform"
-            style={{
-              background: "radial-gradient(circle, rgba(251, 191, 36, 0.45) 0%, rgba(245, 158, 11, 0.22) 40%, transparent 75%)"
-            }}
-          />
+        {/* Ambient Glow */}
+        <div
+          ref={ambientGlowRef}
+          className="absolute bottom-2 left-1/2 w-64 h-64 -translate-x-1/2 rounded-full pointer-events-none filter blur-3xl transition-transform"
+          style={{
+            background: "radial-gradient(circle, rgba(251, 191, 36, 0.45) 0%, rgba(245, 158, 11, 0.22) 40%, transparent 75%)"
+          }}
+        />
 
-          <div ref={rippleLayerRef} className="absolute inset-0 pointer-events-none overflow-hidden" />
+        <div ref={rippleLayerRef} className="absolute inset-0 pointer-events-none overflow-hidden" />
 
-          {/* Canvas */}
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
+        {/* Canvas for Bonfire */}
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
 
-          {/* Extra Wood stack */}
-          <div className="absolute right-2.5 bottom-2.5 z-20 pointer-events-none flex flex-col items-center opacity-85">
-            <svg className="w-10 h-7" viewBox="0 0 60 40" fill="none">
-              <ellipse cx="12" cy="30" rx="8" ry="4" fill="#a0522d" stroke="#3e1c0d" stroke-width="2"/>
-              <path d="M12 26 L48 24 L48 32 L12 34 Z" fill="#6d371a" stroke="#3e1c0d" stroke-width="2"/>
-              <ellipse cx="48" cy="28" rx="7" ry="3.5" fill="#c48148" stroke="#3e1c0d" stroke-width="1.5"/>
-              <ellipse cx="18" cy="34" rx="7" ry="3.5" fill="#8b4513" stroke="#3e1c0d" stroke-width="2"/>
-              <path d="M18 30.5 L52 29 L52 36 L18 37.5 Z" fill="#582a12" stroke="#3e1c0d" stroke-width="2"/>
-              <ellipse cx="52" cy="32.5" rx="6" ry="3" fill="#b0703c" stroke="#3e1c0d" stroke-width="1.5"/>
-              <ellipse cx="14" cy="22" rx="7" ry="3.5" fill="#964b00" stroke="#3e1c0d" stroke-width="2"/>
-              <path d="M14 18.5 L46 17 L46 24 L14 25.5 Z" fill="#753815" stroke="#3e1c0d" stroke-width="2"/>
-              <ellipse cx="46" cy="20.5" rx="6" ry="3" fill="#d29054" stroke="#3e1c0d" stroke-width="1.5"/>
-            </svg>
-            <span className="text-[7px] font-black text-amber-400/90 bg-black/70 px-1 rounded border border-amber-900/50">
-              予備の薪
-            </span>
-          </div>
-
-          {/* Traveler */}
-          <div className="absolute left-3 bottom-2.5 z-20 pointer-events-none flex flex-col items-center">
-            <div className="text-2xl filter drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] opacity-90 scale-x-[-1]">
+        {/* Left: Traveler & Status Info Card */}
+        <div className="relative z-20 flex items-center gap-2.5 bg-black/60 backdrop-blur-xs p-2 rounded-lg border border-amber-900/50">
+          <div className="flex flex-col items-center">
+            <div className="text-2xl sm:text-3xl filter drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] opacity-95 scale-x-[-1]">
               🧘‍♂️
             </div>
-            <span className="text-[8px] font-bold text-amber-300/80 bg-black/70 px-1.5 py-0.2 rounded border border-amber-900/50 mt-0.5">
+            <span className="text-[7px] sm:text-[8px] font-bold text-amber-300/90 bg-black/70 px-1 rounded border border-amber-900/50 mt-0.5">
               {travelerStatus.split(" ")[0]}
             </span>
           </div>
 
-          {/* Top Status */}
-          <div className="p-2.5 relative z-20 space-y-1">
-            <div className="flex items-center justify-between text-[10px]">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-[10px]">
               <span className="text-amber-300 font-bold flex items-center gap-1">
                 <span>🔥</span> {fireStageName}
               </span>
@@ -662,60 +643,78 @@ export function BonfireDiary({
                 言葉の薪: <span className="font-bold text-yellow-300">{charCount}</span> 文字
               </span>
             </div>
-            <div className="w-full h-1.5 bg-stone-950 rounded-full overflow-hidden border border-stone-800">
+            <div className="w-32 sm:w-44 h-1.5 bg-stone-950 rounded-full overflow-hidden border border-stone-800">
               <div
                 className="h-full bg-gradient-to-r from-amber-600 via-orange-400 to-yellow-300 transition-all duration-300"
                 style={{ width: `${Math.min(100, Math.round((charCount / 250) * 100))}%` }}
               />
             </div>
-          </div>
-
-          {/* Bottom message */}
-          <div className="p-2 relative z-20 bg-black/60 backdrop-blur-xs border-t border-amber-900/40 text-[9px] text-amber-200/80 leading-tight">
-            文字を打つたびに火が呼吸し、思考が温もりに変わります。
+            <p className="text-[8px] sm:text-[9px] text-amber-300/70">
+              文字を打つたびに火が呼吸します
+            </p>
           </div>
         </div>
 
-        {/* RIGHT: Parchment Diary Notebook (8 cols) */}
-        <div className="md:col-span-8 rounded-xl border-2 border-[#784823] p-3 sm:p-4 flex flex-col justify-between relative shadow-lg"
-          style={{
-            background: "#fbf3d5",
-            backgroundImage: "radial-gradient(#eedcb0 15%, transparent 16%), linear-gradient(to bottom, transparent 27px, rgba(160, 110, 60, 0.22) 28px)",
-            backgroundSize: "100% 28px",
-            boxShadow: "inset 0 0 25px rgba(150, 95, 45, 0.3)"
-          }}
-        >
-          <div className="flex items-center justify-between border-b border-amber-900/30 pb-1.5 mb-1.5">
-            <div className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
-              <span>🪶</span> 旅人の日記帳 {selectedDateStr ? `(${selectedDateStr})` : ""}
-            </div>
-            <div className="text-[10px] text-amber-900/70 font-mono flex items-center gap-1.5">
-              {isSaving ? (
-                <span className="text-amber-700 animate-pulse font-bold">● 薪にくべて保存中...</span>
-              ) : (
-                <span>自動保存済み</span>
-              )}
-            </div>
-          </div>
-
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={handleInput}
-            rows={4}
-            placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
-            className="w-full bg-transparent text-stone-900 font-medium text-sm leading-7 focus:outline-none resize-none placeholder:text-stone-400 selection:bg-amber-300/60"
-          />
-
-          <div className="pt-2 border-t border-amber-900/20 flex items-center justify-between text-[10px] text-amber-900/70 font-medium">
-            <span>🪵 打った文字すべてがあなたの避難所の薪になります</span>
-            <span className="text-[9px] bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-800/20">
-              心安らぐセーフスペース
-            </span>
-          </div>
+        {/* Right: Extra Wood stack (Hidden on very small screens) */}
+        <div className="relative z-20 flex-col items-center opacity-90 hidden sm:flex bg-black/50 backdrop-blur-xs p-1.5 rounded-lg border border-amber-900/40">
+          <svg className="w-11 h-7" viewBox="0 0 60 40" fill="none">
+            <ellipse cx="12" cy="30" rx="8" ry="4" fill="#a0522d" stroke="#3e1c0d" stroke-width="2"/>
+            <path d="M12 26 L48 24 L48 32 L12 34 Z" fill="#6d371a" stroke="#3e1c0d" stroke-width="2"/>
+            <ellipse cx="48" cy="28" rx="7" ry="3.5" fill="#c48148" stroke="#3e1c0d" stroke-width="1.5"/>
+            <ellipse cx="18" cy="34" rx="7" ry="3.5" fill="#8b4513" stroke="#3e1c0d" stroke-width="2"/>
+            <path d="M18 30.5 L52 29 L52 36 L18 37.5 Z" fill="#582a12" stroke="#3e1c0d" stroke-width="2"/>
+            <ellipse cx="52" cy="32.5" rx="6" ry="3" fill="#b0703c" stroke="#3e1c0d" stroke-width="1.5"/>
+            <ellipse cx="14" cy="22" rx="7" ry="3.5" fill="#964b00" stroke="#3e1c0d" stroke-width="2"/>
+            <path d="M14 18.5 L46 17 L46 24 L14 25.5 Z" fill="#753815" stroke="#3e1c0d" stroke-width="2"/>
+            <ellipse cx="46" cy="20.5" rx="6" ry="3" fill="#d29054" stroke="#3e1c0d" stroke-width="1.5"/>
+          </svg>
+          <span className="text-[7px] font-black text-amber-400/90 bg-black/70 px-1 rounded border border-amber-900/50 mt-0.5">
+            予備の薪
+          </span>
         </div>
 
       </div>
+
+      {/* 3. BOTTOM: Full-Width Parchment Diary Notebook (横幅いっぱいにゆったり書ける) */}
+      <div
+        className="w-full rounded-xl border-2 border-[#784823] p-3.5 sm:p-4 flex flex-col justify-between relative shadow-lg"
+        style={{
+          background: "#fbf3d5",
+          backgroundImage: "radial-gradient(#eedcb0 15%, transparent 16%), linear-gradient(to bottom, transparent 27px, rgba(160, 110, 60, 0.22) 28px)",
+          backgroundSize: "100% 28px",
+          boxShadow: "inset 0 0 25px rgba(150, 95, 45, 0.25)"
+        }}
+      >
+        <div className="flex items-center justify-between border-b border-amber-900/30 pb-1.5 mb-1.5">
+          <div className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
+            <span>🪶</span> 旅人の日記帳 {selectedDateStr ? `(${selectedDateStr})` : ""}
+          </div>
+          <div className="text-[10px] text-amber-900/70 font-mono flex items-center gap-1.5">
+            {isSaving ? (
+              <span className="text-amber-700 animate-pulse font-bold">● 薪にくべて保存中...</span>
+            ) : (
+              <span>自動保存済み</span>
+            )}
+          </div>
+        </div>
+
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleInput}
+          rows={5}
+          placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
+          className="w-full bg-transparent text-stone-900 font-medium text-sm leading-7 focus:outline-none resize-none placeholder:text-stone-400 selection:bg-amber-300/60 min-h-[120px]"
+        />
+
+        <div className="pt-2 border-t border-amber-900/20 flex items-center justify-between text-[10px] text-amber-900/70 font-medium">
+          <span>🪵 打った文字すべてがあなたの避難所の薪になります</span>
+          <span className="text-[9px] bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-800/20">
+            心安らぐセーフスペース
+          </span>
+        </div>
+      </div>
+
     </div>
   );
 }
