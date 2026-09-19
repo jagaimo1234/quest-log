@@ -13,6 +13,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
 import { BonfireDiary } from "@/components/BonfireDiary";
 import { ImageAttachmentArea, ImageAttachmentAreaRef } from "@/components/ImageAttachmentArea";
+import { RichDocEditor } from "@/components/RichDocEditor";
 
 const QUEST_TYPE_LABELS: Record<string, string> = {
   Daily: "D",
@@ -3685,24 +3686,17 @@ function BulletinBoard() {
         </div>
         <div className="p-3 flex flex-col gap-1">
           <div className="text-[11px] font-bold text-stone-500 mb-1">📝 日間掲示板 (自由欄)</div>
-          <textarea
-            ref={contentRef}
+          <RichDocEditor
             value={content}
-            onChange={handleContentChange}
-            onPaste={(e) => dayAttachRef.current?.handlePasteEvent(e)}
+            onChange={(val) => {
+              setContent(val);
+              if (contentTimeout.current) clearTimeout(contentTimeout.current);
+              contentTimeout.current = setTimeout(() => triggerSave(val, diary), 1000);
+            }}
             placeholder="今日の自由に書き込めるメモ..."
-            rows={1}
-            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
+            textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
+            minHeight={60}
           />
-          <div className="pt-1">
-            <ImageAttachmentArea
-              ref={dayAttachRef}
-              targetType="bulletin"
-              targetId={selectedDate}
-              compact
-              buttonLabel="自由欄写真"
-            />
-          </div>
         </div>
         {/* 日間掲示板（焚き火の避難所・日記欄） */}
         <BonfireDiary

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ImageAttachmentArea, ImageAttachmentAreaRef } from "./ImageAttachmentArea";
+import { RichDocEditor, extractPlainText } from "./RichDocEditor";
 
 interface BonfireDiaryProps {
   value: string;
@@ -56,14 +57,14 @@ export function BonfireDiary({
     } catch {}
   };
 
-  // Auto resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = Math.max(120, textareaRef.current.scrollHeight) + "px";
     }
-    setCharCount(value?.length || 0);
-    updateMetrics(value?.length || 0);
+    const pure = extractPlainText(value || "");
+    setCharCount(pure.length);
+    updateMetrics(pure.length);
   }, [value, isBonfireMode]);
 
   const updateMetrics = (length: number) => {
@@ -371,28 +372,29 @@ export function BonfireDiary({
   }, [isBonfireMode]);
 
   // Handle typing reaction
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e);
+  const triggerTypingPulse = () => {
     typingPulseRef.current = Math.min(1.0, typingPulseRef.current + 0.4);
-
-    // Spawn flying spark
-    if (textareaRef.current && canvasRef.current) {
+    if (canvasRef.current) {
       spawnWordSpark();
     }
     triggerHeatRipple();
     playSoftPopSound();
   };
 
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange(e);
+    triggerTypingPulse();
+  };
+
   const spawnWordSpark = () => {
-    if (!textareaRef.current || !canvasRef.current) return;
+    if (!canvasRef.current) return;
     const spark = document.createElement("div");
     spark.innerText = "✨";
 
-    const textRect = textareaRef.current.getBoundingClientRect();
-    const startX = textRect.left + 30 + Math.random() * (textRect.width - 60);
-    const startY = textRect.top + 30 + Math.random() * 80;
-
     const canvasRect = canvasRef.current.getBoundingClientRect();
+    const startX = canvasRect.left + 40 + Math.random() * (canvasRect.width - 80);
+    const startY = canvasRect.bottom + 30 + Math.random() * 70;
+
     const targetX = canvasRect.left + canvasRect.width * 0.5 - startX;
     const targetY = canvasRect.top + canvasRect.height - 24 - startY;
 
@@ -556,24 +558,19 @@ export function BonfireDiary({
             <span>🔥</span> 焚き火モードに切替
           </button>
         </div>
-        <textarea
-          ref={textareaRef}
+        <RichDocEditor
           value={value}
-          onChange={handleInput}
-          onPaste={(e) => attachmentRef.current?.handlePasteEvent(e)}
+          onChange={(newVal) => {
+            const fakeEvent = { target: { value: newVal } } as any;
+            onChange(fakeEvent);
+            const pure = extractPlainText(newVal);
+            setCharCount(pure.length);
+            updateMetrics(pure.length);
+          }}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
-          rows={3}
-          className="w-full min-h-[70px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-amber-300/80 resize-none text-amber-950 leading-relaxed"
+          textAreaClassName="text-amber-950 text-sm leading-6 placeholder:text-amber-400/80"
+          minHeight={80}
         />
-        <div className="pt-2 border-t border-amber-200/50">
-          <ImageAttachmentArea
-            ref={attachmentRef}
-            targetType="diary"
-            targetId={date || selectedDateStr || "today"}
-            compact
-            buttonLabel="写真・資料を追加"
-          />
-        </div>
       </div>
     );
   }
@@ -733,25 +730,20 @@ export function BonfireDiary({
           </div>
         </div>
 
-        <textarea
-          ref={textareaRef}
+        <RichDocEditor
           value={value}
-          onChange={handleInput}
-          onPaste={(e) => attachmentRef.current?.handlePasteEvent(e)}
-          rows={5}
+          onChange={(newVal) => {
+            const fakeEvent = { target: { value: newVal } } as any;
+            onChange(fakeEvent);
+            const pure = extractPlainText(newVal);
+            setCharCount(pure.length);
+            updateMetrics(pure.length);
+            triggerTypingPulse();
+          }}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
-          className="w-full bg-transparent text-stone-900 font-medium text-sm leading-6 focus:outline-none resize-none placeholder:text-stone-400 selection:bg-amber-300/60 min-h-[120px]"
+          textAreaClassName="text-stone-900 font-medium text-sm leading-6 selection:bg-amber-300/60 placeholder:text-stone-400"
+          minHeight={130}
         />
-
-        {/* 写真・スケッチ添付エリア */}
-        <div className="pt-2.5 pb-1 border-t border-amber-900/15">
-          <ImageAttachmentArea
-            ref={attachmentRef}
-            targetType="diary"
-            targetId={date || selectedDateStr || "today"}
-            buttonLabel="写真・スケッチを追加"
-          />
-        </div>
 
         <div className="pt-2 border-t border-amber-900/20 flex items-center justify-between text-[10px] text-amber-900/70 font-medium">
           <span>🪵 打った文字すべてがあなたの避難所の薪になります</span>
