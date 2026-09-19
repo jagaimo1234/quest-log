@@ -2423,7 +2423,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground" onClick={() => setIsRelaxOpen(false)}>
-      <main className={`${planningViewMode === 'weekly' ? 'w-full max-w-none px-4 sm:px-8 py-8' : 'layout-container py-8'} mx-auto`}>
+      <main className="layout-container py-8 mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold tracking-tight">Quest Log</h1>
           <div className="flex gap-4">
@@ -3651,45 +3651,33 @@ function BulletinBoard() {
       <div className="flex flex-col divide-y divide-stone-200">
         <div className="p-3 flex flex-col gap-1 bg-stone-50/50">
           <div className="text-[11px] font-bold text-stone-500 mb-1">📅 月間掲示板 {format(selectedDateObj, "yyyy年M月")}</div>
-          <textarea
-            ref={monthRef}
+          <RichDocEditor
             value={monthContent}
-            onChange={handleMonthChange}
-            onPaste={(e) => monthAttachRef.current?.handlePasteEvent(e)}
+            onChange={(val) => {
+              setMonthContent(val);
+              if (monthTimeout.current) clearTimeout(monthTimeout.current);
+              monthTimeout.current = setTimeout(() => triggerSaveMonth(val), 1000);
+            }}
             placeholder="今月の目標、領収書のメモ、忘れたくないこと..."
-            rows={1}
-            className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
+            textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
+            minHeight={50}
+            theme="stone"
           />
-          <div className="pt-1">
-            <ImageAttachmentArea
-              ref={monthAttachRef}
-              targetType="bulletin"
-              targetId={selectedMonthStr}
-              compact
-              buttonLabel="月間メモ写真"
-            />
-          </div>
         </div>
         <div className="p-3 flex flex-col gap-1 bg-stone-50/30">
           <div className="text-[11px] font-bold text-stone-500 mb-1">📆 週間掲示板 ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)</div>
-          <textarea
-            ref={weekRef}
+          <RichDocEditor
             value={weekContent}
-            onChange={handleWeekChange}
-            onPaste={(e) => weekAttachRef.current?.handlePasteEvent(e)}
+            onChange={(val) => {
+              setWeekContent(val);
+              if (weekTimeout.current) clearTimeout(weekTimeout.current);
+              weekTimeout.current = setTimeout(() => triggerSaveWeek(val), 1000);
+            }}
             placeholder="今週の予定、メモ..."
-            rows={1}
-            className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
+            textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
+            minHeight={50}
+            theme="stone"
           />
-          <div className="pt-1">
-            <ImageAttachmentArea
-              ref={weekAttachRef}
-              targetType="bulletin"
-              targetId={selectedWeekStr}
-              compact
-              buttonLabel="週間メモ写真"
-            />
-          </div>
         </div>
         <div className="p-3 flex flex-col gap-1">
           <div className="text-[11px] font-bold text-stone-500 mb-1">📝 日間掲示板 (自由欄)</div>
@@ -3703,6 +3691,7 @@ function BulletinBoard() {
             placeholder="今日の自由に書き込めるメモ..."
             textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
             minHeight={60}
+            theme="stone"
           />
         </div>
         {/* 日間掲示板（焚き火の避難所・日記欄） */}
@@ -3827,34 +3816,26 @@ function InvestmentBoard() {
     });
   };
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+  const handleContentChange = (val: string) => {
     setContent(val);
-    autoResize(e.target);
     if (contentTimeout.current) clearTimeout(contentTimeout.current);
     contentTimeout.current = setTimeout(() => triggerSave(val, diary), 1000);
   };
 
-  const handleDiaryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+  const handleDiaryChange = (val: string) => {
     setDiary(val);
-    autoResize(e.target);
     if (diaryTimeout.current) clearTimeout(diaryTimeout.current);
     diaryTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
   };
 
-  const handleMonthChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+  const handleMonthChange = (val: string) => {
     setMonthContent(val);
-    autoResize(e.target);
     if (monthTimeout.current) clearTimeout(monthTimeout.current);
     monthTimeout.current = setTimeout(() => triggerSaveMonth(val), 1000);
   };
 
-  const handleWeekChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+  const handleWeekChange = (val: string) => {
     setWeekContent(val);
-    autoResize(e.target);
     if (weekTimeout.current) clearTimeout(weekTimeout.current);
     weekTimeout.current = setTimeout(() => triggerSaveWeek(val), 1000);
   };
@@ -3923,46 +3904,46 @@ function InvestmentBoard() {
       <div className="flex flex-col divide-y divide-teal-200">
         <div className="p-3 flex flex-col gap-1 bg-teal-50/50">
           <div className="text-[11px] font-bold text-teal-700 mb-1">📅 月間投資目標 / 総資産メモ {format(selectedDateObj, "yyyy年M月")}</div>
-          <textarea
-            ref={monthRef}
+          <RichDocEditor
             value={monthContent}
             onChange={handleMonthChange}
             placeholder="今月の投資方針、目標利益、資産の変動など..."
-            rows={1}
-            className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-300 resize-none text-teal-900 leading-relaxed"
+            textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-300"
+            minHeight={50}
+            theme="teal"
           />
         </div>
         <div className="p-3 flex flex-col gap-1 bg-teal-50/30">
           <div className="text-[11px] font-bold text-teal-700 mb-1">📆 週間相場観 / ウォッチリスト ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)</div>
-          <textarea
-            ref={weekRef}
+          <RichDocEditor
             value={weekContent}
             onChange={handleWeekChange}
             placeholder="今週注目している銘柄、予想されるイベントなど..."
-            rows={1}
-            className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-300 resize-none text-teal-900 leading-relaxed"
+            textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-300"
+            minHeight={50}
+            theme="teal"
           />
         </div>
         <div className="p-3 flex flex-col gap-1">
           <div className="text-[11px] font-bold text-teal-700 mb-1">📝 今日のトレード記録 (自由欄)</div>
-          <textarea
-            ref={contentRef}
+          <RichDocEditor
             value={content}
             onChange={handleContentChange}
             placeholder="今日のトレード内容、決済の理由など..."
-            rows={1}
-            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-400 resize-none text-teal-900 leading-relaxed"
+            textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-400"
+            minHeight={60}
+            theme="teal"
           />
         </div>
         <div className="p-3 flex flex-col gap-1">
           <div className="text-[11px] font-bold text-emerald-700 mb-1">📔 今日の所感 (日記欄)</div>
-          <textarea
-            ref={diaryRef}
+          <RichDocEditor
             value={diary}
             onChange={handleDiaryChange}
             placeholder="相場の熱量、メンタルの状況など..."
-            rows={1}
-            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-emerald-400/70 resize-none text-emerald-900 leading-relaxed"
+            textAreaClassName="text-emerald-900 text-sm leading-6 placeholder:text-emerald-400/70"
+            minHeight={60}
+            theme="emerald"
           />
         </div>
       </div>
@@ -4043,18 +4024,14 @@ function MonthlyGoalBoard() {
     });
   };
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+  const handleContentChange = (val: string) => {
     setContent(val);
-    autoResize(e.target);
     if (contentTimeout.current) clearTimeout(contentTimeout.current);
     contentTimeout.current = setTimeout(() => triggerSave(val, awareness), 1000);
   };
 
-  const handleAwarenessChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+  const handleAwarenessChange = (val: string) => {
     setAwareness(val);
-    autoResize(e.target);
     if (awarenessTimeout.current) clearTimeout(awarenessTimeout.current);
     awarenessTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
   };
@@ -4093,39 +4070,26 @@ function MonthlyGoalBoard() {
           <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 mb-1">
             <span>🏃</span> 行動
           </div>
-          <textarea
-            ref={contentRef}
+          <RichDocEditor
             value={content}
             onChange={handleContentChange}
-            onPaste={(e) => goalAttachRef.current?.handlePasteEvent(e)}
             placeholder="今月やること、取り組む行動..."
-            rows={1}
-            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-emerald-800/30 resize-none text-emerald-900 leading-relaxed"
+            textAreaClassName="text-emerald-900 text-sm leading-6 placeholder:text-emerald-800/30"
+            minHeight={60}
+            theme="emerald"
           />
         </div>
         <div className="p-3 flex flex-col gap-1">
           <div className="flex items-center gap-1 text-[11px] font-bold text-teal-700 mb-1">
             <span>🧠</span> 意識
           </div>
-          <textarea
-            ref={awarenessRef}
+          <RichDocEditor
             value={awareness}
             onChange={handleAwarenessChange}
-            onPaste={(e) => goalAttachRef.current?.handlePasteEvent(e)}
             placeholder="意識したいこと、マインド..."
-            rows={1}
-            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-800/30 resize-none text-teal-900 leading-relaxed"
-          />
-        </div>
-        <div className="p-3 bg-emerald-50/40">
-          <div className="text-[11px] font-bold text-emerald-800 mb-1 flex items-center gap-1">
-            <span>🖼️</span> 目標ビジョン写真・資料
-          </div>
-          <ImageAttachmentArea
-            ref={goalAttachRef}
-            targetType="goal"
-            targetId={selectedMonthStr}
-            buttonLabel="ビジョン写真・資料を追加"
+            textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-800/30"
+            minHeight={60}
+            theme="emerald"
           />
         </div>
       </div>

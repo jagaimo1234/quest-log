@@ -78,6 +78,7 @@ interface RichDocEditorProps {
   minHeight?: number;
   onTextChange?: (pureText: string) => void;
   showToolbar?: boolean;
+  theme?: "amber" | "emerald" | "teal" | "stone" | "default";
 }
 
 export function RichDocEditor({
@@ -89,6 +90,7 @@ export function RichDocEditor({
   minHeight = 120,
   onTextChange,
   showToolbar = true,
+  theme = "default",
 }: RichDocEditorProps) {
   const [blocks, setBlocks] = useState<DocBlock[]>(() => parseDocBlocks(value));
   const [isUploading, setIsUploading] = useState(false);
@@ -289,8 +291,46 @@ export function RichDocEditor({
     }
   };
 
+  const themeStyles = {
+    amber: {
+      cardBorder: "border-amber-900/30",
+      border: "border-amber-900/15",
+      btn: "bg-amber-100/70 hover:bg-amber-200/80 border-amber-800/30 text-amber-900",
+      icon: "text-amber-700",
+      hint: "text-amber-900/60",
+    },
+    emerald: {
+      cardBorder: "border-emerald-600/30",
+      border: "border-emerald-200",
+      btn: "bg-emerald-100/70 hover:bg-emerald-200/80 border-emerald-300 text-emerald-900",
+      icon: "text-emerald-700",
+      hint: "text-emerald-800/60",
+    },
+    teal: {
+      cardBorder: "border-teal-600/30",
+      border: "border-teal-200",
+      btn: "bg-teal-100/70 hover:bg-teal-200/80 border-teal-300 text-teal-900",
+      icon: "text-teal-700",
+      hint: "text-teal-800/60",
+    },
+    stone: {
+      cardBorder: "border-stone-400/30",
+      border: "border-stone-200",
+      btn: "bg-stone-100 hover:bg-stone-200/80 border-stone-300 text-stone-700",
+      icon: "text-stone-600",
+      hint: "text-stone-500/70",
+    },
+    default: {
+      cardBorder: "border-stone-400/30",
+      border: "border-stone-200",
+      btn: "bg-stone-100 hover:bg-stone-200/80 border-stone-300 text-stone-700",
+      icon: "text-stone-600",
+      hint: "text-stone-500/70",
+    },
+  }[theme];
+
   return (
-    <div className={`flex flex-col relative ${className}`}>
+    <div className={`relative flex flex-col ${className}`}>
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -307,7 +347,7 @@ export function RichDocEditor({
             return (
               <div
                 key={block.id}
-                className="group relative my-2.5 max-w-lg rounded-xl overflow-hidden border border-amber-900/30 shadow-md bg-stone-900/10 transition-all hover:shadow-lg"
+                className={`group relative my-2.5 max-w-lg rounded-xl overflow-hidden border ${themeStyles.cardBorder} shadow-md bg-stone-900/10 transition-all hover:shadow-lg`}
               >
                 <img
                   src={block.src}
@@ -367,23 +407,23 @@ export function RichDocEditor({
 
       {/* Toolbar / Inline photo button */}
       {showToolbar && (
-        <div className="pt-2 mt-1 border-t border-amber-900/15 flex items-center justify-between text-xs">
+        <div className={`pt-2 mt-1 border-t ${themeStyles.border} flex items-center justify-between text-xs`}>
           <button
             type="button"
             disabled={isUploading}
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-2 py-1 bg-amber-100/70 hover:bg-amber-200/80 border border-amber-800/30 text-amber-900 text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs"
+            className={`flex items-center gap-1.5 px-2 py-1 ${themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
             title="カーソル位置に写真を差し込みます"
           >
             {isUploading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
+              <Loader2 className={`w-3.5 h-3.5 animate-spin ${themeStyles.icon}`} />
             ) : (
-              <Camera className="w-3.5 h-3.5 text-amber-700" />
+              <Camera className={`w-3.5 h-3.5 ${themeStyles.icon}`} />
             )}
             <span>{isUploading ? "圧縮中..." : "📷 文章中に写真を差し込む"}</span>
           </button>
 
-          <span className="text-[10px] text-amber-900/60 font-mono hidden sm:inline select-none">
+          <span className={`text-[10px] ${themeStyles.hint} font-mono hidden sm:inline select-none`}>
             💡 Ctrl+V でカーソル位置に直接貼り付け可能
           </span>
         </div>
