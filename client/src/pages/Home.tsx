@@ -11,6 +11,7 @@ import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
+import { BonfireDiary } from "@/components/BonfireDiary";
 
 const QUEST_TYPE_LABELS: Record<string, string> = {
   Daily: "D",
@@ -3638,20 +3639,13 @@ function BulletinBoard() {
             className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
           />
         </div>
-        <div className="p-3 flex flex-col gap-1">
-          <div className="flex items-baseline gap-2 flex-wrap mb-1">
-            <span className="text-[11px] font-bold text-amber-600">📔 日間掲示板 (日記欄)</span>
-            <span className="text-[10px] text-amber-700/80 font-normal">── ここはあなたの避難場所。いつでも寄りなさい。</span>
-          </div>
-          <textarea
-            ref={diaryRef}
-            value={diary}
-            onChange={handleDiaryChange}
-            placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
-            rows={1}
-            className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-amber-300/80 resize-none text-amber-900 leading-relaxed"
-          />
-        </div>
+        {/* 日間掲示板（焚き火の避難所・日記欄） */}
+        <BonfireDiary
+          value={diary}
+          onChange={handleDiaryChange}
+          selectedDateStr={displaySelectedDateStr}
+          isSaving={isSaving}
+        />
       </div>
 
       {/* Date picker */}
