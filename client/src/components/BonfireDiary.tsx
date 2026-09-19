@@ -102,8 +102,8 @@ export function BonfireDiary({
       width = canvas.width = rect.width;
       height = canvas.height = rect.height;
       // Centered fire in the horizontal top banner
-      fireBaseX = width * 0.52;
-      fireBaseY = height - 26;
+      fireBaseX = width * 0.5;
+      fireBaseY = height - 24;
     };
     resize();
     window.addEventListener("resize", resize);
@@ -389,8 +389,8 @@ export function BonfireDiary({
     const startY = textRect.top + 30 + Math.random() * 80;
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
-    const targetX = canvasRect.left + canvasRect.width * 0.52 - startX;
-    const targetY = canvasRect.top + canvasRect.height - 26 - startY;
+    const targetX = canvasRect.left + canvasRect.width * 0.5 - startX;
+    const targetY = canvasRect.top + canvasRect.height - 24 - startY;
 
     spark.style.cssText = `
       position: fixed;
@@ -419,8 +419,8 @@ export function BonfireDiary({
     if (!rippleLayerRef.current || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const ring = document.createElement("div");
-    const cx = rect.width * 0.52;
-    const cy = rect.height - 26;
+    const cx = rect.width * 0.5;
+    const cy = rect.height - 24;
 
     ring.style.cssText = `
       position: absolute;
@@ -606,69 +606,90 @@ export function BonfireDiary({
         </div>
       </div>
 
-      {/* 2. TOP BANNER: Bonfire Camp Stage (高さ固定で間延びを完全に防止) */}
-      <div className="w-full h-32 sm:h-36 rounded-xl border border-amber-900/50 bg-[#080b12] relative overflow-hidden shadow-inner flex items-center justify-between px-3 sm:px-4">
+      {/* 2. STATUS RIBBON: Fire Level & Fuel Words (バナーから独立してスッキリ配置) */}
+      <div className="flex items-center justify-between bg-black/50 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-amber-900/40 text-xs flex-wrap gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="text-amber-400 font-bold text-[11px] flex items-center gap-1">
+            <span>🔥</span> {fireStageName}
+          </span>
+          <span className="text-stone-400">|</span>
+          <span className="text-amber-200/80 text-[10px] font-mono">
+            言葉の薪: <span className="font-bold text-yellow-300">{charCount}</span> 文字
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] text-amber-300/70">炎の勢い</span>
+          <div className="w-24 sm:w-36 h-2 bg-stone-950 rounded-full overflow-hidden border border-stone-800">
+            <div
+              className="h-full bg-gradient-to-r from-amber-600 via-orange-400 to-yellow-300 transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.round((charCount / 250) * 100))}%` }}
+            />
+          </div>
+          <span className="text-[9px] text-amber-300/80 font-mono font-bold">
+            {Math.min(100, Math.round((charCount / 250) * 100))}%
+          </span>
+        </div>
+      </div>
+
+      {/* 3. CAMP STAGE: Panoramic Fire & Traveler (焚き火とイラストが絶対に被らない安全設計) */}
+      <div className="w-full h-36 sm:h-40 rounded-xl border border-amber-900/50 bg-gradient-to-b from-[#060810] via-[#0d1017] to-[#140b05] relative overflow-hidden shadow-inner flex items-end justify-between px-4 sm:px-12 pb-2.5">
         
-        {/* Ambient Glow */}
+        {/* Ambient Fire Glow (Centered behind fire) */}
         <div
           ref={ambientGlowRef}
-          className="absolute bottom-2 left-1/2 w-64 h-64 -translate-x-1/2 rounded-full pointer-events-none filter blur-3xl transition-transform"
+          className="absolute bottom-1 left-1/2 w-64 h-64 -translate-x-1/2 rounded-full pointer-events-none filter blur-3xl transition-transform"
           style={{
             background: "radial-gradient(circle, rgba(251, 191, 36, 0.45) 0%, rgba(245, 158, 11, 0.22) 40%, transparent 75%)"
           }}
         />
 
+        {/* Heat ripple wave layer */}
         <div ref={rippleLayerRef} className="absolute inset-0 pointer-events-none overflow-hidden" />
 
-        {/* Canvas for Bonfire */}
+        {/* Canvas for Bonfire (Strictly centered at 50%) */}
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
 
-        {/* Left: Traveler & Status Info Card */}
-        <div className="relative z-20 flex items-center gap-2.5 bg-black/60 backdrop-blur-xs p-2 rounded-lg border border-amber-900/50">
-          <div className="flex flex-col items-center">
-            <div className="text-2xl sm:text-3xl filter drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] opacity-95 scale-x-[-1]">
-              🧘‍♂️
-            </div>
-            <span className="text-[7px] sm:text-[8px] font-bold text-amber-300/90 bg-black/70 px-1 rounded border border-amber-900/50 mt-0.5">
-              {travelerStatus.split(" ")[0]}
-            </span>
-          </div>
+        {/* Ground line shadow for realism */}
+        <div className="absolute bottom-0 inset-x-0 h-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-none z-10" />
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-[10px]">
-              <span className="text-amber-300 font-bold flex items-center gap-1">
-                <span>🔥</span> {fireStageName}
-              </span>
-              <span className="text-amber-200/80 font-mono text-[9px]">
-                言葉の薪: <span className="font-bold text-yellow-300">{charCount}</span> 文字
-              </span>
-            </div>
-            <div className="w-32 sm:w-44 h-1.5 bg-stone-950 rounded-full overflow-hidden border border-stone-800">
-              <div
-                className="h-full bg-gradient-to-r from-amber-600 via-orange-400 to-yellow-300 transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.round((charCount / 250) * 100))}%` }}
-              />
-            </div>
-            <p className="text-[8px] sm:text-[9px] text-amber-300/70">
-              文字を打つたびに火が呼吸します
-            </p>
-          </div>
+        {/* Top Floating Atmosphere Hint */}
+        <div className="absolute top-2 inset-x-0 text-center pointer-events-none z-20">
+          <span className="text-[9px] sm:text-[10px] text-amber-200/50 tracking-wider">
+            文字を打つたびに火が呼吸し、思考が温もりに変わります
+          </span>
         </div>
 
-        {/* Right: Extra Wood stack (Hidden on very small screens) */}
-        <div className="relative z-20 flex-col items-center opacity-90 hidden sm:flex bg-black/50 backdrop-blur-xs p-1.5 rounded-lg border border-amber-900/40">
-          <svg className="w-11 h-7" viewBox="0 0 60 40" fill="none">
-            <ellipse cx="12" cy="30" rx="8" ry="4" fill="#a0522d" stroke="#3e1c0d" stroke-width="2"/>
-            <path d="M12 26 L48 24 L48 32 L12 34 Z" fill="#6d371a" stroke="#3e1c0d" stroke-width="2"/>
-            <ellipse cx="48" cy="28" rx="7" ry="3.5" fill="#c48148" stroke="#3e1c0d" stroke-width="1.5"/>
-            <ellipse cx="18" cy="34" rx="7" ry="3.5" fill="#8b4513" stroke="#3e1c0d" stroke-width="2"/>
-            <path d="M18 30.5 L52 29 L52 36 L18 37.5 Z" fill="#582a12" stroke="#3e1c0d" stroke-width="2"/>
-            <ellipse cx="52" cy="32.5" rx="6" ry="3" fill="#b0703c" stroke="#3e1c0d" stroke-width="1.5"/>
-            <ellipse cx="14" cy="22" rx="7" ry="3.5" fill="#964b00" stroke="#3e1c0d" stroke-width="2"/>
-            <path d="M14 18.5 L46 17 L46 24 L14 25.5 Z" fill="#753815" stroke="#3e1c0d" stroke-width="2"/>
-            <ellipse cx="46" cy="20.5" rx="6" ry="3" fill="#d29054" stroke="#3e1c0d" stroke-width="1.5"/>
-          </svg>
-          <span className="text-[7px] font-black text-amber-400/90 bg-black/70 px-1 rounded border border-amber-900/50 mt-0.5">
+        {/* LEFT: Traveler (Sitting beside fire at safe distance) */}
+        <div className="relative z-20 flex flex-col items-center select-none pointer-events-none">
+          <div className="relative flex flex-col items-center">
+            <div className="w-8 h-1.5 bg-black/60 rounded-full blur-[1px] absolute -bottom-0.5" />
+            <div className="text-3xl sm:text-4xl filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.35)] scale-x-[-1] transition-transform">
+              🧘‍♂️
+            </div>
+          </div>
+          <span className="text-[8px] sm:text-[9px] font-bold text-amber-300/90 bg-black/80 px-1.5 py-0.5 rounded border border-amber-900/60 mt-1 shadow-xs tracking-wider">
+            {travelerStatus.split(" ")[0]}
+          </span>
+        </div>
+
+        {/* RIGHT: Extra Firewood Stack (Neat camp reserve) */}
+        <div className="relative z-20 flex flex-col items-center select-none pointer-events-none">
+          <div className="relative flex flex-col items-center">
+            <div className="w-12 h-1.5 bg-black/60 rounded-full blur-[1px] absolute -bottom-0.5" />
+            <svg className="w-11 sm:w-14 h-7 sm:h-9 filter drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]" viewBox="0 0 60 40" fill="none">
+              <ellipse cx="12" cy="30" rx="8" ry="4" fill="#a0522d" stroke="#3e1c0d" strokeWidth="2"/>
+              <path d="M12 26 L48 24 L48 32 L12 34 Z" fill="#6d371a" stroke="#3e1c0d" strokeWidth="2"/>
+              <ellipse cx="48" cy="28" rx="7" ry="3.5" fill="#c48148" stroke="#3e1c0d" strokeWidth="1.5"/>
+              <ellipse cx="18" cy="34" rx="7" ry="3.5" fill="#8b4513" stroke="#3e1c0d" strokeWidth="2"/>
+              <path d="M18 30.5 L52 29 L52 36 L18 37.5 Z" fill="#582a12" stroke="#3e1c0d" strokeWidth="2"/>
+              <ellipse cx="52" cy="32.5" rx="6" ry="3" fill="#b0703c" stroke="#3e1c0d" strokeWidth="1.5"/>
+              <ellipse cx="14" cy="22" rx="7" ry="3.5" fill="#964b00" stroke="#3e1c0d" strokeWidth="2"/>
+              <path d="M14 18.5 L46 17 L46 24 L14 25.5 Z" fill="#753815" stroke="#3e1c0d" strokeWidth="2"/>
+              <ellipse cx="46" cy="20.5" rx="6" ry="3" fill="#d29054" stroke="#3e1c0d" strokeWidth="1.5"/>
+            </svg>
+          </div>
+          <span className="text-[8px] sm:text-[9px] font-bold text-amber-400/90 bg-black/80 px-1.5 py-0.5 rounded border border-amber-900/60 mt-1 shadow-xs tracking-wider">
             予備の薪
           </span>
         </div>
