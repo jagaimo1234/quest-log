@@ -281,25 +281,27 @@ function QuestCreateDialog({
   onCreated,
   planningDayOffset = 0,
   defaultDate,
+  defaultType = "FreeDirect",
   trigger
 }: {
   onCreated: () => void;
   planningDayOffset?: number;
   defaultDate?: Date;
+  defaultType?: "FreeDirect" | "Free" | "Relax";
   trigger?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [questType, setQuestType] = useState("Free");
+  const [questType, setQuestType] = useState<string>(defaultType);
   const [startDateVal, setStartDateVal] = useState("");
   const [deadlineVal, setDeadlineVal] = useState("");
   const [targetCountVal, setTargetCountVal] = useState("1");
   const createQuest = trpc.quest.create.useMutation();
-
   const createTemplate = trpc.template.create.useMutation();
 
-  // When dialog opens, auto-fill startDate based on planning offset or defaultDate
+  // When dialog opens, auto-fill startDate and defaultType
   useEffect(() => {
     if (open) {
+      setQuestType(defaultType);
       if (defaultDate) {
         setStartDateVal(format(defaultDate, "yyyy-MM-dd"));
       } else if (planningDayOffset > 0) {
@@ -307,52 +309,95 @@ function QuestCreateDialog({
         d.setDate(d.getDate() + planningDayOffset);
         setStartDateVal(format(d, "yyyy-MM-dd"));
       } else {
-        setStartDateVal("");
+        setStartDateVal(format(new Date(), "yyyy-MM-dd"));
       }
       setDeadlineVal("");
       setTargetCountVal("1");
     }
-  }, [open, planningDayOffset, defaultDate]);
+  }, [open, planningDayOffset, defaultDate, defaultType]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const type = formData.get("questType") as string;
+    const name = (formData.get("questName") as string)?.trim() || "Untitled Mission";
 
     if (type === "Relax") {
       await createTemplate.mutateAsync({
-        questName: formData.get("questName") as string,
+        questName: name,
         questType: "Relax",
         difficulty: "1",
         frequency: 1,
       });
+      toast.success("Created Relax Mission");
     } else if (type === "Free") {
+      // Free (Pool only)
       await createTemplate.mutateAsync({
-        questName: formData.get("questName") as string,
+        questName: name,
         questType: "Free",
-        difficulty: formData.get("difficulty") as any,
+        difficulty: (formData.get("difficulty") as any) || "1",
         startDate: startDateVal ? parseLocalDate(startDateVal) : undefined,
         endDate: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
         frequency: parseInt(targetCountVal) || 1,
       });
+      toast.success("Created One-off Mission (Pool)");
+    } else if (type === "FreeDirect") {
+      // 1. Create Free Template (so it appears in ONE-OFF shelf)
+      const template = await createTemplate.mutateAsync({
+        questName: name,
+        questType: "Free",
+        difficulty: (formData.get("difficulty") as any) || "1",
+        startDate: startDateVal ? parseLocalDate(startDateVal) : (defaultDate || new Date()),
+        endDate: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
+        frequency: parseInt(targetCountVal) || 1,
+      });
+
+      // 2. Determine target start date for instant plan placement
+      let targetStartDate: Date;
+      if (startDateVal) {
+        targetStartDate = parseLocalDate(startDateVal);
+      } else if (defaultDate) {
+        targetStartDate = defaultDate;
+      } else if (planningDayOffset > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + planningDayOffset);
+        d.setHours(0, 0, 0, 0);
+        targetStartDate = d;
+      } else {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        targetStartDate = d;
+      }
+
+      // 3. Immediately instantiate into Planning
+      await createQuest.mutateAsync({
+        questName: name,
+        questType: "Free" as any,
+        difficulty: (formData.get("difficulty") as any) || "1",
+        templateId: template.id,
+        status: "accepted",
+        startDate: targetStartDate,
+        deadline: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
+        autoDeadline: false,
+        targetCount: 1,
+      } as any);
+
+      toast.success("Created & Added to Plan!");
     } else {
       const status = "unreceived";
-      // Compute startDate directly from planningDayOffset at submit time
-      // to guarantee correct date regardless of state timing
       let startDate: Date | undefined;
       if (startDateVal) {
         startDate = parseLocalDate(startDateVal);
       } else if (defaultDate) {
         startDate = defaultDate;
       } else if (planningDayOffset > 0) {
-        // Fallback: even if startDateVal wasn't set by useEffect, compute from offset
         const d = new Date();
         d.setDate(d.getDate() + planningDayOffset);
         d.setHours(0, 0, 0, 0);
         startDate = d;
       }
       await createQuest.mutateAsync({
-        questName: formData.get("questName") as string,
+        questName: name,
         questType: type as any,
         difficulty: formData.get("difficulty") as any,
         status: status,
@@ -374,17 +419,18 @@ function QuestCreateDialog({
       <DialogContent>
         <DialogHeader><DialogTitle>Create Mission{planningDayOffset > 0 ? " (Tomorrow)" : ""}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><Label>Name</Label><Input name="questName" required /></div>
+          <div><Label>Name</Label><Input name="questName" placeholder="ミッション名を入力..." autoFocus required /></div>
           <div><Label>Type</Label>
-            <Select name="questType" defaultValue="Free" value={questType} onValueChange={setQuestType}>
+            <Select name="questType" value={questType} onValueChange={setQuestType}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Free">One-off (Today)</SelectItem>
-                <SelectItem value="Relax">Relax Mission (Saved)</SelectItem>
+                <SelectItem value="FreeDirect">⚡ One-off (即反映 / Direct to Plan)</SelectItem>
+                <SelectItem value="Free">📦 One-off (待機列のみ / Pool only)</SelectItem>
+                <SelectItem value="Relax">☕ Relax Mission (Saved)</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {questType === "Free" && (
+          {(questType === "FreeDirect" || questType === "Free") && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -403,7 +449,7 @@ function QuestCreateDialog({
             </div>
           )}
           <input type="hidden" name="difficulty" value="1" />
-          <Button type="submit" disabled={createQuest.isPending || createTemplate.isPending}>
+          <Button type="submit" className="w-full" disabled={createQuest.isPending || createTemplate.isPending}>
             {(createQuest.isPending || createTemplate.isPending) ? "Creating..." : "Create"}
           </Button>
         </form>
