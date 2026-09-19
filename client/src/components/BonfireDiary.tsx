@@ -715,8 +715,8 @@ export function BonfireDiary({
         className="w-full rounded-xl border-2 border-[#784823] p-3.5 sm:p-4 flex flex-col justify-between relative shadow-lg"
         style={{
           background: "#fbf3d5",
-          backgroundImage: "radial-gradient(#eedcb0 15%, transparent 16%), linear-gradient(to bottom, transparent 27px, rgba(160, 110, 60, 0.22) 28px)",
-          backgroundSize: "100% 28px",
+          backgroundImage: "radial-gradient(#eedcb0 15%, transparent 16%), linear-gradient(to bottom, transparent 23px, rgba(160, 110, 60, 0.20) 24px)",
+          backgroundSize: "100% 24px",
           boxShadow: "inset 0 0 25px rgba(150, 95, 45, 0.25)"
         }}
       >
@@ -740,7 +740,7 @@ export function BonfireDiary({
           onPaste={(e) => attachmentRef.current?.handlePasteEvent(e)}
           rows={5}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
-          className="w-full bg-transparent text-stone-900 font-medium text-sm leading-7 focus:outline-none resize-none placeholder:text-stone-400 selection:bg-amber-300/60 min-h-[120px]"
+          className="w-full bg-transparent text-stone-900 font-medium text-sm leading-6 focus:outline-none resize-none placeholder:text-stone-400 selection:bg-amber-300/60 min-h-[120px]"
         />
 
         {/* 写真・スケッチ添付エリア */}
