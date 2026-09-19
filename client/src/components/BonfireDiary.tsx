@@ -452,15 +452,27 @@ export function BonfireDiary({
   };
 
   // ==========================================
-  // AUDIO CONTROLS (Gentle Ambient Campfire)
+  // AUDIO CONTROLS (Gentle Ambient Campfire & Keystroke Pops)
   // ==========================================
-  const toggleFireSound = () => {
+  const getAudioContext = () => {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        audioCtxRef.current = new AudioCtx();
+      }
     }
+    if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
+      audioCtxRef.current.resume();
+    }
+    return audioCtxRef.current;
+  };
+
+  const toggleFireSound = () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
 
     if (!isSoundOn) {
-      audioCtxRef.current.resume();
+      ctx.resume();
       startAudio();
       setIsSoundOn(true);
     } else {
@@ -470,8 +482,8 @@ export function BonfireDiary({
   };
 
   const startAudio = () => {
-    if (!audioCtxRef.current) return;
-    const ctx = audioCtxRef.current;
+    const ctx = getAudioContext();
+    if (!ctx) return;
     const bufferSize = ctx.sampleRate * 2;
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
@@ -515,22 +527,31 @@ export function BonfireDiary({
   };
 
   const playSoftPopSound = () => {
-    if (!audioCtxRef.current || !isSoundOn) return;
-    const ctx = audioCtxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    try {
+      const ctx = getAudioContext();
+      if (!ctx) return;
 
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(130 + Math.random() * 70, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(35, ctx.currentTime + 0.04);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    gain.gain.setValueAtTime(0.04 + Math.random() * 0.03, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+      const now = ctx.currentTime;
+      // Soft organic woody ember pop
+      osc.type = "sine";
+      const baseFreq = 140 + Math.random() * 70;
+      osc.frequency.setValueAtTime(baseFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(32, now + 0.045);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.04);
+      const vol = 0.05 + Math.random() * 0.03;
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.045);
+    } catch (e) {
+      // AudioContext could be blocked if no user gesture yet
+    }
   };
 
   // CLEANUP SOUND
@@ -566,10 +587,12 @@ export function BonfireDiary({
             const pure = extractPlainText(newVal);
             setCharCount(pure.length);
             updateMetrics(pure.length);
+            triggerTypingPulse();
           }}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
           textAreaClassName="text-amber-950 text-sm leading-6 placeholder:text-amber-400/80"
           minHeight={80}
+          theme="amber"
         />
       </div>
     );
@@ -743,6 +766,7 @@ export function BonfireDiary({
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
           textAreaClassName="text-stone-900 font-medium text-sm leading-6 selection:bg-amber-300/60 placeholder:text-stone-400"
           minHeight={130}
+          theme="amber"
         />
 
         <div className="pt-2 border-t border-amber-900/20 flex items-center justify-between text-[10px] text-amber-900/70 font-medium">
