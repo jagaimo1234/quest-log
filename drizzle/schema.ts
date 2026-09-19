@@ -419,3 +419,21 @@ export const insightFeedback = sqliteTable("insight_feedback", {
 
 export type InsightFeedback = typeof insightFeedback.$inferSelect;
 export type InsertInsightFeedback = typeof insightFeedback.$inferInsert;
+
+/**
+ * 添付ファイル（写真・画像）テーブル
+ * 目標・掲示板・日記・インサイト等で共通利用
+ */
+export const attachments = sqliteTable("attachments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  targetType: text("targetType").notNull(), // 'goal', 'bulletin', 'diary', 'insight', 'moai', 'kaizen'
+  targetId: text("targetId").notNull(),     // 日付 'YYYY-MM-DD', 'YYYY-MM' または レコードID
+  dataUrl: text("dataUrl").notNull(),       // WebP圧縮済みのBase64画像データ
+  fileName: text("fileName"),               // ファイル名（任意）
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type Attachment = typeof attachments.$inferSelect;
+export type InsertAttachment = typeof attachments.$inferInsert;
+

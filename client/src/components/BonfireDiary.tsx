@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
+import { ImageAttachmentArea, ImageAttachmentAreaRef } from "./ImageAttachmentArea";
 
 interface BonfireDiaryProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  date?: string;
   selectedDateStr?: string;
   isSaving?: boolean;
 }
@@ -10,6 +12,7 @@ interface BonfireDiaryProps {
 export function BonfireDiary({
   value,
   onChange,
+  date,
   selectedDateStr,
   isSaving
 }: BonfireDiaryProps) {
@@ -26,6 +29,7 @@ export function BonfireDiary({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ambientGlowRef = useRef<HTMLDivElement>(null);
   const rippleLayerRef = useRef<HTMLDivElement>(null);
+  const attachmentRef = useRef<ImageAttachmentAreaRef>(null);
 
   // Audio state
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -556,10 +560,20 @@ export function BonfireDiary({
           ref={textareaRef}
           value={value}
           onChange={handleInput}
+          onPaste={(e) => attachmentRef.current?.handlePasteEvent(e)}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
           rows={3}
           className="w-full min-h-[70px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-amber-300/80 resize-none text-amber-950 leading-relaxed"
         />
+        <div className="pt-2 border-t border-amber-200/50">
+          <ImageAttachmentArea
+            ref={attachmentRef}
+            targetType="diary"
+            targetId={date || selectedDateStr || "today"}
+            compact
+            buttonLabel="写真・資料を追加"
+          />
+        </div>
       </div>
     );
   }
@@ -723,10 +737,21 @@ export function BonfireDiary({
           ref={textareaRef}
           value={value}
           onChange={handleInput}
+          onPaste={(e) => attachmentRef.current?.handlePasteEvent(e)}
           rows={5}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
           className="w-full bg-transparent text-stone-900 font-medium text-sm leading-7 focus:outline-none resize-none placeholder:text-stone-400 selection:bg-amber-300/60 min-h-[120px]"
         />
+
+        {/* 写真・スケッチ添付エリア */}
+        <div className="pt-2.5 pb-1 border-t border-amber-900/15">
+          <ImageAttachmentArea
+            ref={attachmentRef}
+            targetType="diary"
+            targetId={date || selectedDateStr || "today"}
+            buttonLabel="写真・スケッチを追加"
+          />
+        </div>
 
         <div className="pt-2 border-t border-amber-900/20 flex items-center justify-between text-[10px] text-amber-900/70 font-medium">
           <span>🪵 打った文字すべてがあなたの避難所の薪になります</span>

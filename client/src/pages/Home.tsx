@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
 import { BonfireDiary } from "@/components/BonfireDiary";
+import { ImageAttachmentArea, ImageAttachmentAreaRef } from "@/components/ImageAttachmentArea";
 
 const QUEST_TYPE_LABELS: Record<string, string> = {
   Daily: "D",
@@ -3100,6 +3101,16 @@ export default function Home() {
 
                             {/* Reply Section */}
                             <FeedbackSection targetType="kaizen" targetId={memo.id} />
+
+                            {/* Attached Photos */}
+                            <div className="pt-1">
+                              <ImageAttachmentArea
+                                targetType="kaizen"
+                                targetId={String(memo.id)}
+                                compact
+                                buttonLabel="写真"
+                              />
+                            </div>
                           </div>
 
                           <Button
@@ -3191,6 +3202,16 @@ export default function Home() {
                             
                             {/* Feedback Comments */}
                             <FeedbackSection targetType="daily" targetId={insight.id} />
+
+                            {/* Attached Photos */}
+                            <div className="pt-1">
+                              <ImageAttachmentArea
+                                targetType="insight"
+                                targetId={String(insight.id)}
+                                compact
+                                buttonLabel="写真"
+                              />
+                            </div>
                           </div>
 
                           <Button
@@ -3354,6 +3375,16 @@ export default function Home() {
 
                             {/* Feedback Comments */}
                             <FeedbackSection targetType="daily" targetId={insight.id} />
+
+                            {/* Attached Photos */}
+                            <div className="pt-1">
+                              <ImageAttachmentArea
+                                targetType="insight"
+                                targetId={String(insight.id)}
+                                compact
+                                buttonLabel="写真"
+                              />
+                            </div>
                           </div>
 
                           <Button
@@ -3478,6 +3509,10 @@ function BulletinBoard() {
   const diaryRef = useRef<HTMLTextAreaElement>(null);
   const monthRef = useRef<HTMLTextAreaElement>(null);
   const weekRef = useRef<HTMLTextAreaElement>(null);
+
+  const monthAttachRef = useRef<ImageAttachmentAreaRef>(null);
+  const weekAttachRef = useRef<ImageAttachmentAreaRef>(null);
+  const dayAttachRef = useRef<ImageAttachmentAreaRef>(null);
 
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -3612,10 +3647,20 @@ function BulletinBoard() {
             ref={monthRef}
             value={monthContent}
             onChange={handleMonthChange}
+            onPaste={(e) => monthAttachRef.current?.handlePasteEvent(e)}
             placeholder="今月の目標、領収書のメモ、忘れたくないこと..."
             rows={1}
             className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
           />
+          <div className="pt-1">
+            <ImageAttachmentArea
+              ref={monthAttachRef}
+              targetType="bulletin"
+              targetId={selectedMonthStr}
+              compact
+              buttonLabel="月間メモ写真"
+            />
+          </div>
         </div>
         <div className="p-3 flex flex-col gap-1 bg-stone-50/30">
           <div className="text-[11px] font-bold text-stone-500 mb-1">📆 週間掲示板 ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)</div>
@@ -3623,10 +3668,20 @@ function BulletinBoard() {
             ref={weekRef}
             value={weekContent}
             onChange={handleWeekChange}
+            onPaste={(e) => weekAttachRef.current?.handlePasteEvent(e)}
             placeholder="今週の予定、メモ..."
             rows={1}
             className="w-full min-h-[40px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
           />
+          <div className="pt-1">
+            <ImageAttachmentArea
+              ref={weekAttachRef}
+              targetType="bulletin"
+              targetId={selectedWeekStr}
+              compact
+              buttonLabel="週間メモ写真"
+            />
+          </div>
         </div>
         <div className="p-3 flex flex-col gap-1">
           <div className="text-[11px] font-bold text-stone-500 mb-1">📝 日間掲示板 (自由欄)</div>
@@ -3634,15 +3689,26 @@ function BulletinBoard() {
             ref={contentRef}
             value={content}
             onChange={handleContentChange}
+            onPaste={(e) => dayAttachRef.current?.handlePasteEvent(e)}
             placeholder="今日の自由に書き込めるメモ..."
             rows={1}
             className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-stone-300 resize-none text-stone-700 leading-relaxed"
           />
+          <div className="pt-1">
+            <ImageAttachmentArea
+              ref={dayAttachRef}
+              targetType="bulletin"
+              targetId={selectedDate}
+              compact
+              buttonLabel="自由欄写真"
+            />
+          </div>
         </div>
         {/* 日間掲示板（焚き火の避難所・日記欄） */}
         <BonfireDiary
           value={diary}
           onChange={handleDiaryChange}
+          date={selectedDate}
           selectedDateStr={displaySelectedDateStr}
           isSaving={isSaving}
         />
@@ -3958,6 +4024,7 @@ function MonthlyGoalBoard() {
   const awarenessTimeout = useRef<NodeJS.Timeout | null>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const awarenessRef = useRef<HTMLTextAreaElement>(null);
+  const goalAttachRef = useRef<ImageAttachmentAreaRef>(null);
 
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -4029,6 +4096,7 @@ function MonthlyGoalBoard() {
             ref={contentRef}
             value={content}
             onChange={handleContentChange}
+            onPaste={(e) => goalAttachRef.current?.handlePasteEvent(e)}
             placeholder="今月やること、取り組む行動..."
             rows={1}
             className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-emerald-800/30 resize-none text-emerald-900 leading-relaxed"
@@ -4042,9 +4110,21 @@ function MonthlyGoalBoard() {
             ref={awarenessRef}
             value={awareness}
             onChange={handleAwarenessChange}
+            onPaste={(e) => goalAttachRef.current?.handlePasteEvent(e)}
             placeholder="意識したいこと、マインド..."
             rows={1}
             className="w-full min-h-[60px] overflow-hidden bg-transparent text-sm focus:outline-none placeholder:text-teal-800/30 resize-none text-teal-900 leading-relaxed"
+          />
+        </div>
+        <div className="p-3 bg-emerald-50/40">
+          <div className="text-[11px] font-bold text-emerald-800 mb-1 flex items-center gap-1">
+            <span>🖼️</span> 目標ビジョン写真・資料
+          </div>
+          <ImageAttachmentArea
+            ref={goalAttachRef}
+            targetType="goal"
+            targetId={selectedMonthStr}
+            buttonLabel="ビジョン写真・資料を追加"
           />
         </div>
       </div>
@@ -4147,6 +4227,16 @@ function MoaiActivityBoard({ targetDateStr }: { targetDateStr: string }) {
 
                     {/* Feedback Comments */}
                     <FeedbackSection targetType="moai" targetId={item.id} />
+
+                    {/* Attached Photos */}
+                    <div className="pt-1">
+                      <ImageAttachmentArea
+                        targetType="moai"
+                        targetId={String(item.id)}
+                        compact
+                        buttonLabel="写真"
+                      />
+                    </div>
                   </div>
 
                   <Button

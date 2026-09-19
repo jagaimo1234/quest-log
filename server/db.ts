@@ -25,6 +25,9 @@ import {
   dailyInsights,
   DailyInsight,
   InsertDailyInsight,
+  attachments,
+  Attachment,
+  InsertAttachment,
 } from "../drizzle/schema.js";
 import { ENV } from './_core/env.js';
 
@@ -1487,3 +1490,60 @@ export async function updateDailyConfig(userId: number, date: string, updates: {
     });
   }
 }
+
+// ============================================
+// 添付ファイル（Attachments）
+// ============================================
+
+export async function getAttachments(userId: number, targetType: string, targetId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(attachments)
+    .where(
+      and(
+        eq(attachments.userId, userId),
+        eq(attachments.targetType, targetType),
+        eq(attachments.targetId, targetId)
+      )
+    )
+    .orderBy(asc(attachments.createdAt));
+}
+
+export async function createAttachment(
+  userId: number,
+  targetType: string,
+  targetId: string,
+  dataUrl: string,
+  fileName?: string
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [result] = await db
+    .insert(attachments)
+    .values({
+      userId,
+      targetType,
+      targetId,
+      dataUrl,
+      fileName: fileName ?? "image.webp",
+      createdAt: new Date(),
+    })
+    .returning();
+
+  return result;
+}
+
+export async function deleteAttachment(userId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .delete(attachments)
+    .where(and(eq(attachments.id, id), eq(attachments.userId, userId)));
+
+  return true;
+}
+

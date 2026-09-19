@@ -49,6 +49,7 @@ import { dailyInsightRouter } from "./dailyInsight.js";
 import { moaiActivityRouter } from "./moaiActivity.js";
 import { investmentTickerRouter } from "./investmentTicker.js";
 import { insightFeedbackRouter } from "./insightFeedback.js";
+import { attachmentRouter } from "./attachment.js";
 
 export const appRouter = router({
   system: systemRouter,
@@ -57,6 +58,7 @@ export const appRouter = router({
   moaiActivity: moaiActivityRouter,
   investmentTicker: investmentTickerRouter,
   insightFeedback: insightFeedbackRouter,
+  attachment: attachmentRouter,
   book: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
