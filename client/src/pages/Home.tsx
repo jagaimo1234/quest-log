@@ -2419,6 +2419,31 @@ export default function Home() {
     refreshAll();
   };
 
+  // Mobile side-by-side columns horizontal swipe navigation
+  const [mobileActiveCol, setMobileActiveCol] = useState<'left' | 'right'>('left');
+  const mobileColumnsContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToMobileColumn = (col: 'left' | 'right') => {
+    setMobileActiveCol(col);
+    if (!mobileColumnsContainerRef.current) return;
+    const container = mobileColumnsContainerRef.current;
+    if (col === 'left') {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+    }
+  };
+
+  const handleMobileColumnsScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft;
+    const containerWidth = e.currentTarget.offsetWidth;
+    if (scrollLeft > containerWidth * 0.35) {
+      setMobileActiveCol('right');
+    } else {
+      setMobileActiveCol('left');
+    }
+  };
+
   if (authLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
@@ -2754,10 +2779,45 @@ export default function Home() {
 
             {/* In weekly mode, wrap all lower shelves in max-w-7xl so only the 7-day schedule is full-width */}
             <div className={planningViewMode === 'weekly' ? 'max-w-7xl mx-auto w-full' : 'w-full'}>
-              {/* SIDE-BY-SIDE 2 COLUMNS: Writing (Goals & Diary) on Left, Task Shelves on Right */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-8">
+              {/* Mobile Column Quick Switch Tabs (Visible only on mobile) */}
+              <div className="flex items-center justify-between lg:hidden mb-3 px-1">
+                <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => scrollToMobileColumn('left')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                      mobileActiveCol === 'left'
+                        ? 'bg-background text-foreground shadow-sm font-bold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <span>📝</span> 目標・日記
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollToMobileColumn('right')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                      mobileActiveCol === 'right'
+                        ? 'bg-background text-foreground shadow-sm font-bold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <span>📋</span> タスク一覧
+                  </button>
+                </div>
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium bg-muted/30 px-2.5 py-1 rounded-full border border-border/30">
+                  <span className="text-sm leading-none">↔</span> 横スワイプ切替
+                </span>
+              </div>
+
+              {/* SIDE-BY-SIDE 2 COLUMNS: Horizontal swipe on mobile, 2-column grid on desktop */}
+              <div
+                ref={mobileColumnsContainerRef}
+                onScroll={handleMobileColumnsScroll}
+                className="flex lg:grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 items-start overflow-x-auto lg:overflow-visible snap-x snap-mandatory scroll-smooth pb-4 lg:pb-0 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 custom-scrollbar mb-8"
+              >
                 {/* LEFT COLUMN: Goals & Bulletin Diary */}
-                <div className="lg:col-span-6 space-y-6 min-w-0">
+                <div className="w-[88vw] sm:w-[500px] lg:w-auto shrink-0 lg:shrink min-w-0 snap-start space-y-6">
                   {/* MONTHLY GOALS */}
                   <MonthlyGoalBoard />
 
@@ -2766,7 +2826,7 @@ export default function Home() {
                 </div>
 
                 {/* RIGHT COLUMN: Task Shelves (FIX, Non-FIX, One-Off, Project, Relax, History, Kaizen Memo) */}
-                <div className="lg:col-span-6 space-y-6 min-w-0">
+                <div className="w-[88vw] sm:w-[500px] lg:w-auto shrink-0 lg:shrink min-w-0 snap-start space-y-6">
 
             {/* SHELF 2: FIX (Scheduled) */}
             <section>
@@ -3067,6 +3127,8 @@ export default function Home() {
               )}
             </section>
                 </div>
+                {/* Mobile trailing spacer for comfortable right gutter */}
+                <div className="w-2 shrink-0 lg:hidden" aria-hidden="true" />
               </div>
 
               <div className="h-px bg-border/50 my-8" />
