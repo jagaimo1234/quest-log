@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ImageAttachmentArea, ImageAttachmentAreaRef } from "./ImageAttachmentArea";
 import { RichDocEditor, extractPlainText } from "./RichDocEditor";
+import { SparkReportDialog } from "./SparkReportDialog";
 
 interface BonfireDiaryProps {
   value: string;
@@ -17,6 +18,7 @@ export function BonfireDiary({
   selectedDateStr,
   isSaving
 }: BonfireDiaryProps) {
+  const [isSparkOpen, setIsSparkOpen] = useState(false);
   const [isBonfireMode, setIsBonfireMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("bonfire_diary_mode");
@@ -720,17 +722,25 @@ export function BonfireDiary({
   if (!isBonfireMode) {
     return (
       <div className="p-3 flex flex-col gap-1 bg-amber-50/20 transition-all">
-        <div className="flex items-center justify-between flex-wrap mb-1">
+        <div className="flex items-center justify-between flex-wrap mb-1 gap-1">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-[11px] font-bold text-amber-700">📔 日間掲示板 (日記欄)</span>
             <span className="text-[10px] text-amber-800/80 font-normal">── ここはあなたの避難場所。いつでも寄りなさい。</span>
           </div>
-          <button
-            onClick={toggleMode}
-            className="text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100/70 hover:bg-amber-200/80 border border-amber-300/80 px-2 py-0.5 rounded transition-all flex items-center gap-1 shadow-xs cursor-pointer"
-          >
-            <span>🔥</span> 焚き火モードに切替
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setIsSparkOpen(true)}
+              className="text-[10px] font-bold text-amber-900 bg-gradient-to-r from-amber-200 to-orange-200 hover:from-amber-300 hover:to-orange-300 border border-amber-400 px-2.5 py-0.5 rounded transition-all flex items-center gap-1 shadow-xs cursor-pointer"
+            >
+              <span>✨</span> Spark 考察
+            </button>
+            <button
+              onClick={toggleMode}
+              className="text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100/70 hover:bg-amber-200/80 border border-amber-300/80 px-2 py-0.5 rounded transition-all flex items-center gap-1 shadow-xs cursor-pointer"
+            >
+              <span>🔥</span> 焚き火モードに切替
+            </button>
+          </div>
         </div>
         <RichDocEditor
           value={value}
@@ -747,6 +757,12 @@ export function BonfireDiary({
           textAreaClassName="text-amber-950 text-sm leading-6 placeholder:text-amber-400/80"
           minHeight={80}
           theme="amber"
+        />
+
+        <SparkReportDialog
+          open={isSparkOpen}
+          onOpenChange={setIsSparkOpen}
+          targetDate={selectedDateStr || date || new Date().toISOString().slice(0, 10)}
         />
       </div>
     );
@@ -774,6 +790,15 @@ export function BonfireDiary({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Spark Report Button */}
+          <button
+            onClick={() => setIsSparkOpen(true)}
+            className="px-2.5 py-0.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border border-amber-400/50 text-[10px] rounded font-bold transition-all flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+          >
+            <span>✨</span>
+            <span>Spark 考察</span>
+          </button>
+
           {/* Audio toggle */}
           <button
             onClick={toggleFireSound}
@@ -904,6 +929,11 @@ export function BonfireDiary({
         </div>
       </div>
 
+      <SparkReportDialog
+        open={isSparkOpen}
+        onOpenChange={setIsSparkOpen}
+        targetDate={selectedDateStr || date || new Date().toISOString().slice(0, 10)}
+      />
     </div>
   );
 }
