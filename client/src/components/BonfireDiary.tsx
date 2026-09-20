@@ -88,7 +88,7 @@ export function BonfireDiary({
   };
 
   // ==========================================
-  // CANVA ENGINE (Gentle Living Hearth - Top Banner)
+  // RETRO PIXEL-ART HEARTH CANVAS ENGINE
   // ==========================================
   useEffect(() => {
     if (!isBonfireMode) return;
@@ -97,88 +97,19 @@ export function BonfireDiary({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let width = 0;
-    let height = 0;
-    let fireBaseX = 0;
-    let fireBaseY = 0;
+    const NATIVE_W = 490;
+    const NATIVE_H = 190;
+    canvas.width = NATIVE_W;
+    canvas.height = NATIVE_H;
 
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      width = canvas.width = rect.width;
-      height = canvas.height = rect.height;
-      // Centered fire in the horizontal top banner
-      fireBaseX = width * 0.5;
-      fireBaseY = height - 24;
+    const bgImg = new Image();
+    bgImg.src = "/bonfire_pixel_camp.png";
+    let isImgLoaded = false;
+    bgImg.onload = () => {
+      isImgLoaded = true;
     };
-    resize();
-    window.addEventListener("resize", resize);
 
-    const particles: any[] = [];
-    const embers: any[] = [];
-    let animId: number;
-
-    class FireParticle {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      radius: number;
-      baseRadius: number;
-      life: number;
-      decay: number;
-
-      constructor(x: number, y: number, warmth: number, pulse: number) {
-        const spread = 16 + warmth * 4;
-        this.x = x + (Math.random() - 0.5) * spread;
-        this.y = y - 6 + (Math.random() - 0.5) * 6;
-        this.vx = (Math.random() - 0.5) * (0.8 + pulse * 0.25);
-        this.vy = -(Math.random() * 1.5 + 1.1) * (0.9 + pulse * 0.22);
-        this.radius = (Math.random() * 13 + 8) * (0.9 + pulse * 0.28);
-        this.baseRadius = this.radius;
-        this.life = 1.0;
-        this.decay = Math.random() * 0.024 + 0.018;
-      }
-
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vx += (Math.random() - 0.5) * 0.22;
-        this.life -= this.decay;
-        this.radius = this.baseRadius * Math.max(0, this.life);
-      }
-
-      draw(c: CanvasRenderingContext2D, pulse: number) {
-        if (this.life <= 0) return;
-        c.save();
-        c.globalCompositeOperation = "lighter";
-        const grad = c.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
-        const isBlooming = pulse > 0.3;
-
-        if (this.life > 0.6) {
-          grad.addColorStop(0, isBlooming ? "rgba(255, 255, 255, 0.98)" : "rgba(255, 250, 230, 0.92)");
-          grad.addColorStop(0.35, isBlooming ? "rgba(254, 240, 138, 0.88)" : "rgba(251, 191, 36, 0.78)");
-          grad.addColorStop(0.8, "rgba(245, 158, 11, 0.28)");
-          grad.addColorStop(1, "rgba(217, 119, 6, 0)");
-        } else if (this.life > 0.3) {
-          grad.addColorStop(0, "rgba(251, 191, 36, 0.72)");
-          grad.addColorStop(0.45, "rgba(245, 158, 11, 0.48)");
-          grad.addColorStop(0.85, "rgba(217, 119, 6, 0.16)");
-          grad.addColorStop(1, "transparent");
-        } else {
-          grad.addColorStop(0, "rgba(217, 119, 6, 0.32)");
-          grad.addColorStop(0.6, "rgba(180, 83, 9, 0.1)");
-          grad.addColorStop(1, "transparent");
-        }
-
-        c.fillStyle = grad;
-        c.beginPath();
-        c.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        c.fill();
-        c.restore();
-      }
-    }
-
-    class EmberParticle {
+    interface PixelEmber {
       x: number;
       y: number;
       vx: number;
@@ -186,177 +117,271 @@ export function BonfireDiary({
       life: number;
       decay: number;
       size: number;
-      flicker: number;
-      goldTone: boolean;
-
-      constructor(x: number, y: number, isTyping: boolean) {
-        this.x = x + (Math.random() - 0.5) * 20;
-        this.y = y - 12;
-        this.vx = (Math.random() - 0.5) * (isTyping ? 2.0 : 1.1);
-        this.vy = -(Math.random() * (isTyping ? 2.4 : 1.5) + 0.8);
-        this.life = 1.0;
-        this.decay = Math.random() * 0.013 + 0.007;
-        this.size = (Math.random() * 1.8 + 0.9) * (isTyping ? 1.3 : 1.0);
-        this.flicker = Math.random() * 10;
-        this.goldTone = isTyping;
-      }
-
-      update() {
-        this.x += this.vx + Math.sin(this.y * 0.04) * 0.45;
-        this.y += this.vy;
-        this.flicker += 0.2;
-        this.life -= this.decay;
-      }
-
-      draw(c: CanvasRenderingContext2D) {
-        if (this.life <= 0) return;
-        c.save();
-        c.globalCompositeOperation = "lighter";
-        const alpha = Math.max(0, Math.min(1, this.life * (0.6 + Math.sin(this.flicker) * 0.4)));
-        c.fillStyle = this.goldTone ? `rgba(255, 245, 160, ${alpha})` : `rgba(255, 215, 100, ${alpha})`;
-        c.shadowColor = "#f59e0b";
-        c.shadowBlur = this.goldTone ? 7 : 4;
-        c.beginPath();
-        c.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        c.fill();
-        c.restore();
-      }
+      color: string;
     }
 
-    function drawLogs(c: CanvasRenderingContext2D, warmth: number, pulse: number) {
-      const cx = fireBaseX;
-      const cy = fireBaseY;
-      c.save();
-
-      // Stone ring
-      c.fillStyle = "#1c1917";
-      c.strokeStyle = "#0c0a09";
-      c.lineWidth = 1.8;
-      const stoneAngles = [-0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9, 1.2, -1.2];
-      stoneAngles.forEach(ang => {
-        const sx = cx + Math.cos(ang * Math.PI) * 40;
-        const sy = cy + 10 + Math.sin(ang * Math.PI) * 12;
-        c.beginPath();
-        c.ellipse(sx, sy, 7, 4.5, ang, 0, Math.PI * 2);
-        c.fill();
-        c.stroke();
-      });
-
-      // Charcoal bed with pulse
-      logGlowPulseRef.current += 0.035;
-      const emberGlow = Math.min(1, (0.55 + Math.sin(logGlowPulseRef.current) * 0.15) * warmth + pulse * 0.42);
-      const bedGrad = c.createRadialGradient(cx, cy - 2, 4, cx, cy + 4, 32 + pulse * 6);
-      bedGrad.addColorStop(0, `rgba(255, 245, 210, ${emberGlow})`);
-      bedGrad.addColorStop(0.28, `rgba(251, 146, 60, ${emberGlow * 0.88})`);
-      bedGrad.addColorStop(0.68, `rgba(220, 50, 10, ${emberGlow * 0.45})`);
-      bedGrad.addColorStop(1, "transparent");
-      c.fillStyle = bedGrad;
-      c.beginPath();
-      c.arc(cx, cy, 33 + pulse * 5, 0, Math.PI * 2);
-      c.fill();
-
-      // Log render helper
-      function renderWoodLog(x1: number, y1: number, x2: number, y2: number, thickness: number, angle: number, isFg: boolean) {
-        c.save();
-        c.translate((x1 + x2) / 2, (y1 + y2) / 2);
-        c.rotate(angle);
-        const len = Math.hypot(x2 - x1, y2 - y1);
-        const w = len;
-        const h = thickness;
-
-        const barkGrad = c.createLinearGradient(0, -h/2, 0, h/2);
-        barkGrad.addColorStop(0, "#542e15");
-        barkGrad.addColorStop(0.4, "#361b0c");
-        barkGrad.addColorStop(0.8, "#241107");
-        barkGrad.addColorStop(1, "#160903");
-        c.fillStyle = barkGrad;
-        c.strokeStyle = "#100602";
-        c.lineWidth = 2.2;
-
-        c.beginPath();
-        c.roundRect(-w/2, -h/2, w, h, [h/2, 3, 3, h/2]);
-        c.fill();
-        c.stroke();
-
-        // End rings
-        c.fillStyle = "#b87740";
-        c.strokeStyle = "#421d07";
-        c.lineWidth = 1.8;
-        c.beginPath();
-        c.ellipse(-w/2 + h/4, 0, h/4, h/2 - 1, 0, 0, Math.PI * 2);
-        c.fill();
-        c.stroke();
-
-        // Charred glow
-        if (isFg) {
-          const charGrad = c.createRadialGradient(w/6, 0, 2, w/6, 0, h);
-          const charAlpha = Math.min(0.85, 0.42 * warmth + pulse * 0.38);
-          charGrad.addColorStop(0, `rgba(255, 160, 30, ${charAlpha})`);
-          charGrad.addColorStop(0.6, "rgba(180, 50, 10, 0.22)");
-          charGrad.addColorStop(1, "transparent");
-          c.fillStyle = charGrad;
-          c.beginPath();
-          c.ellipse(w/6, 0, h, h/2, 0, 0, Math.PI * 2);
-          c.fill();
-        }
-        c.restore();
-      }
-
-      // Crossed 3D Logs
-      renderWoodLog(cx - 30, cy + 4, cx + 26, cy - 12, 13, -0.32, false);
-      renderWoodLog(cx + 28, cy + 6, cx - 24, cy - 10, 12, 0.35, false);
-      renderWoodLog(cx - 34, cy + 8, cx + 30, cy + 2, 15, -0.15, true);
-      renderWoodLog(cx - 22, cy - 3, cx + 32, cy + 11, 14, 0.28, true);
-
-      c.restore();
-    }
+    const embers: PixelEmber[] = [];
+    let animId: number;
+    let time = 0;
 
     const animate = () => {
-      ctx.clearRect(0, 0, width, height);
-
+      time += 0.03;
       const warmth = baseWarmthRef.current;
       const pulse = typingPulseRef.current;
 
-      // 1. Draw logs
-      drawLogs(ctx, warmth, pulse);
+      ctx.clearRect(0, 0, NATIVE_W, NATIVE_H);
 
-      // 2. Fire Particles
-      const spawnCount = Math.floor(2 + (warmth + pulse) * 0.85);
-      for (let i = 0; i < spawnCount; i++) {
-        particles.push(new FireParticle(fireBaseX, fireBaseY, warmth, pulse));
+      if (isImgLoaded) {
+        // 1. Draw base pixel art
+        ctx.drawImage(bgImg, 0, 0, NATIVE_W, NATIVE_H);
+
+        // 2. Clean up top-left YouTube video title bar (tile dark pine trees over it)
+        for (let px = 10; px < 212; px += 24) {
+          const chunk = Math.min(24, 212 - px);
+          ctx.drawImage(bgImg, 222, 5, chunk, 22, px, 5, chunk, 22);
+        }
+
+        // 3. Clear static pup tail area to animate wagging cleanly
+        ctx.drawImage(bgImg, 372, 106, 12, 12, 356, 102, 12, 12);
       }
 
-      // 3. Embers
-      if (Math.random() < (0.2 + pulse * 0.25)) {
-        embers.push(new EmberParticle(fireBaseX, fireBaseY, pulse > 0.2));
+      // ==============================
+      // A. TWINKLING NIGHT STARS
+      // ==============================
+      const star1Blink = 0.4 + 0.6 * Math.abs(Math.sin(time * 2.8));
+      ctx.fillStyle = `rgba(255, 255, 255, ${star1Blink})`;
+      ctx.fillRect(395, 21, 1, 3);
+      ctx.fillRect(394, 22, 3, 1);
+
+      const star2Blink = 0.3 + 0.7 * Math.abs(Math.sin(time * 3.6 + 1.2));
+      ctx.fillStyle = `rgba(254, 240, 138, ${star2Blink})`;
+      ctx.fillRect(235, 17, 2, 2);
+
+      const star3Blink = 0.2 + 0.8 * Math.abs(Math.sin(time * 2.1 + 2.5));
+      ctx.fillStyle = `rgba(255, 255, 255, ${star3Blink})`;
+      ctx.fillRect(340, 11, 1, 2);
+
+      // ==============================
+      // B. AMBIENT CAMPFIRE LIGHT GLOW
+      // ==============================
+      const fireCx = 246;
+      const fireBaseY = 126;
+      const glowR = 60 + warmth * 15 + pulse * 35;
+      const ambientGlow = ctx.createRadialGradient(fireCx, fireBaseY + 5, 4, fireCx, fireBaseY + 5, glowR);
+      const alphaGlow = 0.16 + 0.08 * Math.sin(time * 6) + pulse * 0.18;
+      ambientGlow.addColorStop(0, `rgba(254, 240, 138, ${alphaGlow * 1.5})`);
+      ambientGlow.addColorStop(0.35, `rgba(245, 158, 11, ${alphaGlow})`);
+      ambientGlow.addColorStop(0.75, `rgba(217, 119, 6, ${alphaGlow * 0.3})`);
+      ambientGlow.addColorStop(1, "transparent");
+      ctx.fillStyle = ambientGlow;
+      ctx.beginPath();
+      ctx.arc(fireCx, fireBaseY + 5, glowR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ==============================
+      // C. ANIMATED PIXEL CAMPFIRE FLAMES
+      // ==============================
+      const flameH = 26 + warmth * 7 + pulse * 14;
+      const flameW = 20 + warmth * 4 + pulse * 6;
+      const tongueCount = 5;
+
+      for (let i = 0; i < tongueCount; i++) {
+        const offsetRatio = (i - 2) / 2; // -1 to 1
+        const tx = fireCx + offsetRatio * (flameW * 0.45);
+        const tHeight = flameH * (0.65 + 0.35 * Math.sin(time * 9 + i * 1.8));
+        const topY = fireBaseY - tHeight;
+
+        // Outer Flame (Deep orange)
+        ctx.fillStyle = i % 2 === 0 ? "#ea580c" : "#d97706";
+        ctx.beginPath();
+        ctx.moveTo(tx - 4, fireBaseY);
+        ctx.lineTo(tx + 4, fireBaseY);
+        ctx.lineTo(tx, topY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Mid Flame (Golden yellow)
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        ctx.moveTo(tx - 2.5, fireBaseY);
+        ctx.lineTo(tx + 2.5, fireBaseY);
+        ctx.lineTo(tx, topY + 4);
+        ctx.closePath();
+        ctx.fill();
+
+        // Inner Core (Sunshine yellow)
+        if (i >= 1 && i <= 3) {
+          ctx.fillStyle = "#fef08a";
+          ctx.beginPath();
+          ctx.moveTo(tx - 1.5, fireBaseY);
+          ctx.lineTo(tx + 1.5, fireBaseY);
+          ctx.lineTo(tx, topY + 9);
+          ctx.closePath();
+          ctx.fill();
+        }
       }
 
-      // Update particles
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.update();
-        p.draw(ctx, pulse);
-        if (p.life <= 0) particles.splice(i, 1);
+      // White-hot flame heart
+      ctx.fillStyle = pulse > 0.3 ? "#ffffff" : "#fffbeb";
+      ctx.fillRect(fireCx - 2, fireBaseY - 6, 4, 6);
+
+      // ==============================
+      // D. RISING PIXEL EMBERS
+      // ==============================
+      const emberSpawnRate = pulse > 0.2 ? 0.85 : 0.32;
+      if (Math.random() < emberSpawnRate) {
+        embers.push({
+          x: fireCx + (Math.random() - 0.5) * 20,
+          y: fireBaseY - 8,
+          vx: (Math.random() - 0.5) * 0.7,
+          vy: -(Math.random() * 1.4 + 0.9 + pulse * 0.8),
+          life: 1.0,
+          decay: Math.random() * 0.02 + 0.012,
+          size: Math.random() < 0.35 ? 2 : 1,
+          color: Math.random() < 0.5 ? "#fef08a" : "#f59e0b",
+        });
       }
 
       for (let i = embers.length - 1; i >= 0; i--) {
         const e = embers[i];
-        e.update();
-        e.draw(ctx);
-        if (e.life <= 0) embers.splice(i, 1);
+        e.x += e.vx + Math.sin(e.y * 0.05) * 0.35;
+        e.y += e.vy;
+        e.life -= e.decay;
+
+        if (e.life <= 0) {
+          embers.splice(i, 1);
+          continue;
+        }
+
+        ctx.fillStyle = e.color;
+        ctx.globalAlpha = Math.max(0, e.life);
+        ctx.fillRect(Math.round(e.x), Math.round(e.y), e.size, e.size);
+        ctx.globalAlpha = 1.0;
       }
 
-      // Ambient light scale
-      if (ambientGlowRef.current) {
-        const glowScale = 0.95 + warmth * 0.12 + pulse * 0.3;
-        const glowOpacity = Math.min(1.15, 0.6 + warmth * 0.15 + pulse * 0.4);
-        ambientGlowRef.current.style.transform = `translate(-50%, 40%) scale(${glowScale})`;
-        ambientGlowRef.current.style.opacity = glowOpacity.toString();
+      // ==============================
+      // E. LEFT ROBOT 1 (Tin Robot: cx ≈ 100)
+      // ==============================
+      // Chest Reactor
+      const r1Alpha = 0.45 + 0.35 * Math.sin(time * 3.2) + pulse * 0.35;
+      const r1Grad = ctx.createRadialGradient(100, 78, 1, 100, 78, 9 + pulse * 3);
+      r1Grad.addColorStop(0, `rgba(255, 90, 90, ${Math.min(1, r1Alpha)})`);
+      r1Grad.addColorStop(0.5, `rgba(220, 38, 38, ${Math.min(1, r1Alpha * 0.7)})`);
+      r1Grad.addColorStop(1, "transparent");
+      ctx.fillStyle = r1Grad;
+      ctx.beginPath();
+      ctx.arc(100, 78, 9 + pulse * 3, 0, Math.PI * 2);
+      ctx.fill();
+      // Center needle
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(99, 76, 2, 4);
+
+      // Eye blink (every 4.5s)
+      const eyeBlink1 = (time % 4.5) < 0.15;
+      if (eyeBlink1) {
+        ctx.fillStyle = "#262626";
+        ctx.fillRect(93, 44, 4, 3);
+        ctx.fillRect(103, 44, 4, 3);
+      }
+
+      // Hand warmth highlight
+      const handGlow = 0.2 + 0.15 * Math.sin(time * 7) + pulse * 0.25;
+      ctx.fillStyle = `rgba(251, 191, 36, ${handGlow})`;
+      ctx.fillRect(138, 91, 3, 3);
+
+      // ==============================
+      // F. LEFT ROBOT 2 (Cyborg: cx ≈ 184)
+      // ==============================
+      // Heartbeat core pulse
+      const hb = Math.pow(Math.max(0, Math.sin(time * 4.5)), 12) + Math.pow(Math.max(0, Math.sin(time * 4.5 - 0.4)), 14) * 0.7;
+      const cybCoreAlpha = 0.4 + hb * 0.55 + pulse * 0.35;
+      ctx.fillStyle = `rgba(239, 68, 68, ${Math.min(1, cybCoreAlpha)})`;
+      ctx.fillRect(183, 72, 4, 10);
+      const cybGrad = ctx.createRadialGradient(185, 77, 1, 185, 77, 7 + hb * 4);
+      cybGrad.addColorStop(0, `rgba(255, 120, 120, ${Math.min(1, cybCoreAlpha * 0.8)})`);
+      cybGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = cybGrad;
+      ctx.beginPath();
+      ctx.arc(185, 77, 7 + hb * 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Right Eye sensor
+      ctx.fillStyle = `rgba(248, 113, 113, ${0.7 + 0.3 * Math.sin(time * 5)})`;
+      ctx.fillRect(189, 42, 2, 2);
+
+      // ==============================
+      // G. RIGHT ROBOT 3 (Tin Robot: cx ≈ 410)
+      // ==============================
+      // Furnace Grate
+      const fGlow = 0.55 + 0.3 * Math.sin(time * 4.8 + 1) + pulse * 0.4;
+      const furnGrad = ctx.createRadialGradient(410, 80, 1, 410, 80, 11 + pulse * 4);
+      furnGrad.addColorStop(0, `rgba(254, 240, 138, ${Math.min(1, fGlow)})`);
+      furnGrad.addColorStop(0.5, `rgba(245, 158, 11, ${Math.min(1, fGlow * 0.75)})`);
+      furnGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = furnGrad;
+      ctx.beginPath();
+      ctx.arc(410, 80, 11 + pulse * 4, 0, Math.PI * 2);
+      ctx.fill();
+      // Grate bars
+      ctx.fillStyle = "#2c1810";
+      ctx.fillRect(408, 75, 1.5, 10);
+      ctx.fillRect(411, 75, 1.5, 10);
+
+      // Eye blink
+      const eyeBlink3 = (time % 5.2) < 0.15;
+      if (eyeBlink3) {
+        ctx.fillStyle = "#262626";
+        ctx.fillRect(403, 44, 4, 3);
+        ctx.fillRect(413, 44, 4, 3);
+      }
+
+      // Hands warmth highlight
+      ctx.fillStyle = `rgba(251, 191, 36, ${0.25 + 0.15 * Math.cos(time * 6) + pulse * 0.2})`;
+      ctx.fillRect(372, 90, 3, 3);
+
+      // ==============================
+      // H. THE TWO DOGS (Pup & Big Dog)
+      // ==============================
+      // Pup Wagging Tail
+      const wagSpeed = 9 + pulse * 10;
+      const wagFrame = Math.floor((time * wagSpeed) % 3);
+
+      ctx.fillStyle = "#361d0f"; // Outline
+      ctx.fillRect(358, 112, 2, 2);
+      ctx.fillStyle = "#96603a"; // Pup fur
+
+      if (wagFrame === 0) {
+        // High wag
+        ctx.fillRect(359, 108, 2, 4);
+        ctx.fillRect(361, 104, 3, 4);
+        ctx.fillRect(363, 100, 2, 4);
+      } else if (wagFrame === 1) {
+        // Mid wag
+        ctx.fillRect(360, 109, 3, 4);
+        ctx.fillRect(363, 107, 3, 3);
+        ctx.fillRect(366, 105, 2, 3);
+      } else {
+        // Low wag
+        ctx.fillRect(360, 110, 3, 3);
+        ctx.fillRect(363, 110, 3, 3);
+        ctx.fillRect(365, 112, 2, 3);
+      }
+
+      // Pup Eye Blink (every 4s)
+      if ((time % 4.2) < 0.2) {
+        ctx.fillStyle = "#4a2810";
+        ctx.fillRect(323, 103, 3, 2);
+      }
+
+      // Big Dog Eye Blink (every 5s)
+      if ((time % 5.0) < 0.2) {
+        ctx.fillStyle = "#3a1e0c";
+        ctx.fillRect(323, 75, 3, 2);
       }
 
       // Decay typing pulse
       if (typingPulseRef.current > 0) {
-        typingPulseRef.current -= 0.035;
+        typingPulseRef.current -= 0.032;
         if (typingPulseRef.current < 0) typingPulseRef.current = 0;
       }
 
@@ -367,7 +392,6 @@ export function BonfireDiary({
 
     return () => {
       cancelAnimationFrame(animId);
-      window.removeEventListener("resize", resize);
     };
   }, [isBonfireMode]);
 
@@ -393,10 +417,10 @@ export function BonfireDiary({
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const startX = canvasRect.left + 40 + Math.random() * (canvasRect.width - 80);
-    const startY = canvasRect.bottom + 30 + Math.random() * 70;
+    const startY = canvasRect.bottom + 20 + Math.random() * 60;
 
     const targetX = canvasRect.left + canvasRect.width * 0.5 - startX;
-    const targetY = canvasRect.top + canvasRect.height - 24 - startY;
+    const targetY = canvasRect.top + canvasRect.height * 0.65 - startY;
 
     spark.style.cssText = `
       position: fixed;
@@ -426,7 +450,7 @@ export function BonfireDiary({
     const rect = canvasRef.current.getBoundingClientRect();
     const ring = document.createElement("div");
     const cx = rect.width * 0.5;
-    const cy = rect.height - 24;
+    const cy = rect.height * 0.65;
 
     ring.style.cssText = `
       position: absolute;
@@ -714,68 +738,40 @@ export function BonfireDiary({
         </div>
       </div>
 
-      {/* 3. CAMP STAGE: Panoramic Fire & Traveler (焚き火とイラストが絶対に被らない安全設計) */}
-      <div className="w-full h-36 sm:h-40 rounded-xl border border-amber-900/50 bg-gradient-to-b from-[#060810] via-[#0d1017] to-[#140b05] relative overflow-hidden shadow-inner flex items-end justify-between px-4 sm:px-12 pb-2.5">
-        
-        {/* Ambient Fire Glow (Centered behind fire) */}
-        <div
-          ref={ambientGlowRef}
-          className="absolute bottom-1 left-1/2 w-64 h-64 -translate-x-1/2 rounded-full pointer-events-none filter blur-3xl transition-transform"
-          style={{
-            background: "radial-gradient(circle, rgba(251, 191, 36, 0.45) 0%, rgba(245, 158, 11, 0.22) 40%, transparent 75%)"
-          }}
+      {/* 3. CAMP STAGE: Panoramic Pixel Hearth with Animated Robots & Dogs */}
+      <div
+        className="w-full relative rounded-xl border-2 border-amber-900/60 bg-[#060810] overflow-hidden shadow-2xl flex items-center justify-center aspect-[490/190] max-h-[340px]"
+      >
+        {/* Canvas for Pixel Campfire, Animated Robots, Wagging Dogs, and Night Stars */}
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full object-contain pointer-events-none select-none"
+          style={{ imageRendering: "pixelated" }}
         />
 
         {/* Heat ripple wave layer */}
         <div ref={rippleLayerRef} className="absolute inset-0 pointer-events-none overflow-hidden" />
 
-        {/* Canvas for Bonfire (Strictly centered at 50%) */}
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
-
-        {/* Ground line shadow for realism */}
-        <div className="absolute bottom-0 inset-x-0 h-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-none z-10" />
-
         {/* Top Floating Atmosphere Hint */}
         <div className="absolute top-2 inset-x-0 text-center pointer-events-none z-20">
-          <span className="text-[9px] sm:text-[10px] text-amber-200/50 tracking-wider">
+          <span className="text-[9px] sm:text-[10px] text-amber-200/70 tracking-wider font-medium drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
             文字を打つたびに火が呼吸し、思考が温もりに変わります
           </span>
         </div>
 
-        {/* LEFT: Traveler (Sitting beside fire at safe distance) */}
-        <div className="relative z-20 flex flex-col items-center select-none pointer-events-none">
-          <div className="relative flex flex-col items-center">
-            <div className="w-8 h-1.5 bg-black/60 rounded-full blur-[1px] absolute -bottom-0.5" />
-            <div className="text-3xl sm:text-4xl filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.35)] scale-x-[-1] transition-transform">
-              🧘‍♂️
-            </div>
-          </div>
-          <span className="text-[8px] sm:text-[9px] font-bold text-amber-300/90 bg-black/80 px-1.5 py-0.5 rounded border border-amber-900/60 mt-1 shadow-xs tracking-wider">
-            {travelerStatus.split(" ")[0]}
+        {/* LEFT: Traveler Status Badge */}
+        <div className="absolute bottom-2 left-2.5 sm:left-4 z-20 select-none pointer-events-none">
+          <span className="text-[8px] sm:text-[9px] font-bold text-amber-300/95 bg-black/85 px-2 py-0.5 rounded border border-amber-900/70 shadow-md tracking-wider">
+            🧘‍♂️ {travelerStatus.split(" ")[0]}
           </span>
         </div>
 
-        {/* RIGHT: Extra Firewood Stack (Neat camp reserve) */}
-        <div className="relative z-20 flex flex-col items-center select-none pointer-events-none">
-          <div className="relative flex flex-col items-center">
-            <div className="w-12 h-1.5 bg-black/60 rounded-full blur-[1px] absolute -bottom-0.5" />
-            <svg className="w-11 sm:w-14 h-7 sm:h-9 filter drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]" viewBox="0 0 60 40" fill="none">
-              <ellipse cx="12" cy="30" rx="8" ry="4" fill="#a0522d" stroke="#3e1c0d" strokeWidth="2"/>
-              <path d="M12 26 L48 24 L48 32 L12 34 Z" fill="#6d371a" stroke="#3e1c0d" strokeWidth="2"/>
-              <ellipse cx="48" cy="28" rx="7" ry="3.5" fill="#c48148" stroke="#3e1c0d" strokeWidth="1.5"/>
-              <ellipse cx="18" cy="34" rx="7" ry="3.5" fill="#8b4513" stroke="#3e1c0d" strokeWidth="2"/>
-              <path d="M18 30.5 L52 29 L52 36 L18 37.5 Z" fill="#582a12" stroke="#3e1c0d" strokeWidth="2"/>
-              <ellipse cx="52" cy="32.5" rx="6" ry="3" fill="#b0703c" stroke="#3e1c0d" strokeWidth="1.5"/>
-              <ellipse cx="14" cy="22" rx="7" ry="3.5" fill="#964b00" stroke="#3e1c0d" strokeWidth="2"/>
-              <path d="M14 18.5 L46 17 L46 24 L14 25.5 Z" fill="#753815" stroke="#3e1c0d" strokeWidth="2"/>
-              <ellipse cx="46" cy="20.5" rx="6" ry="3" fill="#d29054" stroke="#3e1c0d" strokeWidth="1.5"/>
-            </svg>
-          </div>
-          <span className="text-[8px] sm:text-[9px] font-bold text-amber-400/90 bg-black/80 px-1.5 py-0.5 rounded border border-amber-900/60 mt-1 shadow-xs tracking-wider">
-            予備の薪
+        {/* RIGHT: Extra Firewood Stack Badge */}
+        <div className="absolute bottom-2 right-2.5 sm:right-4 z-20 select-none pointer-events-none">
+          <span className="text-[8px] sm:text-[9px] font-bold text-amber-400/95 bg-black/85 px-2 py-0.5 rounded border border-amber-900/70 shadow-md tracking-wider">
+            🪵 予備の薪 ({charCount}文字)
           </span>
         </div>
-
       </div>
 
       {/* 3. BOTTOM: Full-Width Parchment Diary Notebook (横幅いっぱいにゆったり書ける) */}
