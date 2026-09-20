@@ -3572,10 +3572,28 @@ function BulletinBoard() {
   const [monthContent, setMonthContent] = useState("");
   const [weekContent, setWeekContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const isDirtyRef = useRef(false);
 
+  // Sync board data on load or date switch, giving priority to any newer local draft
   useEffect(() => {
-    setContent(board?.content || "");
-    setDiary((board as any)?.diary || "");
+    const serverContent = board?.content || "";
+    const serverDiary = (board as any)?.diary || "";
+    const localDraftKey = `diary_draft_${selectedDate}`;
+    let localDraft = "";
+    try {
+      localDraft = localStorage.getItem(localDraftKey) || "";
+    } catch {}
+
+    if (!isDirtyRef.current) {
+      setContent(serverContent);
+      if (localDraft && localDraft.length > serverDiary.length) {
+        setDiary(localDraft);
+        // Automatically sync longer local draft to server so it's persisted permanently
+        triggerSave(serverContent, localDraft);
+      } else {
+        setDiary(serverDiary);
+      }
+    }
   }, [board?.content, (board as any)?.diary, selectedDate]);
 
   useEffect(() => {
@@ -3600,6 +3618,19 @@ function BulletinBoard() {
   const weekAttachRef = useRef<ImageAttachmentAreaRef>(null);
   const dayAttachRef = useRef<ImageAttachmentAreaRef>(null);
 
+  // Safety net: Save draft to localStorage before page unloads or reloads
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (diary) {
+        try {
+          localStorage.setItem(`diary_draft_${selectedDate}`, diary);
+        } catch {}
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [diary, selectedDate]);
+
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = 'auto';
@@ -3614,9 +3645,19 @@ function BulletinBoard() {
 
   const triggerSave = (newContent: string, newDiary: string) => {
     setIsSaving(true);
-    saveBoard.mutate({ content: newContent, diary: newDiary, date: selectedDate }, {
-      onSettled: () => setIsSaving(false)
-    });
+    saveBoard.mutate(
+      { content: newContent, diary: newDiary, date: selectedDate },
+      {
+        onSuccess: () => {
+          setIsSaving(false);
+          isDirtyRef.current = false;
+        },
+        onError: (err) => {
+          setIsSaving(false);
+          toast.error("サーバーへの保存に失敗しました。ローカルに保持しています。");
+        },
+      }
+    );
   };
 
   const triggerSaveMonth = (newContent: string) => {
@@ -3644,6 +3685,10 @@ function BulletinBoard() {
   const handleDiaryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setDiary(val);
+    isDirtyRef.current = true;
+    try {
+      localStorage.setItem(`diary_draft_${selectedDate}`, val);
+    } catch {}
     autoResize(e.target);
     if (diaryTimeout.current) clearTimeout(diaryTimeout.current);
     diaryTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
