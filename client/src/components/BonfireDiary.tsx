@@ -454,6 +454,8 @@ export function BonfireDiary({
   // ==========================================
   // AUDIO CONTROLS (Gentle Ambient Campfire & Keystroke Pops)
   // ==========================================
+  const lastKeystrokeSoundTimeRef = useRef<number>(0);
+
   const getAudioContext = () => {
     if (!audioCtxRef.current) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -462,17 +464,33 @@ export function BonfireDiary({
       }
     }
     if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
-      audioCtxRef.current.resume();
+      audioCtxRef.current.resume().catch(() => {});
     }
     return audioCtxRef.current;
   };
+
+  // Unlock audio immediately on first user interaction anywhere on the page
+  useEffect(() => {
+    const unlockAudio = () => {
+      const ctx = getAudioContext();
+      if (ctx && ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+    };
+    window.addEventListener("pointerdown", unlockAudio, { passive: true });
+    window.addEventListener("keydown", unlockAudio, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, []);
 
   const toggleFireSound = () => {
     const ctx = getAudioContext();
     if (!ctx) return;
 
     if (!isSoundOn) {
-      ctx.resume();
+      ctx.resume().catch(() => {});
       startAudio();
       setIsSoundOn(true);
     } else {
@@ -526,32 +544,61 @@ export function BonfireDiary({
     }
   };
 
-  const playSoftPopSound = () => {
+  // High-fidelity tactile typing sound (satisfying woody mechanical typewriter tap)
+  const playTactileTypingSound = () => {
     try {
+      const nowMs = Date.now();
+      // Throttle rapid repeated triggers within 25ms to prevent audio distortion
+      if (nowMs - lastKeystrokeSoundTimeRef.current < 25) return;
+      lastKeystrokeSoundTimeRef.current = nowMs;
+
       const ctx = getAudioContext();
       if (!ctx) return;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
 
+      const now = ctx.currentTime + 0.002;
+
+      // Layer 1: Warm tactile woody body (triangle wave)
       const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const oscGain = ctx.createGain();
+      osc.type = "triangle";
 
-      const now = ctx.currentTime;
-      // Soft organic woody ember pop
-      osc.type = "sine";
-      const baseFreq = 140 + Math.random() * 70;
+      // Organic variation around 520Hz - 680Hz
+      const baseFreq = 540 + (Math.random() - 0.5) * 160;
       osc.frequency.setValueAtTime(baseFreq, now);
-      osc.frequency.exponentialRampToValueAtTime(32, now + 0.045);
+      osc.frequency.exponentialRampToValueAtTime(140, now + 0.045);
 
-      const vol = 0.05 + Math.random() * 0.03;
-      gain.gain.setValueAtTime(vol, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+      oscGain.gain.setValueAtTime(0.14, now);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      osc.connect(oscGain);
+      oscGain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.045);
+      osc.stop(now + 0.046);
+
+      // Layer 2: Subtle crisp typewriter mechanical snap (sine click)
+      const clickOsc = ctx.createOscillator();
+      const clickGain = ctx.createGain();
+      clickOsc.type = "sine";
+      clickOsc.frequency.setValueAtTime(1500 + Math.random() * 400, now);
+      clickOsc.frequency.exponentialRampToValueAtTime(320, now + 0.018);
+
+      clickGain.gain.setValueAtTime(0.08, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
+
+      clickOsc.connect(clickGain);
+      clickGain.connect(ctx.destination);
+      clickOsc.start(now);
+      clickOsc.stop(now + 0.019);
     } catch (e) {
-      // AudioContext could be blocked if no user gesture yet
+      // Safe catch if browser blocks audio
     }
+  };
+
+  const playSoftPopSound = () => {
+    playTactileTypingSound();
   };
 
   // CLEANUP SOUND
@@ -589,6 +636,7 @@ export function BonfireDiary({
             updateMetrics(pure.length);
             triggerTypingPulse();
           }}
+          onKeystroke={triggerTypingPulse}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
           textAreaClassName="text-amber-950 text-sm leading-6 placeholder:text-amber-400/80"
           minHeight={80}
@@ -763,6 +811,7 @@ export function BonfireDiary({
             updateMetrics(pure.length);
             triggerTypingPulse();
           }}
+          onKeystroke={triggerTypingPulse}
           placeholder="何時でも、どんな気持ちでも。その時の気づきや感情をここに置いていこう..."
           textAreaClassName="text-stone-900 font-medium text-sm leading-6 selection:bg-amber-300/60 placeholder:text-stone-400"
           minHeight={130}

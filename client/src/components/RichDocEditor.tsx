@@ -50,16 +50,58 @@ export function parseDocBlocks(raw: string): DocBlock[] {
     blocks.push({ id: "b-0", type: "text", text: "" });
   }
 
-  return blocks;
+  // Coalesce any consecutive text blocks to prevent artificial splitting/gaps
+  const coalesced: DocBlock[] = [];
+  for (const b of blocks) {
+    const prev = coalesced[coalesced.length - 1];
+    if (prev && prev.type === "text" && b.type === "text") {
+      const cleanPrev = prev.text.replace(/\n+$/, "");
+      const cleanCurr = b.text.replace(/^\n+/, "");
+      if (!cleanPrev) {
+        prev.text = cleanCurr;
+      } else if (!cleanCurr) {
+        prev.text = cleanPrev;
+      } else {
+        prev.text = cleanPrev + "\n" + cleanCurr;
+      }
+    } else {
+      coalesced.push({ ...b });
+    }
+  }
+
+  return coalesced;
 }
 
 export function serializeDocBlocks(blocks: DocBlock[]): string {
-  return blocks
+  // Coalesce adjacent text blocks before serialization
+  const coalesced: DocBlock[] = [];
+  for (const b of blocks) {
+    const prev = coalesced[coalesced.length - 1];
+    if (prev && prev.type === "text" && b.type === "text") {
+      const cleanPrev = prev.text.replace(/\n+$/, "");
+      const cleanCurr = b.text.replace(/^\n+/, "");
+      if (!cleanPrev) {
+        prev.text = cleanCurr;
+      } else if (!cleanCurr) {
+        prev.text = cleanPrev;
+      } else {
+        prev.text = cleanPrev + "\n" + cleanCurr;
+      }
+    } else {
+      coalesced.push({ ...b });
+    }
+  }
+
+  return coalesced
     .map((b) => {
       if (b.type === "image") {
         return `![${b.caption || "image"}](${b.src})`;
       }
       return b.text;
+    })
+    .filter((content, idx, arr) => {
+      if (content === "" && arr.length > 1) return false;
+      return true;
     })
     .join("\n")
     .trim();
@@ -78,6 +120,7 @@ interface RichDocEditorProps {
   textAreaClassName?: string;
   minHeight?: number;
   onTextChange?: (pureText: string) => void;
+  onKeystroke?: () => void;
   showToolbar?: boolean;
   theme?: "amber" | "emerald" | "teal" | "stone" | "default";
 }
@@ -90,6 +133,7 @@ export function RichDocEditor({
   textAreaClassName = "text-sm leading-6",
   minHeight = 120,
   onTextChange,
+  onKeystroke,
   showToolbar = true,
   theme = "default",
 }: RichDocEditorProps) {
@@ -254,13 +298,34 @@ export function RichDocEditor({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Delete an image block
+  // Delete an image block and seamlessly merge text blocks before and after
   const handleDeleteImage = (index: number) => {
-    const newBlocks = blocks.filter((_, i) => i !== index);
-    if (newBlocks.length === 0) {
-      newBlocks.push({ id: `txt-${Date.now()}`, type: "text", text: "" });
+    const remainingBlocks = blocks.filter((_, i) => i !== index);
+
+    // Merge adjacent text blocks so deleting an image never leaves a gap or split sentence
+    const mergedBlocks: DocBlock[] = [];
+    for (const b of remainingBlocks) {
+      const prev = mergedBlocks[mergedBlocks.length - 1];
+      if (prev && prev.type === "text" && b.type === "text") {
+        const cleanPrev = prev.text.replace(/\n+$/, "");
+        const cleanNext = b.text.replace(/^\n+/, "");
+        if (!cleanPrev) {
+          prev.text = cleanNext;
+        } else if (!cleanNext) {
+          prev.text = cleanPrev;
+        } else {
+          // Join the sentence parts directly without rogue line breaks
+          prev.text = cleanPrev + cleanNext;
+        }
+      } else {
+        mergedBlocks.push({ ...b });
+      }
     }
-    commitBlocks(newBlocks);
+
+    if (mergedBlocks.length === 0) {
+      mergedBlocks.push({ id: `txt-${Date.now()}`, type: "text", text: "" });
+    }
+    commitBlocks(mergedBlocks);
     toast.success("写真を削除しました");
   };
 
@@ -269,6 +334,7 @@ export function RichDocEditor({
     index: number,
     e: React.KeyboardEvent<HTMLTextAreaElement>
   ) => {
+    onKeystroke?.();
     const el = textareaRefs.current[index];
     if (e.key === "Backspace" && el && el.selectionStart === 0 && el.selectionEnd === 0) {
       if (index > 0) {
@@ -279,14 +345,19 @@ export function RichDocEditor({
           e.preventDefault();
           handleDeleteImage(index - 1);
         } else if (prevBlock.type === "text" && currentBlock.type === "text") {
-          if (currentBlock.text === "") {
-            e.preventDefault();
-            const newBlocks = blocks.filter((_, i) => i !== index);
-            commitBlocks(newBlocks);
-            setTimeout(() => {
-              textareaRefs.current[index - 1]?.focus();
-            }, 50);
-          }
+          e.preventDefault();
+          // Merge current text block into previous text block
+          const prevEl = textareaRefs.current[index - 1];
+          const prevLen = prevBlock.text.length;
+          prevBlock.text = prevBlock.text + currentBlock.text;
+          const newBlocks = blocks.filter((_, i) => i !== index);
+          commitBlocks(newBlocks);
+          setTimeout(() => {
+            if (prevEl) {
+              prevEl.focus();
+              prevEl.setSelectionRange(prevLen, prevLen);
+            }
+          }, 50);
         }
       }
     }
@@ -396,7 +467,9 @@ export function RichDocEditor({
               onChange={(e) => {
                 handleTextChange(index, e.target.value);
                 autoResize(e.target);
+                onKeystroke?.();
               }}
+              onCompositionUpdate={() => onKeystroke?.()}
               onPaste={(e) => handlePasteInBlock(index, e)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               rows={index === 0 && blocks.length === 1 ? 4 : 1}
