@@ -60,19 +60,6 @@ async function startServer() {
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${port}/`);
   });
-
-  // Background check: periodic Spark report check every 30 minutes
-  setInterval(async () => {
-    try {
-      const now = new Date();
-      // Runs during night hours (21:00 - 23:59)
-      if (now.getHours() >= 21) {
-        console.log("[Spark Batch] Checking for pending daily reflections...");
-      }
-    } catch (e) {
-      console.warn("[Spark Batch] Error:", e);
-    }
-  }, 30 * 60 * 1000);
 }
 
 startServer().catch(console.error);

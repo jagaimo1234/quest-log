@@ -28,13 +28,10 @@ import {
   attachments,
   Attachment,
   InsertAttachment,
-  diarySparkReports,
-  DiarySparkReport,
-  InsertDiarySparkReport,
 } from "../drizzle/schema.js";
-export { diarySparkReports };
 import { ENV } from './_core/env.js';
 
+// Database Instance (Unified LibSQL/Turso)
 // Database Instance (Unified LibSQL/Turso)
 // Vercel環境でfile:sqlite.dbを使おうとするとクラッシュするため、環境変数がない場合は初期化をスキップする
 const dbUrl = process.env.DATABASE_URL;
@@ -48,29 +45,6 @@ if (dbUrl) {
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
     _db = drizzle(client);
-
-    // Ensure diary_spark_reports table exists
-    client.execute(`
-      CREATE TABLE IF NOT EXISTS diary_spark_reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        userId INTEGER NOT NULL,
-        targetDate TEXT NOT NULL,
-        periodType TEXT DEFAULT 'daily' NOT NULL,
-        conditionScore INTEGER DEFAULT 3 NOT NULL,
-        summary TEXT DEFAULT '' NOT NULL,
-        analysis TEXT DEFAULT '' NOT NULL,
-        kaizenSuggestions TEXT DEFAULT '' NOT NULL,
-        companionMessage TEXT DEFAULT '' NOT NULL,
-        rawReportMarkdown TEXT DEFAULT '' NOT NULL,
-        createdAt INTEGER NOT NULL
-      );
-    `).then(() => {
-      client.execute(`
-        CREATE UNIQUE INDEX IF NOT EXISTS user_target_period_idx ON diary_spark_reports (userId, targetDate, periodType);
-      `).catch(() => {});
-    }).catch((err) => {
-      console.warn("Could not auto-create diary_spark_reports table:", err);
-    });
   } catch (e) {
     console.error("Failed to initialize database client:", e);
   }

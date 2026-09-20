@@ -50,7 +50,6 @@ import { moaiActivityRouter } from "./moaiActivity.js";
 import { investmentTickerRouter } from "./investmentTicker.js";
 import { insightFeedbackRouter } from "./insightFeedback.js";
 import { attachmentRouter } from "./attachment.js";
-import { sparkRouter } from "./spark.js";
 
 export const appRouter = router({
   system: systemRouter,
@@ -60,7 +59,6 @@ export const appRouter = router({
   investmentTicker: investmentTickerRouter,
   insightFeedback: insightFeedbackRouter,
   attachment: attachmentRouter,
-  spark: sparkRouter,
   book: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();

@@ -437,27 +437,3 @@ export const attachments = sqliteTable("attachments", {
 export type Attachment = typeof attachments.$inferSelect;
 export type InsertAttachment = typeof attachments.$inferInsert;
 
-/**
- * 焚き火日記 Spark考察レポートテーブル
- */
-export const diarySparkReports = sqliteTable("diary_spark_reports", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("userId").notNull(),
-  targetDate: text("targetDate").notNull(),      // 'YYYY-MM-DD'
-  periodType: text("periodType").default("daily").notNull(), // 'daily' | 'weekly'
-  conditionScore: integer("conditionScore").default(3).notNull(), // 1〜5
-  summary: text("summary").default("").notNull(),                 // 要約
-  analysis: text("analysis").default("").notNull(),               // 考察本文
-  kaizenSuggestions: text("kaizenSuggestions").default("").notNull(), // KAIZEN提案 (JSON or text)
-  companionMessage: text("companionMessage").default("").notNull(),   // 焚き火の番人メッセージ
-  rawReportMarkdown: text("rawReportMarkdown").default("").notNull(), // Markdown全文
-  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
-}, (table) => {
-  return {
-    userTargetPeriodUnique: uniqueIndex("user_target_period_idx").on(table.userId, table.targetDate, table.periodType),
-  };
-});
-
-export type DiarySparkReport = typeof diarySparkReports.$inferSelect;
-export type InsertDiarySparkReport = typeof diarySparkReports.$inferInsert;
-
