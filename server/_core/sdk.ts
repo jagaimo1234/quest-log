@@ -265,7 +265,13 @@ class SDKServer {
     // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
-    const session = await this.verifySession(sessionCookie);
+    let session: { openId: string; appId: string; name: string } | null = null;
+    try {
+      session = await this.verifySession(sessionCookie);
+    } catch (e) {
+      console.warn("[Auth] Session verification error:", e);
+      session = null;
+    }
 
     if (!session) {
       // ゲストモード: セッションがない場合、ゲストユーザーを作成
@@ -274,7 +280,12 @@ class SDKServer {
 
     const sessionUserId = session.openId;
     const signedInAt = new Date();
-    let user = await db.getUserByOpenId(sessionUserId);
+    let user: User | undefined;
+    try {
+      user = await db.getUserByOpenId(sessionUserId);
+    } catch (e) {
+      console.warn("[Auth] Error fetching user by openId:", e);
+    }
 
     // If user not in DB, sync from OAuth server automatically
     if (!user) {
@@ -289,19 +300,23 @@ class SDKServer {
         });
         user = await db.getUserByOpenId(userInfo.openId);
       } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
+        console.warn("[Auth] Failed to sync user from OAuth, falling back to guest user:", error);
+        return this.getOrCreateGuestUser();
       }
     }
 
     if (!user) {
-      throw ForbiddenError("User not found");
+      return this.getOrCreateGuestUser();
     }
 
-    await db.upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt,
-    });
+    try {
+      await db.upsertUser({
+        openId: user.openId,
+        lastSignedIn: signedInAt,
+      });
+    } catch (e) {
+      console.warn("[Auth] Failed to update user lastSignedIn:", e);
+    }
 
     return user;
   }
@@ -315,28 +330,44 @@ class SDKServer {
     // ゲストユーザーの固定ID
     const guestOpenId = GUEST_USER_OPEN_ID;
 
-    let user = await db.getUserByOpenId(guestOpenId);
+    let user: User | undefined;
+    try {
+      user = await db.getUserByOpenId(guestOpenId);
+
+      if (!user) {
+        // ゲストユーザーが存在しない場合は作成
+        await db.upsertUser({
+          openId: guestOpenId,
+          name: "ゲスト",
+          email: null,
+          loginMethod: "guest",
+          lastSignedIn: new Date(),
+        });
+        user = await db.getUserByOpenId(guestOpenId);
+      } else {
+        // 既存のゲストユーザーの最終ログイン時刻を更新
+        await db.upsertUser({
+          openId: guestOpenId,
+          lastSignedIn: new Date(),
+        });
+      }
+    } catch (e) {
+      console.error("[Auth] Database error during getOrCreateGuestUser:", e);
+    }
 
     if (!user) {
-      // ゲストユーザーが存在しない場合は作成
-      await db.upsertUser({
+      console.warn("[Auth] Guest user could not be loaded from DB, returning in-memory fallback guest");
+      return {
+        id: 1,
         openId: guestOpenId,
         name: "ゲスト",
         email: null,
         loginMethod: "guest",
+        role: "user",
+        createdAt: new Date(),
+        updatedAt: new Date(),
         lastSignedIn: new Date(),
-      });
-      user = await db.getUserByOpenId(guestOpenId);
-    } else {
-      // 既存のゲストユーザーの最終ログイン時刻を更新
-      await db.upsertUser({
-        openId: guestOpenId,
-        lastSignedIn: new Date(),
-      });
-    }
-
-    if (!user) {
-      throw ForbiddenError("Failed to create guest user");
+      } as User;
     }
 
     console.log("[Auth] Guest user authenticated");

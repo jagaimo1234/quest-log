@@ -36,22 +36,23 @@ import {
 export { diarySparkReports };
 import { ENV } from './_core/env.js';
 
+// Fallback Turso credentials to ensure cloud deployments (Vercel) always connect
+const DEFAULT_TURSO_URL = "libsql://quest-log-jagaimo1234.aws-ap-northeast-1.turso.io";
+const DEFAULT_TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Njk4NzM3MTksImlkIjoiZmY3MGI2OWEtNTc3ZC00YTZjLTlhZDYtNjQwMjQ3NTMwZWZmIiwicmlkIjoiOWIyODk0YzEtMDk4Ni00YWUyLWFkODMtZjhlMzNiY2QwOGRkIn0.8G2TYYW-hNjPMDFrs1uY-czDAkhhIMBsrkIuaTKXdoZ3hhiORfNklIlnMW0-QThphw-b1Virb-XfZQTqQll4AQ";
+
 // Database Instance (Unified LibSQL/Turso)
 let _client: any = null;
 let _db: any = null;
 
 export function initDb() {
   if (_db) return _db;
-  const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) {
-    console.warn("DATABASE_URL is not set. Database initialization skipped.");
-    return null;
-  }
+  const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || DEFAULT_TURSO_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN || process.env.TURSO_TOKEN || DEFAULT_TURSO_TOKEN;
 
   try {
     _client = createClient({
       url: dbUrl,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      authToken: authToken,
     });
     _db = drizzle(_client);
     return _db;
@@ -75,18 +76,10 @@ export async function getDb() {
 }
 
 export async function checkDbConnection() {
-  const dbUrl = process.env.DATABASE_URL;
+  const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || DEFAULT_TURSO_URL;
   try {
-    if (!dbUrl) {
-      return {
-        status: "error",
-        message: "DATABASE_URL is not set",
-        dbUrl: undefined
-      };
-    }
-
     const isLibsql = dbUrl.startsWith("libsql://");
-    const hasToken = !!process.env.TURSO_AUTH_TOKEN;
+    const hasToken = !!(process.env.TURSO_AUTH_TOKEN || process.env.TURSO_TOKEN || DEFAULT_TURSO_TOKEN);
 
     const db = await getDb();
     if (!db) {
