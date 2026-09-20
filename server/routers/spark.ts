@@ -21,6 +21,20 @@ interface ParsedSparkOutput {
   rawReportMarkdown: string;
 }
 
+function normalizeDateStr(str: string): string {
+  if (!str) return new Date().toISOString().slice(0, 10);
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) return str;
+  const m = str.match(/(\d{1,2})[\/\-](\d{1,2})/);
+  if (m) {
+    const year = new Date().getFullYear();
+    const month = m[1].padStart(2, "0");
+    const day = m[2].padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
 export const sparkRouter = router({
   getReport: protectedProcedure
     .input(
@@ -33,13 +47,15 @@ export const sparkRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
+      const normalizedDate = normalizeDateStr(input.targetDate);
+
       const [report] = await db
         .select()
         .from(diarySparkReports)
         .where(
           and(
             eq(diarySparkReports.userId, ctx.user!.id),
-            eq(diarySparkReports.targetDate, input.targetDate),
+            eq(diarySparkReports.targetDate, normalizedDate),
             eq(diarySparkReports.periodType, input.periodType)
           )
         );
@@ -79,6 +95,8 @@ export const sparkRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
+      const normalizedDate = normalizeDateStr(input.targetDate);
+
       // 1. Check existing report if not forcing
       if (!input.force) {
         const [existing] = await db
@@ -87,7 +105,7 @@ export const sparkRouter = router({
           .where(
             and(
               eq(diarySparkReports.userId, ctx.user!.id),
-              eq(diarySparkReports.targetDate, input.targetDate),
+              eq(diarySparkReports.targetDate, normalizedDate),
               eq(diarySparkReports.periodType, input.periodType)
             )
           );
@@ -102,7 +120,7 @@ export const sparkRouter = router({
         .where(
           and(
             eq(dailyBulletinBoards.userId, ctx.user!.id),
-            eq(dailyBulletinBoards.date, input.targetDate)
+            eq(dailyBulletinBoards.date, normalizedDate)
           )
         );
 
@@ -115,8 +133,8 @@ export const sparkRouter = router({
         .from(quests)
         .where(eq(quests.userId, ctx.user!.id));
 
-      const clearedQuests = dayQuests.filter((q) => q.status === "cleared");
-      const pendingQuests = dayQuests.filter((q) =>
+      const clearedQuests = dayQuests.filter((q: any) => q.status === "cleared");
+      const pendingQuests = dayQuests.filter((q: any) =>
         ["accepted", "challenging", "almost"].includes(q.status)
       );
 
@@ -129,7 +147,7 @@ export const sparkRouter = router({
         .limit(5);
 
       // (d) Monthly Goal
-      const currentMonth = input.targetDate.slice(0, 7);
+      const currentMonth = normalizedDate.slice(0, 7);
       const [goal] = await db
         .select()
         .from(monthlyGoals)
@@ -155,15 +173,15 @@ export const sparkRouter = router({
 ユーザーが本日記録した「日記」「日間メモ」「タスク実績」から、深い考察と自己理解を深めるSparkレポートを作成してください。
 
 ### 入力データ:
-- 対象日: ${input.targetDate}
+- 対象日: ${normalizedDate}
 - 焚き火日記:
 ${diaryText || "（日記の記入なし）"}
 - 日間掲示板（メモ）:
 ${bulletinText || "（メモの記入なし）"}
 - 本月行動目標: ${goal?.content || "（未設定）"}
-- 本日クリアしたタスク数: ${clearedQuests.length}件 (${clearedQuests.map((q) => q.questName).join(", ") || "なし"})
-- 未完了・進行中タスク: ${pendingQuests.length}件 (${pendingQuests.map((q) => q.questName).join(", ") || "なし"})
-- 最近のKAIZENメモ: ${recentMemos.map((m) => m.content).join(" / ") || "なし"}
+- 本日クリアしたタスク数: ${clearedQuests.length}件 (${clearedQuests.map((q: any) => q.questName).join(", ") || "なし"})
+- 未完了・進行中タスク: ${pendingQuests.length}件 (${pendingQuests.map((q: any) => q.questName).join(", ") || "なし"})
+- 最近のKAIZENメモ: ${recentMemos.map((m: any) => m.content).join(" / ") || "なし"}
 
 ### レポート作成の要件:
 1. 感情・マインドのバイオリズム（充実感、疲れ、焦りなど）を察して温かく受け止める
@@ -210,8 +228,8 @@ ${bulletinText || "（メモの記入なし）"}
           json.companionMessage || "今日も一日お疲れ様でした。焚き火にあたってゆっくり休んでください。"
         );
 
-        const rawReportMarkdown = `### ✨ [Spark レポート] ${input.targetDate}
-**コンディション:** ${"★".repeat(conditionScore)}${"☆".repeat(5 - conditionScore)}
+        const rawReportMarkdown = `### ✨ [Spark レポート] ${normalizedDate}
+**コンディション:** ${"★".repeat(conditionScore)}${"☆".repeat(Math.max(0, 5 - conditionScore))}
 
 #### 📝 本日の総括
 ${summary}
@@ -255,7 +273,7 @@ ${kaizenSuggestions}
         const companionMessage =
           "パチパチと薪がはぜる音が聞こえます。今日も一日しっかり歩みを進めましたね。温かい飲み物を飲んで、心身をゆるめてください。";
 
-        const rawReportMarkdown = `### ✨ [Spark レポート] ${input.targetDate}
+        const rawReportMarkdown = `### ✨ [Spark レポート] ${normalizedDate}
 **コンディション:** ${"★".repeat(score)}${"☆".repeat(5 - score)}
 
 #### 📝 本日の総括
@@ -290,7 +308,7 @@ ${kaizenSuggestions}
         .where(
           and(
             eq(diarySparkReports.userId, ctx.user!.id),
-            eq(diarySparkReports.targetDate, input.targetDate),
+            eq(diarySparkReports.targetDate, normalizedDate),
             eq(diarySparkReports.periodType, input.periodType)
           )
         );
@@ -320,7 +338,7 @@ ${kaizenSuggestions}
           .insert(diarySparkReports)
           .values({
             userId: ctx.user!.id,
-            targetDate: input.targetDate,
+            targetDate: normalizedDate,
             periodType: input.periodType,
             conditionScore: parsedOutput.conditionScore,
             summary: parsedOutput.summary,

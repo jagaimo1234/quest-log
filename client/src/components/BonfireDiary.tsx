@@ -762,7 +762,7 @@ export function BonfireDiary({
         <SparkReportDialog
           open={isSparkOpen}
           onOpenChange={setIsSparkOpen}
-          targetDate={selectedDateStr || date || new Date().toISOString().slice(0, 10)}
+          targetDate={date || new Date().toISOString().slice(0, 10)}
         />
       </div>
     );
@@ -932,7 +932,7 @@ export function BonfireDiary({
       <SparkReportDialog
         open={isSparkOpen}
         onOpenChange={setIsSparkOpen}
-        targetDate={selectedDateStr || date || new Date().toISOString().slice(0, 10)}
+        targetDate={date || new Date().toISOString().slice(0, 10)}
       />
     </div>
   );
