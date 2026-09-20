@@ -25,7 +25,7 @@ export const TEXT_COLOR_PALETTE = [
 ];
 
 export function parseDocBlocks(raw: string): DocBlock[] {
-  if (!raw) return [{ id: "b-0", type: "text", text: "" }];
+  if (!raw) return [{ id: "b-txt-0", type: "text", text: "" }];
 
   const regex = /!\[(.*?)\]\((data:image\/[^)]+|https?:\/\/[^)]+)\)/g;
   const blocks: DocBlock[] = [];
@@ -64,7 +64,7 @@ export function parseDocBlocks(raw: string): DocBlock[] {
   }
 
   if (blocks.length === 0) {
-    blocks.push({ id: "b-0", type: "text", text: "" });
+    blocks.push({ id: "b-txt-0", type: "text", text: "" });
   }
 
   // Coalesce any consecutive text blocks
@@ -132,6 +132,102 @@ export function extractPlainText(raw: string): string {
     .trim();
 }
 
+function normalizeHtml(str: string): string {
+  return (str || "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/<br\s*\/?>/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+interface ContentEditableBlockProps {
+  html: string;
+  onChange: (html: string) => void;
+  onFocus?: () => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLDivElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  onKeystroke?: () => void;
+  placeholder?: string;
+  className?: string;
+  innerRef?: (el: HTMLDivElement | null) => void;
+}
+
+/**
+ * Bulletproof ContentEditable component that avoids React's DOM reconciliation
+ * wipes and caret reset issues by skipping re-renders when DOM already matches.
+ */
+class ContentEditableBlock extends React.Component<ContentEditableBlockProps> {
+  private el: HTMLDivElement | null = null;
+
+  shouldComponentUpdate(nextProps: ContentEditableBlockProps): boolean {
+    const el = this.el;
+    if (el) {
+      // 1. Exact match between next HTML and current DOM content
+      if (nextProps.html === el.innerHTML) {
+        return (
+          nextProps.className !== this.props.className ||
+          nextProps.placeholder !== this.props.placeholder
+        );
+      }
+      // 2. Normalized match (whitespace / br differences during typing)
+      if (normalizeHtml(nextProps.html) === normalizeHtml(el.innerHTML)) {
+        return (
+          nextProps.className !== this.props.className ||
+          nextProps.placeholder !== this.props.placeholder
+        );
+      }
+    }
+    // Content differs externally (date switch, DB load, style reset) -> must re-render
+    return true;
+  }
+
+  componentDidUpdate() {
+    const el = this.el;
+    if (!el) return;
+    if (
+      this.props.html !== el.innerHTML &&
+      normalizeHtml(this.props.html) !== normalizeHtml(el.innerHTML)
+    ) {
+      el.innerHTML = this.props.html;
+    }
+  }
+
+  render() {
+    const {
+      html,
+      innerRef,
+      onChange,
+      onFocus,
+      onPaste,
+      onKeyDown,
+      onKeystroke,
+      placeholder,
+      className,
+    } = this.props;
+
+    return (
+      <div
+        ref={(el) => {
+          this.el = el;
+          if (innerRef) innerRef(el);
+        }}
+        contentEditable
+        suppressContentEditableWarning
+        dangerouslySetInnerHTML={{ __html: html }}
+        data-placeholder={placeholder}
+        onFocus={onFocus}
+        onInput={(e) => {
+          onChange(e.currentTarget.innerHTML);
+          onKeystroke?.();
+        }}
+        onPaste={onPaste}
+        onKeyDown={onKeyDown}
+        className={className}
+      />
+    );
+  }
+}
+
 interface RichDocEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -186,27 +282,7 @@ export function RichDocEditor({
     }
     const parsed = parseDocBlocks(value);
     setBlocks(parsed);
-
-    // Update innerHTML on mounted elements
-    parsed.forEach((b, i) => {
-      if (b.type === "text" && editableRefs.current[i]) {
-        if (editableRefs.current[i]!.innerHTML !== b.text) {
-          editableRefs.current[i]!.innerHTML = b.text;
-        }
-      }
-    });
   }, [value]);
-
-  // Initial sync on mount
-  useEffect(() => {
-    blocks.forEach((b, i) => {
-      if (b.type === "text" && editableRefs.current[i]) {
-        if (editableRefs.current[i]!.innerHTML !== b.text) {
-          editableRefs.current[i]!.innerHTML = b.text;
-        }
-      }
-    });
-  }, []);
 
   // Trigger change to parent
   const commitBlocks = useCallback(
@@ -489,11 +565,9 @@ export function RichDocEditor({
   };
 
   // Text input change
-  const handleInput = (index: number, e: React.FormEvent<HTMLDivElement>) => {
-    const html = e.currentTarget.innerHTML;
+  const handleInput = (index: number, html: string) => {
     const newBlocks = blocks.map((b, i) => (i === index ? { ...b, text: html } : b));
     commitBlocks(newBlocks);
-    onKeystroke?.();
   };
 
   // Keyboard navigation
@@ -689,18 +763,18 @@ export function RichDocEditor({
 
           // Rich ContentEditable Text Block
           return (
-            <div
+            <ContentEditableBlock
               key={block.id}
-              ref={(el) => {
+              innerRef={(el) => {
                 editableRefs.current[index] = el;
               }}
-              contentEditable
-              suppressContentEditableWarning
-              data-placeholder={index === 0 ? placeholder : ""}
+              html={block.text}
+              placeholder={index === 0 ? placeholder : ""}
               onFocus={() => {
                 activeBlockIndexRef.current = index;
               }}
-              onInput={(e) => handleInput(index, e)}
+              onChange={(html) => handleInput(index, html)}
+              onKeystroke={onKeystroke}
               onPaste={(e) => handlePasteInBlock(index, e)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               className={`w-full bg-transparent outline-none p-0 m-0 block whitespace-pre-wrap break-words min-h-[1.5em] ${textAreaClassName}`}

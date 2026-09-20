@@ -272,7 +272,9 @@
 }
 
 /* ContentEditable Placeholder */
-[contenteditable]:empty:before {
+[contenteditable]:empty:before,
+[contenteditable][data-placeholder]:empty:before,
+[contenteditable][data-placeholder]:has(> br:only-child):before {
   content: attr(data-placeholder);
   color: rgba(156, 163, 175, 0.7);
   pointer-events: none;
