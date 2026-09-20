@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { eq, and, desc, asc, gte, lte, or, isNull, sql, isNotNull, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
@@ -36,49 +37,37 @@ export { diarySparkReports };
 import { ENV } from './_core/env.js';
 
 // Database Instance (Unified LibSQL/Turso)
-// Vercel環境でfile:sqlite.dbを使おうとするとクラッシュするため、環境変数がない場合は初期化をスキップする
-const dbUrl = process.env.DATABASE_URL;
+let _client: any = null;
 let _db: any = null;
 
-if (dbUrl) {
-  console.log(`Initializing database...`);
+export function initDb() {
+  if (_db) return _db;
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.warn("DATABASE_URL is not set. Database initialization skipped.");
+    return null;
+  }
+
   try {
-    const client = createClient({
+    _client = createClient({
       url: dbUrl,
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
-    _db = drizzle(client);
-
-    // Ensure diary_spark_reports table exists
-    client.execute(`
-      CREATE TABLE IF NOT EXISTS diary_spark_reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        userId INTEGER NOT NULL,
-        targetDate TEXT NOT NULL,
-        periodType TEXT DEFAULT 'daily' NOT NULL,
-        conditionScore INTEGER DEFAULT 3 NOT NULL,
-        summary TEXT DEFAULT '' NOT NULL,
-        analysis TEXT DEFAULT '' NOT NULL,
-        kaizenSuggestions TEXT DEFAULT '' NOT NULL,
-        companionMessage TEXT DEFAULT '' NOT NULL,
-        rawReportMarkdown TEXT DEFAULT '' NOT NULL,
-        createdAt INTEGER NOT NULL
-      );
-    `).then(() => {
-      client.execute(`
-        CREATE UNIQUE INDEX IF NOT EXISTS user_target_period_idx ON diary_spark_reports (userId, targetDate, periodType);
-      `).catch(() => {});
-    }).catch((err) => {
-      console.warn("Could not auto-create diary_spark_reports table:", err);
-    });
+    _db = drizzle(_client);
+    return _db;
   } catch (e) {
     console.error("Failed to initialize database client:", e);
+    return null;
   }
-} else {
-  console.warn("DATABASE_URL is not set. Database initialization skipped.");
 }
 
+// Initial attempt
+initDb();
+
 export async function getDb() {
+  if (!_db) {
+    initDb();
+  }
   if (!_db) {
     console.warn("Database is not initialized. Check environment variables.");
   }
@@ -86,6 +75,7 @@ export async function getDb() {
 }
 
 export async function checkDbConnection() {
+  const dbUrl = process.env.DATABASE_URL;
   try {
     if (!dbUrl) {
       return {
@@ -98,15 +88,15 @@ export async function checkDbConnection() {
     const isLibsql = dbUrl.startsWith("libsql://");
     const hasToken = !!process.env.TURSO_AUTH_TOKEN;
 
-    // Simple query to check connection
-    if (!_db) {
+    const db = await getDb();
+    if (!db) {
       return {
         status: "error",
         message: "Database client is not initialized",
-        dbUrl: dbUrl
+        dbUrl: dbUrl.substring(0, 10) + "..."
       };
     }
-    const result = await _db.all(sql`SELECT 1 as connected`);
+    const result = await db.all(sql`SELECT 1 as connected`);
 
     return {
       status: "ok",
@@ -120,7 +110,7 @@ export async function checkDbConnection() {
       status: "error",
       message: error.message,
       stack: error.stack,
-      dbUrl: dbUrl // Be careful not to expose full sensitive URL in production logs if possible, but for debugging this user it's helpful
+      dbUrl: dbUrl ? dbUrl.substring(0, 10) + "..." : undefined
     };
   }
 }
