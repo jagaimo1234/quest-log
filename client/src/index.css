@@ -156,3 +156,125 @@
 .animate-check {
   animation: check-mark 0.3s ease-out forwards;
 }
+
+/* Document Rich Styling: Markers (Highlighters) */
+.marker-yellow {
+  background-color: rgba(253, 224, 71, 0.85);
+  color: #451a03;
+  border-radius: 3px;
+  padding: 1px 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.dark .marker-yellow {
+  background-color: rgba(245, 158, 11, 0.4);
+  color: #fef08a;
+}
+
+.marker-green {
+  background-color: rgba(134, 239, 172, 0.85);
+  color: #022c22;
+  border-radius: 3px;
+  padding: 1px 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.dark .marker-green {
+  background-color: rgba(16, 185, 129, 0.4);
+  color: #bbf7d0;
+}
+
+.marker-pink {
+  background-color: rgba(244, 114, 182, 0.85);
+  color: #4c0519;
+  border-radius: 3px;
+  padding: 1px 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.dark .marker-pink {
+  background-color: rgba(244, 63, 94, 0.4);
+  color: #fecdd3;
+}
+
+.marker-blue {
+  background-color: rgba(125, 211, 252, 0.85);
+  color: #082f49;
+  border-radius: 3px;
+  padding: 1px 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.dark .marker-blue {
+  background-color: rgba(14, 165, 233, 0.4);
+  color: #bae6fd;
+}
+
+.marker-orange {
+  background-color: rgba(251, 146, 60, 0.85);
+  color: #431407;
+  border-radius: 3px;
+  padding: 1px 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.dark .marker-orange {
+  background-color: rgba(249, 115, 22, 0.4);
+  color: #fed7aa;
+}
+
+/* Document Rich Styling: Text Colors */
+.color-red {
+  color: #dc2626 !important;
+  font-weight: 600;
+}
+.dark .color-red {
+  color: #f87171 !important;
+}
+
+.color-blue {
+  color: #2563eb !important;
+  font-weight: 600;
+}
+.dark .color-blue {
+  color: #60a5fa !important;
+}
+
+.color-green {
+  color: #059669 !important;
+  font-weight: 600;
+}
+.dark .color-green {
+  color: #34d399 !important;
+}
+
+.color-purple {
+  color: #9333ea !important;
+  font-weight: 600;
+}
+.dark .color-purple {
+  color: #c084fc !important;
+}
+
+.color-orange {
+  color: #ea580c !important;
+  font-weight: 600;
+}
+.dark .color-orange {
+  color: #fb923c !important;
+}
+
+.color-gray {
+  color: #9ca3af !important;
+}
+.dark .color-gray {
+  color: #71717a !important;
+}
+
+/* ContentEditable Placeholder */
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: rgba(156, 163, 175, 0.7);
+  pointer-events: none;
+  display: block;
+}
