@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { compressImage } from "../lib/imageCompression";
 import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -283,6 +284,26 @@ export function RichDocEditor({
     const parsed = parseDocBlocks(value);
     setBlocks(parsed);
   }, [value]);
+
+  // Lightbox keyboard (Esc) & body scroll lock
+  useEffect(() => {
+    if (!lightboxUrl) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLightboxUrl(null);
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [lightboxUrl]);
 
   // Trigger change to parent
   const commitBlocks = useCallback(
@@ -904,40 +925,53 @@ export function RichDocEditor({
         </div>
       )}
 
-      {/* Lightbox Modal */}
-      {lightboxUrl && (
-        <div
-          onClick={() => setLightboxUrl(null)}
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
-        >
+      {/* Lightbox Modal via Portal directly to body */}
+      {lightboxUrl &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center"
+            onClick={() => setLightboxUrl(null)}
+            className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150 cursor-zoom-out select-none"
           >
-            <img
-              src={lightboxUrl}
-              alt="拡大写真"
-              className="max-w-full max-h-[82vh] object-contain rounded-lg shadow-2xl border border-stone-700 bg-stone-950"
-            />
-            <div className="mt-2.5 flex items-center gap-3">
-              <a
-                href={lightboxUrl}
-                download={`photo-${Date.now()}.webp`}
-                className="px-3 py-1 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs rounded-md border border-stone-600 flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" /> 保存 / ダウンロード
-              </a>
-              <button
-                type="button"
-                onClick={() => setLightboxUrl(null)}
-                className="px-3 py-1 bg-stone-800 hover:bg-red-800 text-stone-200 text-xs rounded-md border border-stone-600 flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" /> 閉じる (Esc)
-              </button>
+            {/* Top Close Button for convenient one-tap dismissal */}
+            <button
+              type="button"
+              onClick={() => setLightboxUrl(null)}
+              className="absolute top-4 right-4 z-10 p-2 bg-black/60 hover:bg-black/90 text-white rounded-full border border-white/20 transition-all cursor-pointer shadow-lg"
+              title="閉じる (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-5xl max-h-[92vh] flex flex-col items-center justify-center cursor-default"
+            >
+              <img
+                src={lightboxUrl}
+                alt="拡大写真"
+                className="max-w-[94vw] max-h-[78vh] object-contain rounded-xl shadow-2xl border border-stone-800 bg-stone-950/80"
+              />
+              <div className="mt-3 flex items-center gap-3 shrink-0">
+                <a
+                  href={lightboxUrl}
+                  download={`photo-${Date.now()}.webp`}
+                  className="px-3.5 py-1.5 bg-stone-800/90 hover:bg-stone-700 text-stone-100 text-xs font-medium rounded-lg border border-stone-600/80 flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> 保存 / ダウンロード
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(null)}
+                  className="px-3.5 py-1.5 bg-stone-800/90 hover:bg-red-700/90 text-stone-100 text-xs font-medium rounded-lg border border-stone-600/80 flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" /> 閉じる (Esc)
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
