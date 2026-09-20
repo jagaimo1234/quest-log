@@ -2752,11 +2752,13 @@ export default function Home() {
 
             <div className="h-px bg-border/50 my-6" />
 
-            {/* MONTHLY GOALS */}
-            <MonthlyGoalBoard />
+            {/* In weekly mode, wrap all lower shelves (Monthly goals, Bulletin board, counters, etc.) in layout-container so only the 7-day schedule is full-width */}
+            <div className={planningViewMode === 'weekly' ? 'layout-container !py-0 !px-0 sm:!px-4' : 'contents'}>
+              {/* MONTHLY GOALS */}
+              <MonthlyGoalBoard />
 
-            {/* BULLETIN BOARD */}
-            <BulletinBoard />
+              {/* BULLETIN BOARD */}
+              <BulletinBoard />
 
             {/* YASUDA YOGURT COUNTER */}
             <section className="mb-6 p-4 rounded-xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 shadow-sm relative overflow-hidden">
@@ -3415,6 +3417,7 @@ export default function Home() {
             <div className="h-px bg-border/50 my-6" />
             <InvestmentFlowTracker />
 
+            </div>
           </TabsContent>
 
           <TabsContent value="calendar" className="animate-fade-in">
