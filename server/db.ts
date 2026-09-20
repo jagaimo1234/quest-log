@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { eq, and, desc, asc, gte, lte, or, isNull, sql, isNotNull, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
-import { createClient } from "@libsql/client";
+import { createClient } from "@libsql/client/web";
 import { format } from "date-fns";
 import {
   users,
@@ -61,9 +61,6 @@ export function initDb() {
     return null;
   }
 }
-
-// Initial attempt
-initDb();
 
 export async function getDb() {
   if (!_db) {
