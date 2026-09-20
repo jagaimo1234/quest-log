@@ -125,24 +125,102 @@ export function BonfireDiary({
     let time = 0;
 
     const animate = () => {
-      time += 0.03;
+      time += 0.035;
       const warmth = baseWarmthRef.current;
       const pulse = typingPulseRef.current;
 
       ctx.clearRect(0, 0, NATIVE_W, NATIVE_H);
 
       if (isImgLoaded) {
-        // 1. Draw base pixel art
+        // Base canvas
         ctx.drawImage(bgImg, 0, 0, NATIVE_W, NATIVE_H);
 
-        // 2. Clean up top-left YouTube video title bar (tile dark pine trees over it)
+        // 1. Clean top-left banner
         for (let px = 10; px < 212; px += 24) {
           const chunk = Math.min(24, 212 - px);
           ctx.drawImage(bgImg, 222, 5, chunk, 22, px, 5, chunk, 22);
         }
 
-        // 3. Clear static pup tail area to animate wagging cleanly
+        // ==========================================
+        // ROBOT 1 (LEFT TIN ROBOT) VISIBLE MOTION
+        // ==========================================
+        // Idle breathing bob (-1, 0, +1 px)
+        const r1Breath = Math.round(Math.sin(time * 2.2) * 1.2);
+        // Nodding gesture every 6 seconds
+        const isR1Nod = (time % 6.0) < 0.8;
+        const r1NodDy = isR1Nod ? Math.round(Math.sin(((time % 6.0) * Math.PI) / 0.8) * 1.5) : 0;
+        const r1TotalDy = r1Breath + r1NodDy;
+
+        // Hands warming reach: shifts closer to fire (+1 to +2px)
+        const r1HandReach = Math.round(Math.max(0, Math.sin(time * 3.0)) * 1.5 + pulse * 2.0);
+
+        // Draw Left Robot Upper Body at animated offset
+        if (r1TotalDy !== 0) {
+          // Fill background behind head top with dark pine
+          ctx.drawImage(bgImg, 50, 20, 40, 6, 80, 32, 40, 6);
+          // Redraw upper body (head + torso) with offset
+          ctx.drawImage(bgImg, 75, 34, 72, 68, 75, 34 + r1TotalDy, 72, 68);
+        }
+
+        // Move hands closer to fire
+        if (r1HandReach > 0) {
+          ctx.drawImage(bgImg, 120, 85, 28, 22, 120 + r1HandReach, 85 + r1TotalDy, 28, 22);
+        }
+
+        // ==========================================
+        // ROBOT 2 (CYBORG) VISIBLE MOTION
+        // ==========================================
+        // Heavy mechanical breathing on distinct tempo
+        const r2Breath = Math.round(Math.cos(time * 1.9) * 1.2);
+        // Subtle posture shift towards fire on typing
+        const r2LeanDx = Math.round(pulse * 1.5);
+
+        if (r2Breath !== 0 || r2LeanDx !== 0) {
+          ctx.drawImage(bgImg, 140, 20, 35, 6, 165, 29, 35, 6);
+          ctx.drawImage(bgImg, 160, 31, 72, 70, 160 + r2LeanDx, 31 + r2Breath, 72, 70);
+        }
+
+        // Cyborg Hands warming shift
+        const r2HandReach = Math.round(Math.max(0, Math.cos(time * 2.7)) * 1.5 + pulse * 2.0);
+        if (r2HandReach > 0) {
+          ctx.drawImage(bgImg, 202, 86, 26, 22, 202 + r2HandReach, 86 + r2Breath, 26, 22);
+        }
+
+        // ==========================================
+        // ROBOT 3 (RIGHT TIN ROBOT) VISIBLE MOTION
+        // ==========================================
+        // Body sway & breathing
+        const r3Breath = Math.round(Math.sin(time * 2.4 + 2.0) * 1.2);
+        // Leaning left towards fire when warming hands
+        const r3HandReach = Math.round(Math.max(0, Math.sin(time * 2.8 + 1.0)) * 1.5 + pulse * 2.5);
+
+        if (r3Breath !== 0) {
+          ctx.drawImage(bgImg, 380, 20, 40, 6, 390, 32, 40, 6);
+          ctx.drawImage(bgImg, 360, 34, 76, 68, 360, 34 + r3Breath, 76, 68);
+        }
+
+        // Right hands reaching left towards the flames
+        if (r3HandReach > 0) {
+          ctx.drawImage(bgImg, 362, 84, 30, 22, 362 - r3HandReach, 84 + r3Breath, 30, 22);
+        }
+
+        // ==========================================
+        // DOGS VISIBLE MOTION
+        // ==========================================
+        // Clear static pup tail
         ctx.drawImage(bgImg, 372, 106, 12, 12, 356, 102, 12, 12);
+
+        // Pup breathing bounce
+        const pupBreath = Math.round(Math.sin(time * 3.5) * 0.8);
+        if (pupBreath !== 0) {
+          ctx.drawImage(bgImg, 315, 96, 42, 35, 315, 96 + pupBreath, 42, 35);
+        }
+
+        // Big dog breathing
+        const bigDogBreath = Math.round(Math.sin(time * 2.3) * 0.8);
+        if (bigDogBreath !== 0) {
+          ctx.drawImage(bgImg, 315, 68, 45, 30, 315, 68 + bigDogBreath, 45, 30);
+        }
       }
 
       // ==============================
@@ -166,9 +244,9 @@ export function BonfireDiary({
       // ==============================
       const fireCx = 246;
       const fireBaseY = 126;
-      const glowR = 60 + warmth * 15 + pulse * 35;
+      const glowR = 60 + warmth * 15 + pulse * 38;
       const ambientGlow = ctx.createRadialGradient(fireCx, fireBaseY + 5, 4, fireCx, fireBaseY + 5, glowR);
-      const alphaGlow = 0.16 + 0.08 * Math.sin(time * 6) + pulse * 0.18;
+      const alphaGlow = 0.16 + 0.08 * Math.sin(time * 6) + pulse * 0.22;
       ambientGlow.addColorStop(0, `rgba(254, 240, 138, ${alphaGlow * 1.5})`);
       ambientGlow.addColorStop(0.35, `rgba(245, 158, 11, ${alphaGlow})`);
       ambientGlow.addColorStop(0.75, `rgba(217, 119, 6, ${alphaGlow * 0.3})`);
@@ -181,8 +259,8 @@ export function BonfireDiary({
       // ==============================
       // C. ANIMATED PIXEL CAMPFIRE FLAMES
       // ==============================
-      const flameH = 26 + warmth * 7 + pulse * 14;
-      const flameW = 20 + warmth * 4 + pulse * 6;
+      const flameH = 26 + warmth * 7 + pulse * 16;
+      const flameW = 20 + warmth * 4 + pulse * 7;
       const tongueCount = 5;
 
       for (let i = 0; i < tongueCount; i++) {
@@ -228,13 +306,13 @@ export function BonfireDiary({
       // ==============================
       // D. RISING PIXEL EMBERS
       // ==============================
-      const emberSpawnRate = pulse > 0.2 ? 0.85 : 0.32;
+      const emberSpawnRate = pulse > 0.2 ? 0.9 : 0.35;
       if (Math.random() < emberSpawnRate) {
         embers.push({
           x: fireCx + (Math.random() - 0.5) * 20,
           y: fireBaseY - 8,
           vx: (Math.random() - 0.5) * 0.7,
-          vy: -(Math.random() * 1.4 + 0.9 + pulse * 0.8),
+          vy: -(Math.random() * 1.4 + 0.9 + pulse * 0.9),
           life: 1.0,
           decay: Math.random() * 0.02 + 0.012,
           size: Math.random() < 0.35 ? 2 : 1,
@@ -262,88 +340,92 @@ export function BonfireDiary({
       // ==============================
       // E. LEFT ROBOT 1 (Tin Robot: cx ≈ 100)
       // ==============================
-      // Chest Reactor
+      // Chest Reactor (moves with r1TotalDy)
+      const r1TotalYOffset = Math.round(Math.sin(time * 2.2) * 1.2) + ((time % 6.0) < 0.8 ? Math.round(Math.sin(((time % 6.0) * Math.PI) / 0.8) * 1.5) : 0);
       const r1Alpha = 0.45 + 0.35 * Math.sin(time * 3.2) + pulse * 0.35;
-      const r1Grad = ctx.createRadialGradient(100, 78, 1, 100, 78, 9 + pulse * 3);
+      const r1Grad = ctx.createRadialGradient(100, 78 + r1TotalYOffset, 1, 100, 78 + r1TotalYOffset, 9 + pulse * 3);
       r1Grad.addColorStop(0, `rgba(255, 90, 90, ${Math.min(1, r1Alpha)})`);
       r1Grad.addColorStop(0.5, `rgba(220, 38, 38, ${Math.min(1, r1Alpha * 0.7)})`);
       r1Grad.addColorStop(1, "transparent");
       ctx.fillStyle = r1Grad;
       ctx.beginPath();
-      ctx.arc(100, 78, 9 + pulse * 3, 0, Math.PI * 2);
+      ctx.arc(100, 78 + r1TotalYOffset, 9 + pulse * 3, 0, Math.PI * 2);
       ctx.fill();
       // Center needle
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(99, 76, 2, 4);
+      ctx.fillRect(99, 76 + r1TotalYOffset, 2, 4);
 
       // Eye blink (every 4.5s)
       const eyeBlink1 = (time % 4.5) < 0.15;
       if (eyeBlink1) {
         ctx.fillStyle = "#262626";
-        ctx.fillRect(93, 44, 4, 3);
-        ctx.fillRect(103, 44, 4, 3);
+        ctx.fillRect(93, 44 + r1TotalYOffset, 4, 3);
+        ctx.fillRect(103, 44 + r1TotalYOffset, 4, 3);
       }
 
       // Hand warmth highlight
       const handGlow = 0.2 + 0.15 * Math.sin(time * 7) + pulse * 0.25;
       ctx.fillStyle = `rgba(251, 191, 36, ${handGlow})`;
-      ctx.fillRect(138, 91, 3, 3);
+      ctx.fillRect(138, 91 + r1TotalYOffset, 3, 3);
 
       // ==============================
       // F. LEFT ROBOT 2 (Cyborg: cx ≈ 184)
       // ==============================
-      // Heartbeat core pulse
+      // Heartbeat core pulse (moves with r2Breath & r2LeanDx)
+      const r2CurBreath = Math.round(Math.cos(time * 1.9) * 1.2);
+      const r2CurLean = Math.round(pulse * 1.5);
       const hb = Math.pow(Math.max(0, Math.sin(time * 4.5)), 12) + Math.pow(Math.max(0, Math.sin(time * 4.5 - 0.4)), 14) * 0.7;
       const cybCoreAlpha = 0.4 + hb * 0.55 + pulse * 0.35;
       ctx.fillStyle = `rgba(239, 68, 68, ${Math.min(1, cybCoreAlpha)})`;
-      ctx.fillRect(183, 72, 4, 10);
-      const cybGrad = ctx.createRadialGradient(185, 77, 1, 185, 77, 7 + hb * 4);
+      ctx.fillRect(183 + r2CurLean, 72 + r2CurBreath, 4, 10);
+      const cybGrad = ctx.createRadialGradient(185 + r2CurLean, 77 + r2CurBreath, 1, 185 + r2CurLean, 77 + r2CurBreath, 7 + hb * 4);
       cybGrad.addColorStop(0, `rgba(255, 120, 120, ${Math.min(1, cybCoreAlpha * 0.8)})`);
       cybGrad.addColorStop(1, "transparent");
       ctx.fillStyle = cybGrad;
       ctx.beginPath();
-      ctx.arc(185, 77, 7 + hb * 4, 0, Math.PI * 2);
+      ctx.arc(185 + r2CurLean, 77 + r2CurBreath, 7 + hb * 4, 0, Math.PI * 2);
       ctx.fill();
 
       // Right Eye sensor
       ctx.fillStyle = `rgba(248, 113, 113, ${0.7 + 0.3 * Math.sin(time * 5)})`;
-      ctx.fillRect(189, 42, 2, 2);
+      ctx.fillRect(189 + r2CurLean, 42 + r2CurBreath, 2, 2);
 
       // ==============================
       // G. RIGHT ROBOT 3 (Tin Robot: cx ≈ 410)
       // ==============================
-      // Furnace Grate
+      // Furnace Grate (moves with r3Breath)
+      const r3CurBreath = Math.round(Math.sin(time * 2.4 + 2.0) * 1.2);
       const fGlow = 0.55 + 0.3 * Math.sin(time * 4.8 + 1) + pulse * 0.4;
-      const furnGrad = ctx.createRadialGradient(410, 80, 1, 410, 80, 11 + pulse * 4);
+      const furnGrad = ctx.createRadialGradient(410, 80 + r3CurBreath, 1, 410, 80 + r3CurBreath, 11 + pulse * 4);
       furnGrad.addColorStop(0, `rgba(254, 240, 138, ${Math.min(1, fGlow)})`);
       furnGrad.addColorStop(0.5, `rgba(245, 158, 11, ${Math.min(1, fGlow * 0.75)})`);
       furnGrad.addColorStop(1, "transparent");
       ctx.fillStyle = furnGrad;
       ctx.beginPath();
-      ctx.arc(410, 80, 11 + pulse * 4, 0, Math.PI * 2);
+      ctx.arc(410, 80 + r3CurBreath, 11 + pulse * 4, 0, Math.PI * 2);
       ctx.fill();
       // Grate bars
       ctx.fillStyle = "#2c1810";
-      ctx.fillRect(408, 75, 1.5, 10);
-      ctx.fillRect(411, 75, 1.5, 10);
+      ctx.fillRect(408, 75 + r3CurBreath, 1.5, 10);
+      ctx.fillRect(411, 75 + r3CurBreath, 1.5, 10);
 
       // Eye blink
       const eyeBlink3 = (time % 5.2) < 0.15;
       if (eyeBlink3) {
         ctx.fillStyle = "#262626";
-        ctx.fillRect(403, 44, 4, 3);
-        ctx.fillRect(413, 44, 4, 3);
+        ctx.fillRect(403, 44 + r3CurBreath, 4, 3);
+        ctx.fillRect(413, 44 + r3CurBreath, 4, 3);
       }
 
       // Hands warmth highlight
       ctx.fillStyle = `rgba(251, 191, 36, ${0.25 + 0.15 * Math.cos(time * 6) + pulse * 0.2})`;
-      ctx.fillRect(372, 90, 3, 3);
+      ctx.fillRect(372, 90 + r3CurBreath, 3, 3);
 
       // ==============================
       // H. THE TWO DOGS (Pup & Big Dog)
       // ==============================
       // Pup Wagging Tail
-      const wagSpeed = 9 + pulse * 10;
+      const wagSpeed = 9 + pulse * 12;
       const wagFrame = Math.floor((time * wagSpeed) % 3);
 
       ctx.fillStyle = "#361d0f"; // Outline
@@ -381,7 +463,7 @@ export function BonfireDiary({
 
       // Decay typing pulse
       if (typingPulseRef.current > 0) {
-        typingPulseRef.current -= 0.032;
+        typingPulseRef.current -= 0.028;
         if (typingPulseRef.current < 0) typingPulseRef.current = 0;
       }
 
