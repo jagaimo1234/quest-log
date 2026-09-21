@@ -40,6 +40,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { AwarenessBalloons, BalloonAwarenessItem } from "@/components/AwarenessBalloons";
+import { AwarenessDetailDialog } from "@/components/AwarenessDetailDialog";
 
 const STAGE_CONFIG = {
   sprout: {
@@ -127,7 +129,12 @@ export default function Awareness() {
     onError: () => toast.error("統合に失敗しました"),
   });
 
-  // State
+  // View State
+  const [viewMode, setViewMode] = useState<"balloons" | "list">("balloons");
+  const [balloonFilterTab, setBalloonFilterTab] = useState<"all" | "active" | "standby" | "anchored">("active");
+  const [selectedBalloonItem, setSelectedBalloonItem] = useState<BalloonAwarenessItem | null>(null);
+
+  // Filter & Search State
   const [activeFilterTab, setActiveFilterTab] = useState<"all" | "active" | "standby" | "anchored">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedContexts, setExpandedContexts] = useState<Record<number, boolean>>({});
@@ -245,6 +252,24 @@ export default function Awareness() {
     });
   }, [items, activeFilterTab, searchQuery]);
 
+  // Effective balloon filter & items
+  const effectiveBalloonFilter = useMemo(() => {
+    if (balloonFilterTab === "active" && activeItems.length === 0 && items.length > 0) {
+      return "all";
+    }
+    return balloonFilterTab;
+  }, [balloonFilterTab, activeItems.length, items.length]);
+
+  const balloonDisplayItems = useMemo(() => {
+    if (effectiveBalloonFilter === "all") return items;
+    return items.filter((i: any) => i.status === effectiveBalloonFilter);
+  }, [items, effectiveBalloonFilter]);
+
+  const currentSelectedBalloonItem = useMemo(() => {
+    if (!selectedBalloonItem) return null;
+    return items.find((i: any) => i.id === selectedBalloonItem.id) || selectedBalloonItem;
+  }, [items, selectedBalloonItem]);
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-24">
       {/* Header */}
@@ -277,15 +302,43 @@ export default function Awareness() {
             </div>
           </div>
 
-          <Button
-            onClick={openCreateModal}
-            size="sm"
-            className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold gap-1 shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">手動で意識を追加</span>
-            <span className="sm:hidden">追加</span>
-          </Button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* View Mode Toggle: [ 🎈 バルーン | 📋 リスト ] */}
+            <div className="flex items-center p-0.5 bg-muted/60 dark:bg-muted/40 rounded-xl border border-border/50 text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode("balloons")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  viewMode === "balloons"
+                    ? "bg-amber-500 text-stone-950 shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>🎈 バルーン</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  viewMode === "list"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>📋 リスト</span>
+              </button>
+            </div>
+
+            <Button
+              onClick={openCreateModal}
+              size="sm"
+              className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold gap-1 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">手動で意識を追加</span>
+              <span className="sm:hidden">追加</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -306,8 +359,22 @@ export default function Awareness() {
           </div>
         </div>
 
-        {/* SECTION 1: FOCUS / ACTIVE AWARENESS (育成中) */}
-        <section className="space-y-4">
+        {viewMode === "balloons" ? (
+          <div className="space-y-4">
+            <AwarenessBalloons
+              items={balloonDisplayItems}
+              onSelectItem={(item) => setSelectedBalloonItem(item)}
+              filterTab={effectiveBalloonFilter}
+              onFilterChange={(tab) => setBalloonFilterTab(tab)}
+              activeCount={activeItems.length}
+              standbyCount={standbyItems.length}
+              anchoredCount={anchoredItems.length}
+            />
+          </div>
+        ) : (
+          <>
+            {/* SECTION 1: FOCUS / ACTIVE AWARENESS (育成中) */}
+            <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">🌱</span>
@@ -705,6 +772,8 @@ export default function Awareness() {
             </div>
           )}
         </section>
+          </>
+        )}
       </main>
 
       {/* CREATE / EDIT DIALOG */}
@@ -901,6 +970,28 @@ export default function Awareness() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* BALLOON ITEM DETAIL & LOG PRACTICE DIALOG */}
+      <AwarenessDetailDialog
+        item={currentSelectedBalloonItem}
+        isOpen={!!selectedBalloonItem}
+        onClose={() => setSelectedBalloonItem(null)}
+        onAddLog={(awarenessId, logType, content) => {
+          addLogMutation.mutate({ awarenessId, logType, content });
+        }}
+        onDeleteLog={(logId, awarenessId) => {
+          deleteLogMutation.mutate({ logId, awarenessId });
+        }}
+        onToggleStatus={(item, newStatus) => {
+          toggleStatus(item, newStatus);
+        }}
+        onEdit={(item) => {
+          openEditModal(item);
+        }}
+        onDelete={(item) => {
+          deleteMutation.mutate({ id: item.id });
+        }}
+      />
     </div>
   );
 }
