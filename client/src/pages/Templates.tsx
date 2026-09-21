@@ -8,8 +8,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
-import { useState } from "react";
-import { Loader2, Scroll, Plus, ArrowLeft, Swords, Calendar, ToggleLeft, ToggleRight, Pencil, Trash2, RefreshCw } from "lucide-react";
+import { useState, useMemo } from "react";
+import { 
+  Loader2, Scroll, Plus, ArrowLeft, Swords, Calendar, 
+  ToggleLeft, ToggleRight, Pencil, Trash2, RefreshCw,
+  Search, CheckCircle2, Zap, Coffee, Folder, X, Filter
+} from "lucide-react";
 import { toast } from "sonner";
 
 /**
@@ -39,6 +43,9 @@ const QUEST_TYPE_LABELS: Record<string, string> = {
   Weekly: "ウィークリー",
   Monthly: "マンスリー",
   Yearly: "イヤリー",
+  Free: "ワンオフ",
+  Relax: "リラックス",
+  Project: "プロジェクト",
 };
 
 // 難易度表示
@@ -54,9 +61,11 @@ function TemplateCard({
   onToggle: () => void;
 }) {
   const toggleActive = trpc.template.toggleActive.useMutation();
+  const deleteTemplate = trpc.template.delete.useMutation();
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  const handleToggle = async () => {
+  const handleToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await toggleActive.mutateAsync({
         templateId: template.id,
@@ -66,6 +75,19 @@ function TemplateCard({
       toast.success(template.isActive ? "テンプレートを無効にしました" : "テンプレートを有効にしました");
     } catch (error) {
       toast.error("テンプレートの更新に失敗しました");
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const name = template.questName || "名称未設定";
+    if (!confirm(`テンプレート「${name}」を削除しますか？\n（この操作は取り消せません）`)) return;
+    try {
+      await deleteTemplate.mutateAsync({ templateId: template.id });
+      toast.success("テンプレートを削除しました");
+      onToggle();
+    } catch (error) {
+      toast.error("削除に失敗しました");
     }
   };
 
@@ -80,8 +102,7 @@ function TemplateCard({
   const weeks = parse(template.weeksOfMonth);
   const dates = parse(template.datesOfMonth);
 
-  // FIX判定: Daily または 日付・曜日などの指定がある場合
-  // NON-FIX: 上記指定がなく、回数指定のみの場合
+  // FIX判定
   let isFix = false;
   if (template.questType === "Daily") {
     isFix = true;
@@ -91,16 +112,56 @@ function TemplateCard({
     isFix = false;
   }
 
-  // カラー設定
-  // FIX: Sky (水色)
-  // NON-FIX: Fuchsia (ピンク)
-  const colorClass = isFix
-    ? { border: "border-sky-200", bg: "bg-sky-50 hover:bg-sky-100", icon: "text-sky-600 bg-sky-100", text: "text-sky-900", label: "text-sky-600 bg-sky-100" }
-    : { border: "border-fuchsia-200", bg: "bg-fuchsia-50 hover:bg-fuchsia-100", icon: "text-fuchsia-600 bg-fuchsia-100", text: "text-fuchsia-900", label: "text-fuchsia-600 bg-fuchsia-100" };
+  // カテゴリー別カラー設定
+  let colorClass = {
+    border: "border-sky-200",
+    bg: "bg-sky-50/60 hover:bg-sky-50/90",
+    iconBg: "bg-sky-100 text-sky-600",
+    text: "text-sky-950",
+    badge: "text-sky-700 bg-sky-100/80 border-sky-200"
+  };
+
+  if (template.questType === "Free") {
+    colorClass = {
+      border: "border-orange-200",
+      bg: "bg-orange-50/60 hover:bg-orange-50/90",
+      iconBg: "bg-orange-100 text-orange-600",
+      text: "text-orange-950",
+      badge: "text-orange-700 bg-orange-100/80 border-orange-200"
+    };
+  } else if (template.questType === "Relax") {
+    colorClass = {
+      border: "border-emerald-200",
+      bg: "bg-emerald-50/60 hover:bg-emerald-50/90",
+      iconBg: "bg-emerald-100 text-emerald-600",
+      text: "text-emerald-950",
+      badge: "text-emerald-700 bg-emerald-100/80 border-emerald-200"
+    };
+  } else if (template.questType === "Project") {
+    colorClass = {
+      border: "border-indigo-200",
+      bg: "bg-indigo-50/60 hover:bg-indigo-50/90",
+      iconBg: "bg-indigo-100 text-indigo-600",
+      text: "text-indigo-950",
+      badge: "text-indigo-700 bg-indigo-100/80 border-indigo-200"
+    };
+  } else if (!isFix) {
+    colorClass = {
+      border: "border-fuchsia-200",
+      bg: "bg-fuchsia-50/60 hover:bg-fuchsia-50/90",
+      iconBg: "bg-fuchsia-100 text-fuchsia-600",
+      text: "text-fuchsia-950",
+      badge: "text-fuchsia-700 bg-fuchsia-100/80 border-fuchsia-200"
+    };
+  }
 
   const typeLabel = QUEST_TYPE_LABELS[template.questType] || template.questType;
   const executionLabel = isFix ? "FIX" : "NON-FIX";
 
+  const isOneOff = template.questType === "Free";
+  const executedCount = template.executedCount || 0;
+  const quota = template.frequency || 1;
+  const isOneOffCompleted = isOneOff && executedCount >= quota;
 
   const getScheduleDescription = () => {
     switch (template.questType) {
@@ -108,24 +169,30 @@ function TemplateCard({
         return "毎日";
       case "Weekly":
         if (days.length > 0) {
-          const dayNames = days.map(d => SHORT_WEEKDAYS[d]).join("・");
+          const dayNames = days.map((d: number) => SHORT_WEEKDAYS[d]).join("・");
           return `${dayNames}`;
         }
-        return `週${template.frequency}回`;
+        return `週${template.frequency || 1}回 (Pool)`;
       case "Monthly":
         let parts = [];
         if (dates.length > 0) parts.push(`${dates.join("・")}日`);
         if (weeks.length > 0) {
-          const w = weeks.map(n => SHORT_WEEKS[n - 1]).join("・");
-          const d = days.length > 0 ? days.map(n => SHORT_WEEKDAYS[n]).join("・") : "全日";
+          const w = weeks.map((n: number) => SHORT_WEEKS[n - 1]).join("・");
+          const d = days.length > 0 ? days.map((n: number) => SHORT_WEEKDAYS[n]).join("・") : "全日";
           parts.push(`${w}${d}`);
         }
-        if (parts.length === 0) return `月${template.frequency}回`;
+        if (parts.length === 0) return `月${template.frequency || 1}回 (Pool)`;
         return `${parts.join(" / ")}`;
       case "Yearly":
         const m = template.monthOfYear ? `${template.monthOfYear}月` : "";
-        if (!m) return `年${template.frequency}回`;
+        if (!m) return `年${template.frequency || 1}回`;
         return `${m}`;
+      case "Free":
+        return `One-off (目標: ${quota}回)`;
+      case "Relax":
+        return "息抜き・回復";
+      case "Project":
+        return template.parentProjectName || template.projectName ? `案件: ${template.parentProjectName || template.projectName}` : "プロジェクトタスク";
       default:
         return "";
     }
@@ -133,71 +200,132 @@ function TemplateCard({
 
   return (
     <>
-      <div className={`border rounded-xl p-4 shadow-sm group hover:shadow-md transition-all ${colorClass.border} ${colorClass.bg} ${!template.isActive ? "opacity-60 grayscale" : ""}`}>
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white ${isFix ? "text-sky-600" : "text-fuchsia-600"}`}>
+      <div className={`border rounded-xl p-3.5 sm:p-4 shadow-sm transition-all ${colorClass.border} ${colorClass.bg} ${!template.isActive ? "opacity-60 grayscale-[40%] bg-muted/40 border-dashed" : ""}`}>
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${colorClass.iconBg} shadow-inner`}>
               {template.questType === "Daily" && <RefreshCw className="w-5 h-5" />}
-              {template.questType === "Weekly" && <Calendar className="w-5 h-5" />}
-              {template.questType === "Monthly" && <Calendar className="w-5 h-5" />}
-              {template.questType === "Yearly" && <Calendar className="w-5 h-5" />}
+              {(template.questType === "Weekly" || template.questType === "Monthly" || template.questType === "Yearly") && <Calendar className="w-5 h-5" />}
+              {template.questType === "Free" && <Zap className="w-5 h-5" />}
+              {template.questType === "Relax" && <Coffee className="w-5 h-5" />}
+              {template.questType === "Project" && <Folder className="w-5 h-5" />}
             </div>
-            <div>
-              <h3 className={`font-bold text-base leading-tight mb-0.5 ${colorClass.text}`}>
-                {template.questName || "（名称未設定）"}
-              </h3>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-sm bg-white/50 ${isFix ? "text-sky-700" : "text-fuchsia-700"}`}>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                <h3 className={`font-bold text-base leading-tight truncate ${colorClass.text}`}>
+                  {template.questName || "（名称未設定）"}
+                </h3>
+                {!template.isActive && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                    無効
+                  </span>
+                )}
+                {isOneOffCompleted && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    完了 ({executedCount}/{quota})
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-sm border ${colorClass.badge}`}>
                   {typeLabel}
                 </span>
-                <span className={`text-[9px] font-bold border px-1 rounded-sm bg-white ${isFix ? "text-sky-400 border-sky-200" : "text-fuchsia-400 border-fuchsia-200"}`}>
-                  {executionLabel}
-                </span>
-                {template.projectName && (
-                  <span className="text-xs text-muted-foreground">
-                    {template.projectName}
+                {template.questType !== "Free" && template.questType !== "Relax" && template.questType !== "Project" && (
+                  <span className={`text-[9px] font-bold border px-1 rounded-sm bg-white/80 ${isFix ? "text-sky-600 border-sky-200" : "text-fuchsia-600 border-fuchsia-200"}`}>
+                    {executionLabel}
+                  </span>
+                )}
+                {(template.projectName || template.parentProjectName) && (
+                  <span className="text-xs text-muted-foreground truncate">
+                    🏷️ {template.parentProjectName || template.projectName}
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* アクションボタン（常時表示） */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {isOneOffCompleted && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await toggleActive.mutateAsync({ templateId: template.id, isActive: true });
+                    toast.success("ミッションを再開しました（回数をリセット）");
+                    onToggle();
+                  } catch {
+                    toast.error("再開に失敗しました");
+                  }
+                }}
+                className="h-8 text-xs px-2 text-orange-600 border-orange-300 bg-orange-50 hover:bg-orange-100 shadow-sm"
+                title="カウントをリセットして再開"
+              >
+                <RefreshCw className="w-3.5 h-3.5 mr-1" /> 再開
+              </Button>
+            )}
+
             <Button
               onClick={handleToggle}
               disabled={toggleActive.isPending}
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              title={template.isActive ? "無効にする" : "有効にする"}
+              variant="outline"
+              size="sm"
+              className={`h-8 px-2.5 text-xs font-bold transition-all shadow-sm ${
+                template.isActive
+                  ? "text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400"
+                  : "text-muted-foreground border-border bg-background hover:bg-muted"
+              }`}
+              title={template.isActive ? "クリックして無効にする" : "クリックして有効にする"}
             >
               {template.isActive ? (
-                <ToggleRight className="w-5 h-5 text-green-600" />
+                <>
+                  <ToggleRight className="w-4 h-4 mr-1 text-emerald-600" />
+                  有効
+                </>
               ) : (
-                <ToggleLeft className="w-5 h-5" />
+                <>
+                  <ToggleLeft className="w-4 h-4 mr-1 text-muted-foreground" />
+                  無効
+                </>
               )}
             </Button>
+
             <Button
               onClick={() => setIsEditOpen(true)}
-              variant="ghost"
+              variant="outline"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground bg-background shadow-sm hover:border-accent"
+              title="編集"
             >
-              <Pencil className="w-4 h-4" />
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+
+            <Button
+              onClick={handleDelete}
+              disabled={deleteTemplate.isPending}
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 text-destructive/80 hover:text-destructive border-border hover:border-destructive/40 hover:bg-destructive/10 bg-background shadow-sm"
+              title="削除"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md">
-            <RefreshCw className="w-3.5 h-3.5 opacity-70" />
+        <div className="mt-2.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-1.5 bg-white/70 border border-border/40 px-2 py-0.5 rounded-md">
+            <RefreshCw className="w-3 h-3 opacity-60" />
             <span>{getScheduleDescription()}</span>
-            {template.frequency > 1 && (
-              <span className="ml-1 border-l pl-2 border-border/50">頻度: {template.frequency}回</span>
+            {template.frequency > 1 && template.questType !== "Free" && (
+              <span className="ml-1 border-l pl-1.5 border-border/50">頻度: {template.frequency}回</span>
             )}
           </div>
           {template.scheduledHour != null && (
-            <div className="flex items-center gap-1 bg-sky-100 text-sky-700 px-2 py-1 rounded-md font-medium">
+            <div className="flex items-center gap-1 bg-sky-100 text-sky-700 px-2 py-0.5 rounded-md font-medium border border-sky-200">
               🕐 {String(template.scheduledHour).padStart(2, '0')}:00
             </div>
           )}
@@ -268,6 +396,8 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
     template.scheduledHour != null ? String(template.scheduledHour) : "none"
   );
 
+  const [isActive, setIsActive] = useState<boolean>(template.isActive !== false);
+
   const updateTemplate = trpc.template.update.useMutation();
   const deleteTemplate = trpc.template.delete.useMutation();
 
@@ -303,27 +433,12 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
       const finalWeeks = (isFix && weeksOfMonth.length > 0) ? weeksOfMonth.map(w => parseInt(w)) : null;
       const finalDates = (isFix && parsedDates.length > 0) ? parsedDates : null;
       const finalMonth = (isFix || questType === "Yearly") && monthOfYear ? parseInt(monthOfYear) : null;
-      // Note: Yearly usually needs month even for Non-Fix? "3 times in August".
-      // If user wants "3 times a year (any month)", then month is null.
-      // If user wants "3 times in August", month is 8.
-      // Current UI for Yearly only shows Month selector in FIX block (in my previous edit).
-      // If user selects NON-FIX, they see Frequency. They don't see Month selector.
-      // So Yearly NON-FIX means "Anytime in the year".
-      // If we want "Frequency in specific month", we'd need Month selector in NON-FIX too.
-      // But adhering to "Simple Logic":
-      // FIX = Specific Day/Date.
-      // NON-FIX = Frequency only.
-      // So Yearly NON-FIX = Frequency per Year.
 
       // Frequency logic
       let finalFrequency = 1;
-      if (isNonFix) {
+      if (isNonFix || questType === "Free") {
         finalFrequency = parseInt(frequency) || 1;
       } else {
-        // If FIX, frequency is ignored/default(1).
-        // Or maybe we want to allow "2 times on Monday"? (e.g. Morning/Evening).
-        // "FIX / NON-FIX separation" implies FIX determines timing fully.
-        // Let's force frequency to 1 for FIX to avoid ambiguity.
         finalFrequency = 1;
       }
 
@@ -339,6 +454,7 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
         datesOfMonth: finalDates,
         monthOfYear: finalMonth,
         scheduledHour: questType === "Daily" && scheduledHour !== "none" ? parseInt(scheduledHour) : null,
+        isActive: isActive,
       });
 
       toast.success("テンプレートを更新しました");
@@ -356,7 +472,36 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
           <DialogTitle className="text-accent text-xl">テンプレート編集</DialogTitle>
         </DialogHeader>
 
-        <form id="template-edit-form" onSubmit={handleSubmit} className="space-y-6 flex-1 overflow-y-auto px-6 py-2 min-h-0">
+        <form id="template-edit-form" onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto px-6 py-2 min-h-0">
+          {/* 有効/無効 スイッチ */}
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-card/60 border-border">
+            <div>
+              <div className="text-xs font-bold">有効化設定</div>
+              <div className="text-[11px] text-muted-foreground">無効にするとホーム棚に表示されなくなります</div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsActive(!isActive)}
+              className={`font-bold text-xs h-8 px-3 ${
+                isActive ? "text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100" : "text-muted-foreground bg-muted/40"
+              }`}
+            >
+              {isActive ? (
+                <>
+                  <ToggleRight className="w-4 h-4 mr-1 text-emerald-600" />
+                  有効
+                </>
+              ) : (
+                <>
+                  <ToggleLeft className="w-4 h-4 mr-1 text-muted-foreground" />
+                  無効
+                </>
+              )}
+            </Button>
+          </div>
+
           <div>
             <Label htmlFor="edit-questName" className="text-foreground">
               クエスト名（任意）
@@ -392,10 +537,13 @@ function TemplateEditDialog({ template, open, onOpenChange, onUpdated }: { templ
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Daily">Daily</SelectItem>
-                <SelectItem value="Weekly">Weekly</SelectItem>
-                <SelectItem value="Monthly">Monthly</SelectItem>
-                <SelectItem value="Yearly">Yearly</SelectItem>
+                <SelectItem value="Daily">デイリー (Daily)</SelectItem>
+                <SelectItem value="Weekly">ウィークリー (Weekly)</SelectItem>
+                <SelectItem value="Monthly">マンスリー (Monthly)</SelectItem>
+                <SelectItem value="Yearly">イヤリー (Yearly)</SelectItem>
+                <SelectItem value="Free">ワンオフ (One-off / Free)</SelectItem>
+                <SelectItem value="Relax">リラックス (Relax)</SelectItem>
+                {template.questType === "Project" && <SelectItem value="Project">プロジェクト (Project)</SelectItem>}
               </SelectContent>
             </Select>
           </div>
@@ -968,8 +1116,58 @@ export default function Templates() {
     { enabled: isAuthenticated }
   );
 
-  // 未認証時
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
+  const counts = useMemo(() => {
+    if (!templates) return { total: 0, active: 0, inactive: 0, daily: 0, weekly: 0, monthly: 0, free: 0, relax: 0, project: 0 };
+    return {
+      total: templates.length,
+      active: templates.filter(t => t.isActive).length,
+      inactive: templates.filter(t => !t.isActive).length,
+      daily: templates.filter(t => t.questType === 'Daily').length,
+      weekly: templates.filter(t => t.questType === 'Weekly').length,
+      monthly: templates.filter(t => t.questType === 'Monthly' || t.questType === 'Yearly').length,
+      free: templates.filter(t => t.questType === 'Free').length,
+      relax: templates.filter(t => t.questType === 'Relax').length,
+      project: templates.filter(t => t.questType === 'Project').length,
+    };
+  }, [templates]);
+
+  const filteredTemplates = useMemo(() => {
+    if (!templates) return [];
+    return templates.filter(t => {
+      // 検索フィルター
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const matchName = t.questName?.toLowerCase().includes(q);
+        const matchProj = t.projectName?.toLowerCase().includes(q) || t.parentProjectName?.toLowerCase().includes(q);
+        if (!matchName && !matchProj) return false;
+      }
+      // ステータスフィルター
+      if (statusFilter === 'active' && !t.isActive) return false;
+      if (statusFilter === 'inactive' && t.isActive) return false;
+      // カテゴリーフィルター
+      if (categoryFilter !== 'all') {
+        if (categoryFilter === 'Monthly') {
+          if (t.questType !== 'Monthly' && t.questType !== 'Yearly') return false;
+        } else if (t.questType !== categoryFilter) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [templates, searchTerm, statusFilter, categoryFilter]);
+
+  const CATEGORIES = [
+    { key: "Daily", label: "デイリー", icon: "☀️", count: counts.daily, desc: "毎日自動スケジュール・実行", items: filteredTemplates.filter(t => t.questType === "Daily") },
+    { key: "Weekly", label: "ウィークリー", icon: "📅", count: counts.weekly, desc: "指定曜日・週次ミッション", items: filteredTemplates.filter(t => t.questType === "Weekly") },
+    { key: "Monthly", label: "マンスリー / イヤリー", icon: "🗓️", count: counts.monthly, desc: "定期月次・年次ミッション", items: filteredTemplates.filter(t => t.questType === "Monthly" || t.questType === "Yearly") },
+    { key: "Free", label: "ワンオフ (One-off)", icon: "🎯", count: counts.free, desc: "随時実行・目標回数プール", items: filteredTemplates.filter(t => t.questType === "Free") },
+    { key: "Relax", label: "リラックス (Relax)", icon: "🌿", count: counts.relax, desc: "息抜き・回復ミッション", items: filteredTemplates.filter(t => t.questType === "Relax") },
+    { key: "Project", label: "プロジェクト (Project)", icon: "📁", count: counts.project, desc: "特定案件のミッション", items: filteredTemplates.filter(t => t.questType === "Project") },
+  ];
 
   // ローディング
   if (authLoading || templatesLoading) {
@@ -981,26 +1179,33 @@ export default function Templates() {
   }
 
   return (
-    <div className="min-h-screen texture-overlay">
+    <div className="min-h-screen texture-overlay pb-16">
       {/* ヘッダー */}
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <header className="border-b border-border/50 bg-card/70 backdrop-blur-md sticky top-0 z-40">
+        <div className="container max-w-5xl py-3.5 px-4 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
               <Button
                 onClick={() => window.location.href = "/"}
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground h-9 w-9"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <div className="flex items-center gap-3">
-                <Scroll className="w-6 h-6 text-accent" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                  <Scroll className="w-5 h-5" />
+                </div>
                 <div>
-                  <h1 className="text-xl font-bold text-accent">クエストテンプレート</h1>
-                  <p className="text-sm text-muted-foreground">
-                    定期クエストの自動生成設定
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg sm:text-xl font-bold text-accent leading-none">クエストテンプレート</h1>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-muted text-muted-foreground">
+                      全{counts.total}件
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    定期タスク・プールミッションの自動生成と管理
                   </p>
                 </div>
               </div>
@@ -1012,26 +1217,154 @@ export default function Templates() {
       </header>
 
       {/* メインコンテンツ */}
-      <main className="container py-6">
-        {templates?.filter(t => t.questType !== "Project").length === 0 ? (
-          <div className="quest-frame p-8 text-center">
-            <div className="quest-frame-corner top-left" />
-            <div className="quest-frame-corner top-right" />
-            <div className="quest-frame-corner bottom-left" />
-            <div className="quest-frame-corner bottom-right" />
+      <main className="container max-w-5xl py-6 px-4 sm:px-6 space-y-6">
+        {/* コントロールバー: 検索 & ステータスタブ */}
+        <div className="space-y-3 bg-card/40 backdrop-blur-sm border border-border/60 rounded-xl p-3 sm:p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            {/* 検索入力 */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="テンプレート名・案件名で検索..."
+                className="pl-9 pr-8 bg-background border-border text-sm h-9"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
-            <Scroll className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              テンプレートがありません
+            {/* ステータス切り替えタブ */}
+            <div className="flex rounded-lg border border-border bg-background p-1 text-xs shrink-0 self-start sm:self-auto">
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-3 py-1 rounded-md font-bold transition-all ${
+                  statusFilter === "all"
+                    ? "bg-accent text-accent-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                すべて ({counts.total})
+              </button>
+              <button
+                onClick={() => setStatusFilter("active")}
+                className={`px-3 py-1 rounded-md font-bold transition-all ${
+                  statusFilter === "active"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                有効 ({counts.active})
+              </button>
+              <button
+                onClick={() => setStatusFilter("inactive")}
+                className={`px-3 py-1 rounded-md font-bold transition-all ${
+                  statusFilter === "inactive"
+                    ? "bg-muted-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                無効 ({counts.inactive})
+              </button>
+            </div>
+          </div>
+
+          {/* カテゴリー別フィルタータブ */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 -mx-1 px-1 custom-scrollbar text-xs">
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all border ${
+                categoryFilter === "all"
+                  ? "bg-foreground text-background border-foreground shadow-sm"
+                  : "bg-background/80 text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+              }`}
+            >
+              全カテゴリー ({counts.total})
+            </button>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat.key}
+                onClick={() => setCategoryFilter(cat.key)}
+                className={`px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
+                  categoryFilter === cat.key
+                    ? "bg-foreground text-background border-foreground shadow-sm"
+                    : "bg-background/80 text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span>{cat.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${categoryFilter === cat.key ? "bg-background/20 text-background" : "bg-muted text-muted-foreground"}`}>
+                  {cat.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* テンプレート表示エリア */}
+        {filteredTemplates.length === 0 ? (
+          <div className="quest-frame p-8 text-center bg-card/40 rounded-xl border border-border/60">
+            <Scroll className="w-12 h-12 text-muted-foreground/60 mx-auto mb-3" />
+            <h3 className="font-bold text-foreground mb-1">該当するテンプレートがありません</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              検索条件またはフィルターを変更してお試しください
             </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              テンプレートを作成すると、<br />
-              定期的にクエストが自動生成されます
-            </p>
+            {(searchTerm || statusFilter !== "all" || categoryFilter !== "all") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                  setCategoryFilter("all");
+                }}
+                className="text-xs"
+              >
+                フィルターをリセット
+              </Button>
+            )}
+          </div>
+        ) : categoryFilter === "all" ? (
+          // 全カテゴリー選択時: セクションごとに整理して表示
+          <div className="space-y-8">
+            {CATEGORIES.filter(cat => cat.items.length > 0).map(cat => (
+              <section key={cat.key} className="space-y-3">
+                <div className="flex items-center justify-between border-b border-border/60 pb-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{cat.icon}</span>
+                    <h2 className="text-sm font-bold text-foreground tracking-wide">{cat.label}</h2>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-muted text-muted-foreground">
+                      {cat.items.length}件
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground hidden sm:inline">{cat.desc}</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {cat.items.map(template => (
+                    <TemplateCard
+                      key={template.id}
+                      template={template}
+                      onToggle={refetchTemplates}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         ) : (
+          // 単一カテゴリー選択時: 直接リスト表示
           <div className="space-y-3">
-            {templates?.filter(t => t.questType !== "Project").map((template) => (
+            <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+              <span>{filteredTemplates.length}件のテンプレート</span>
+            </div>
+            {filteredTemplates.map(template => (
               <TemplateCard
                 key={template.id}
                 template={template}
@@ -1041,15 +1374,16 @@ export default function Templates() {
           </div>
         )}
 
-        {/* 説明 */}
-        <div className="quest-frame p-4 mt-6">
+        {/* 説明カード */}
+        <div className="quest-frame p-4 mt-8 bg-card/30 border border-border/50 rounded-xl">
           <div className="flex items-start gap-3">
-            <span className="text-2xl">📋</span>
-            <div>
-              <h3 className="font-bold text-accent mb-1">テンプレートについて</h3>
-              <p className="text-sm text-muted-foreground">
-                テンプレートを設定すると、指定したタイミングで自動的にクエストが生成されます。
-                デイリーは毎日、ウィークリーは指定曜日、マンスリーは指定週、イヤリーは指定月の指定週に生成されます。
+            <span className="text-xl">📋</span>
+            <div className="text-xs space-y-1">
+              <h3 className="font-bold text-foreground">テンプレートの運用について</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                ・<strong>有効 / 無効</strong>: 「無効」にしたテンプレートは、ホーム画面の各棚（FIX、Non-FIX Pool、One-off、Relax）から自動的に除外されます。<br />
+                ・<strong>削除</strong>: 不要になったテンプレートはカード右上のゴミ箱アイコンからいつでも削除できます。<br />
+                ・<strong>ワンオフの再開</strong>: 目標回数を達成したワンオフミッションは「再開」ボタンを押すことで、再度ホームの棚で受注できるようになります。
               </p>
             </div>
           </div>

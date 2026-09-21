@@ -610,9 +610,18 @@ export async function getQuestTemplates(userId: number): Promise<(QuestTemplate 
     .orderBy(asc(questTemplates.displayOrder), asc(questTemplates.id));
 
   const results = await Promise.all(rows.map(async ({ template, project }: { template: QuestTemplate, project: Project | null }) => {
+    let countWhere = and(
+      eq(questHistory.templateId, template.id),
+      eq(questHistory.finalStatus, 'cleared')
+    );
+    // For One-off (Free) templates, count completions since the template's last activation/update
+    if (template.questType === "Free" && template.updatedAt) {
+      countWhere = and(countWhere, gte(questHistory.recordedAt, template.updatedAt));
+    }
+
     const [res] = await db.select({ count: sql<number>`count(*)` })
       .from(questHistory)
-      .where(and(eq(questHistory.templateId, template.id), eq(questHistory.finalStatus, 'cleared')));
+      .where(countWhere);
 
     return {
       ...template,
@@ -635,9 +644,16 @@ export async function updateTemplateStatus(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  const now = new Date();
   await db.update(questTemplates)
-    .set({ isActive, updatedAt: new Date() })
+    .set({ isActive, updatedAt: now })
     .where(and(eq(questTemplates.id, templateId), eq(questTemplates.userId, userId)));
+
+  // 無効化された場合、このテンプレートに紐付く未受注タスクを削除
+  if (!isActive) {
+    await db.delete(quests)
+      .where(and(eq(quests.templateId, templateId), eq(quests.userId, userId), eq(quests.status, "unreceived")));
+  }
 
   const [template] = await db.select().from(questTemplates).where(eq(questTemplates.id, templateId));
   return template;
@@ -652,7 +668,7 @@ export async function updateQuestTemplate(
   input: {
     questName?: string | null;
     projectName?: string | null;
-    questType?: "Daily" | "Weekly" | "Monthly" | "Yearly" | "Project" | "Relax";
+    questType?: "Daily" | "Weekly" | "Monthly" | "Yearly" | "Project" | "Relax" | "Free";
     difficulty?: "1" | "2" | "3";
     frequency?: number;
     daysOfWeek?: number[] | null;
@@ -662,6 +678,7 @@ export async function updateQuestTemplate(
     startDate?: Date | null;
     endDate?: Date | null;
     scheduledHour?: number | null;
+    isActive?: boolean;
   }
 ): Promise<QuestTemplate> {
   const db = await getDb();
@@ -683,10 +700,16 @@ export async function updateQuestTemplate(
   if (input.startDate !== undefined) updateData.startDate = input.startDate;
   if (input.endDate !== undefined) updateData.endDate = input.endDate;
   if (input.scheduledHour !== undefined) updateData.scheduledHour = input.scheduledHour;
+  if (input.isActive !== undefined) updateData.isActive = input.isActive;
 
   await db.update(questTemplates)
     .set(updateData)
     .where(and(eq(questTemplates.id, templateId), eq(questTemplates.userId, userId)));
+
+  if (input.isActive === false) {
+    await db.delete(quests)
+      .where(and(eq(quests.templateId, templateId), eq(quests.userId, userId), eq(quests.status, "unreceived")));
+  }
 
   const [template] = await db.select().from(questTemplates).where(eq(questTemplates.id, templateId));
   return template;
@@ -698,6 +721,10 @@ export async function updateQuestTemplate(
 export async function deleteTemplate(templateId: number, userId: number): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  // 関連する未受注タスクも同時に削除
+  await db.delete(quests)
+    .where(and(eq(quests.templateId, templateId), eq(quests.userId, userId), eq(quests.status, "unreceived")));
 
   await db.delete(questTemplates)
     .where(and(eq(questTemplates.id, templateId), eq(questTemplates.userId, userId)));

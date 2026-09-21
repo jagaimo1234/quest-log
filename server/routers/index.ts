@@ -714,6 +714,7 @@ export const appRouter = router({
         startDate: z.date().optional().nullable(),
         endDate: z.date().optional().nullable(),
         scheduledHour: z.number().min(0).max(23).nullable().optional(),
+        isActive: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return updateQuestTemplate(input.templateId, ctx.user!.id, input);

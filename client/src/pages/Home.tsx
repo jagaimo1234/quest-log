@@ -2205,7 +2205,7 @@ export default function Home() {
     }
   };
 
-  const relaxTemplates = templates?.filter(t => t.questType === "Relax") || [];
+  const relaxTemplates = templates?.filter(t => t.questType === "Relax" && t.isActive) || [];
 
   // Helper: compute startDate for planning offset
   const getPlanningStartDate = () => {
