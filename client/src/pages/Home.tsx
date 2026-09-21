@@ -2054,6 +2054,7 @@ export default function Home() {
 
     // 2. Add template-based FIX items
     templates?.forEach(t => {
+      if (!t.isActive) return;
       if (t.questType === "Project" || t.questType === "Relax" || t.questType === "Free") return;
 
       const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
@@ -2065,6 +2066,7 @@ export default function Home() {
 
       const alreadyPlanned = activeQuests?.some(aq => {
         if (aq.templateId !== t.id) return false;
+        if (aq.status === "unreceived") return false;
         const qDate = aq.startDate ? new Date(aq.startDate) : (aq.createdAt ? new Date(aq.createdAt) : null);
         return qDate && format(qDate, "yyyy-MM-dd") === targetStr;
       }) || history?.some(hq =>
@@ -2121,15 +2123,16 @@ export default function Home() {
     });
 
     return arr.sort((a, b) => {
-      // Sort by original order or synthesized id
-      const idA = typeof a.id === 'string' ? a.templateId : a.id;
-      const idB = typeof b.id === 'string' ? b.templateId : b.id;
+      // Sort consistently by templateId or quest id
+      const idA = a.templateId ?? (typeof a.id === 'number' ? a.id : 0);
+      const idB = b.templateId ?? (typeof b.id === 'number' ? b.id : 0);
       return idA - idB;
     });
   }, [unreceivedQuests, activeQuests, history, templates, targetStr, planningDayOffset]);
 
   // Project Shelf Logic (Now based on Templates)
   const projectTemplates = templates?.filter(t => {
+    if (!t.isActive) return false;
     if (t.questType !== "Project") return false;
     // Date Check
     if (!t.startDate || !t.endDate) return true; // Show invalid ones too? No, should be valid.
@@ -2142,6 +2145,7 @@ export default function Home() {
   }) || [];
 
   const nonFixTemplates = templates?.filter(t => {
+    if (!t.isActive) return false;
     const isPool = (t.questType === "Weekly" || t.questType === "Monthly") &&
       (!t.daysOfWeek || JSON.parse(t.daysOfWeek).length === 0) &&
       (!t.datesOfMonth || JSON.parse(t.datesOfMonth).length === 0);
