@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { compressImage } from "../lib/imageCompression";
 import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { applyFormatToRange } from "../lib/richTextFormatting";
 
 export type DocBlock =
   | { id: string; type: "text"; text: string }
@@ -374,80 +375,64 @@ export function RichDocEditor({
     const selection = window.getSelection();
     let range: Range | null = null;
 
-    if (selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed) {
+    if (selection && selection.rangeCount > 0) {
       range = selection.getRangeAt(0);
-    } else if (savedSelectionRangeRef.current && !savedSelectionRangeRef.current.collapsed) {
+    } else if (savedSelectionRangeRef.current) {
       range = savedSelectionRangeRef.current;
       selection?.removeAllRanges();
       selection?.addRange(range);
     }
 
-    if (!range || range.collapsed) {
-      toast.info("色を適用したいテキストを選択してください");
+    const container = containerRef.current;
+    if (!range || !container || !container.contains(range.commonAncestorContainer)) {
+      toast.info(formatType === "clear" ? "解除したいテキストを選択するかカーソルを合わせてください" : "色を適用したいテキストを選択してください");
       return;
     }
 
-    const container = containerRef.current;
-    if (!container || !container.contains(range.commonAncestorContainer)) {
+    // Find active block
+    let activeIdx = activeBlockIndexRef.current;
+    editableRefs.current.forEach((el, idx) => {
+      if (el && el.contains(range!.commonAncestorContainer)) {
+        activeIdx = idx;
+      }
+    });
+
+    const activeEl = editableRefs.current[activeIdx];
+    if (!activeEl) {
       toast.info("エディタ内のテキストを選択してください");
       return;
     }
 
-    if (formatType === "clear") {
-      const fragment = range.extractContents();
-      const unwrap = (node: Node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const el = node as HTMLElement;
-          if (
-            el.tagName === "MARK" ||
-            (el.tagName === "SPAN" && (el.className.includes("color-") || el.className.includes("marker-")))
-          ) {
-            const parent = el.parentNode;
-            while (el.firstChild) {
-              parent?.insertBefore(el.firstChild, el);
-            }
-            parent?.removeChild(el);
-            return;
-          }
-        }
-        const children = Array.from(node.childNodes);
-        children.forEach(unwrap);
-      };
-      unwrap(fragment);
-      range.insertNode(fragment);
-      toast.success("装飾を解除しました");
-    } else if (formatType === "marker") {
-      const mark = document.createElement("mark");
-      mark.className = `marker-${colorId}`;
-      mark.appendChild(range.extractContents());
-      range.insertNode(mark);
-      // Keep selection on styled node
-      selection?.removeAllRanges();
-      const newRange = document.createRange();
-      newRange.selectNodeContents(mark);
-      selection?.addRange(newRange);
-      savedSelectionRangeRef.current = newRange;
-    } else if (formatType === "color") {
-      const span = document.createElement("span");
-      span.className = `color-${colorId}`;
-      span.appendChild(range.extractContents());
-      range.insertNode(span);
-      // Keep selection on styled node
-      selection?.removeAllRanges();
-      const newRange = document.createRange();
-      newRange.selectNodeContents(span);
-      selection?.addRange(newRange);
+    const newRange = applyFormatToRange(range, activeEl, formatType, colorId);
+
+    if (!newRange) {
+      if (formatType === "clear") {
+        toast.info("解除対象の装飾が見つかりませんでした");
+      } else {
+        toast.info("色を適用したいテキストを選択してください");
+      }
+      return;
+    }
+
+    // Restore selection
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(newRange);
       savedSelectionRangeRef.current = newRange;
     }
 
-    // Commit change to active block
-    const activeIdx = activeBlockIndexRef.current;
-    const activeEl = editableRefs.current[activeIdx];
-    if (activeEl) {
-      const newHtml = activeEl.innerHTML;
-      const newBlocks = blocks.map((b, i) => (i === activeIdx ? { ...b, text: newHtml } : b));
-      commitBlocks(newBlocks);
+    if (formatType === "clear") {
+      toast.success("装飾（マーカー・文字色）を完全に解除しました");
+    } else if (formatType === "marker") {
+      toast.success("マーカーを適用しました");
+    } else if (formatType === "color") {
+      toast.success("文字色を適用しました");
     }
+
+    // Commit change to active block
+    const newHtml = activeEl.innerHTML;
+    const newBlocks = blocks.map((b, i) => (i === activeIdx ? { ...b, text: newHtml } : b));
+    commitBlocks(newBlocks);
 
     setIsMarkerMenuOpen(false);
     setIsTextColorMenuOpen(false);

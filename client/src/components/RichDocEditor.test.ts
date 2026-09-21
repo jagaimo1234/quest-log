@@ -50,3 +50,91 @@ describe("RichDocEditor parsing & serialization", () => {
     expect(pure).toBe("前の文章\n\nハイライト 文字青");
   });
 });
+
+import { applyFormatToRange } from "../lib/richTextFormatting";
+
+describe("richTextFormatting applyFormatToRange", () => {
+  it("completely clears formatting on fully selected text", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-yellow">Hello World</mark>';
+    const textNode = div.firstChild!.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 11);
+
+    applyFormatToRange(range, div, "clear");
+    expect(div.innerHTML).toBe("Hello World");
+  });
+
+  it("completely clears formatting on partially selected text inside a mark", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-yellow">Hello World !</mark>';
+    const textNode = div.firstChild!.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 6); // "W"
+    range.setEnd(textNode, 11); // "d"
+
+    applyFormatToRange(range, div, "clear");
+    expect(div.innerHTML).toBe('<mark class="marker-yellow">Hello </mark>World<mark class="marker-yellow"> !</mark>');
+  });
+
+  it("completely clears nested marker and text color formatting", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-yellow"><span class="color-red">大事なテスト</span></mark>';
+    const textNode = div.querySelector("span")!.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, textNode.length);
+
+    applyFormatToRange(range, div, "clear");
+    expect(div.innerHTML).toBe("大事なテスト");
+  });
+
+  it("changes marker color cleanly without nesting duplicate mark tags", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-yellow">Hello</mark>';
+    const textNode = div.firstChild!.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 5);
+
+    applyFormatToRange(range, div, "marker", "green");
+    expect(div.innerHTML).toBe('<mark class="marker-green">Hello</mark>');
+  });
+
+  it("changes text color cleanly without nesting duplicate color spans", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<span class="color-red">Hello</span>';
+    const textNode = div.firstChild!.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 5);
+
+    applyFormatToRange(range, div, "color", "blue");
+    expect(div.innerHTML).toBe('<span class="color-blue">Hello</span>');
+  });
+
+  it("clears formatting when caret is collapsed inside a styled element", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-yellow">Hello</mark>';
+    const textNode = div.firstChild!.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 2);
+    range.setEnd(textNode, 2);
+    applyFormatToRange(range, div, "clear");
+    expect(div.innerHTML).toBe("Hello");
+  });
+
+  it("clears formatting across multiple styled elements and plain text", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-yellow">First </mark>middle <span class="color-blue">Second</span>';
+    const firstText = div.querySelector("mark")!.firstChild as Text;
+    const secondText = div.querySelector("span")!.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(firstText, 2); // "rst "
+    range.setEnd(secondText, 3); // "Sec"
+
+    applyFormatToRange(range, div, "clear");
+    expect(div.innerHTML).toBe('<mark class="marker-yellow">Fi</mark>rst middle Sec<span class="color-blue">ond</span>');
+  });
+});
