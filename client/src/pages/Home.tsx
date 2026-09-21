@@ -14,6 +14,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBe
 import { BonfireDiary } from "@/components/BonfireDiary";
 import { ImageAttachmentArea, ImageAttachmentAreaRef } from "@/components/ImageAttachmentArea";
 import { RichDocEditor } from "@/components/RichDocEditor";
+import { ActiveMissionMoaiPanel } from "@/components/ActiveMissionMoaiPanel";
 
 const QUEST_TYPE_LABELS: Record<string, string> = {
   Daily: "D",
@@ -1776,6 +1777,10 @@ export default function Home() {
     return getQuestsForDate(targetDate);
   }, [getQuestsForDate, planningDayOffset]);
 
+  const activeRunningQuest = React.useMemo(() => {
+    return todayQuests.find((q: any) => q.status === "challenging" || q.status === "almost") || null;
+  }, [todayQuests]);
+
   const oneOffTemplates = React.useMemo(() => {
     return (templates || []).filter(t => {
       if (t.questType !== "Free" || !t.isActive) return false;
@@ -2562,6 +2567,14 @@ export default function Home() {
           </TabsList>
 
           <TabsContent value="today" className="space-y-8 animate-fade-in">
+
+            {/* ACTIVE MISSION MOAI PANEL (RUNNING 連動) */}
+            <ActiveMissionMoaiPanel
+              activeQuest={activeRunningQuest}
+              todayQuests={todayQuests}
+              templates={templates || []}
+              onStatusChange={refreshAll}
+            />
 
             {/* SHELF 1: TODAY / WEEKLY PLANNING */}
             <section className="space-y-4">
