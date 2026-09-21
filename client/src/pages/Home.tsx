@@ -775,15 +775,20 @@ function TodayItem({
         {isChallenging && <PlayCircle className="w-3 h-3 fill-current" />}
       </div>
       <div className="flex-1 min-w-0 z-10">
-        <div className={`font-bold text-xs truncate ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
+        <div className={`font-bold text-xs sm:text-[13px] leading-snug break-words ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
-        {quest.note && (
-          <div className="w-full min-w-0 text-[10.5px] text-muted-foreground/90 leading-snug mt-0.5 break-words line-clamp-2">
-            {quest.note}
+        {(quest.note || template?.description) && (
+          <div className="w-full min-w-0 text-[11px] sm:text-xs text-foreground/85 dark:text-stone-200 leading-relaxed mt-1.5 break-words whitespace-pre-wrap bg-muted/40 dark:bg-stone-800/60 rounded-lg p-2 border border-border/40">
+            {quest.note && <div>{quest.note}</div>}
+            {template?.description && template.description !== quest.note && (
+              <div className={`text-[10px] text-muted-foreground ${quest.note ? 'mt-1 pt-1 border-t border-border/30' : ''}`}>
+                {template.description}
+              </div>
+            )}
           </div>
         )}
-        <div className="text-[9px] text-muted-foreground flex gap-1.5 items-center leading-none mt-1">
+        <div className="text-[9px] text-muted-foreground flex gap-1.5 items-center leading-none mt-1.5">
           <span className="opacity-80 uppercase tracking-wider font-semibold">
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
@@ -803,9 +808,9 @@ function TodayItem({
       </div>
 
       {isCompleted && (
-        <div className="absolute right-16 top-1/2 -translate-y-1/2 z-0 animate-in zoom-in-50 duration-300 pointer-events-none">
-          <div className="border-[2px] border-red-500/80 rounded-sm px-1.5 py-0 -rotate-12 flex items-center justify-center shadow-sm bg-white/10 backdrop-blur-[1px]">
-            <span className="text-xs font-black text-red-500/90 tracking-widest leading-none">CLEAR</span>
+        <div className="absolute right-2.5 top-2 z-0 animate-in zoom-in-50 duration-300 pointer-events-none opacity-85">
+          <div className="border-[2px] border-red-500/80 rounded-sm px-1.5 py-0.2 -rotate-12 flex items-center justify-center shadow-sm bg-white/40 dark:bg-black/20 backdrop-blur-[1px]">
+            <span className="text-[11px] font-black text-red-500/90 tracking-widest leading-none">CLEAR</span>
           </div>
         </div>
       )}
@@ -1839,14 +1844,16 @@ export default function Home() {
     }
   });
 
-  const [colSpacing, setColSpacing] = useState<number>(() => {
+  const [cardWidth, setCardWidth] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem('column_spacing');
-      return saved ? Number(saved) : 32;
-    } catch {
-      return 32;
-    }
+      const saved = localStorage.getItem('planning_card_width') || localStorage.getItem('column_spacing');
+      const num = Number(saved);
+      if (num && num >= 200) return num;
+    } catch {}
+    return 360; // generous, readable default
   });
+  const colSpacing = cardWidth;
+  const setColSpacing = setCardWidth;
 
   const timeSlots = Array.from({ length: timelineInterval === 30 ? 36 : 18 }, (_, i) => {
     const totalMinutes = i * timelineInterval + 6 * 60; // 06:00開始
@@ -2730,22 +2737,27 @@ export default function Home() {
 
                 {/* Granularity, Spacing & View controls */}
                 <div className="flex flex-wrap items-center gap-4">
-                  {/* Spacing / Gap Slider */}
-                  <div className="flex items-center gap-2 text-xs bg-muted px-2 py-1.5 rounded-lg shadow-inner">
+                  {/* Card Width Slider */}
+                  <div className="flex items-center gap-2 text-xs bg-muted px-2.5 py-1.5 rounded-lg shadow-inner">
                     <span className="font-bold text-muted-foreground">横幅:</span>
                     <input
                       type="range"
-                      min="12"
-                      max="120"
-                      value={colSpacing}
+                      min="220"
+                      max="650"
+                      step="10"
+                      value={cardWidth}
                       onChange={(e) => {
                         const val = Number(e.target.value);
-                        setColSpacing(val);
-                        try { localStorage.setItem('column_spacing', String(val)); } catch {}
+                        setCardWidth(val);
+                        try {
+                          localStorage.setItem('planning_card_width', String(val));
+                          localStorage.setItem('column_spacing', String(val));
+                        } catch {}
+                        setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
                       }}
-                      className="w-20 sm:w-24 accent-primary cursor-ew-resize h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none"
+                      className="w-24 sm:w-28 accent-primary cursor-ew-resize h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none"
                     />
-                    <span className="font-mono text-[10px] text-muted-foreground w-8">{colSpacing}px</span>
+                    <span className="font-mono text-[10px] text-muted-foreground w-10">{cardWidth}px</span>
                   </div>
 
                   {/* Granularity Toggle */}
@@ -2813,10 +2825,13 @@ export default function Home() {
               {planningViewMode === 'today' ? (
                 /* TODAY VIEW (Original Layout, but dynamic slots) */
                 <div className="relative">
-                  <div ref={containerRef} className="flex justify-between gap-2 items-start relative min-h-[500px]" style={{ gap: `${colSpacing}px` }}>
+                  <div ref={containerRef} className="flex justify-between gap-4 items-start relative min-h-[500px]">
                     <ConnectionLines quests={todayQuests} parentRef={containerRef as React.RefObject<HTMLDivElement>} templates={templates || []} onUnlink={handleUnlink} />
 
-                    <div className={`flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] ${MISSION_CARD_LAYOUT}`}>
+                    <div
+                      className="flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150"
+                      style={{ width: `${cardWidth}px`, maxWidth: 'calc(100% - 100px)' }}
+                    >
                       {todayQuests.map(q => (
                         <div
                           id={`source-${q.id}`}
@@ -2965,7 +2980,7 @@ export default function Home() {
 
             {
               dragState.active && dragState.itemId && (
-                <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: '200px' }}>
+                <div className="fixed pointer-events-none z-50 p-2 opacity-80 scale-105" style={{ left: dragState.currentX, top: dragState.currentY, transform: 'translate(-50%, -50%)', width: `${cardWidth}px` }}>
                   {(() => {
                     const q = activeQuests?.find(i => i.id === dragState.itemId);
                     if (!q) return null;

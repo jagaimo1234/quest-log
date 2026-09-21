@@ -202,6 +202,11 @@ export function ActiveMissionMoaiPanel({
     slotLabel = activeQuest?.plannedTimeSlot || "";
   }
 
+  // Parse template & notes
+  const activeQuestTemplate = templates?.find((t: any) => t.id === activeQuest?.templateId);
+  const hasNote = Boolean(activeQuest?.note);
+  const hasDesc = Boolean(activeQuestTemplate?.description && activeQuestTemplate.description !== activeQuest?.note);
+
   return (
     <div className="w-full rounded-3xl border border-stone-200/90 dark:border-stone-800 bg-gradient-to-b from-[#fefdfa] via-[#f7f5ee] to-[#ece7dc] dark:from-stone-900 dark:via-stone-900 dark:to-stone-950 shadow-sm overflow-hidden transition-all duration-300">
       {/* Floating Keyframes Style */}
@@ -406,11 +411,16 @@ export function ActiveMissionMoaiPanel({
                         {activeQuest.questName}
                       </h4>
 
-                      {/* Clean, unsqueezed note display (Fixes vertical stretching) */}
-                      {activeQuest.note && (
-                        <div className="w-full text-xs text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-900/60 p-3 rounded-2xl border border-stone-200/60 dark:border-stone-700/60 whitespace-pre-wrap break-words leading-relaxed">
+                      {/* Clean, spacious note & description display */}
+                      {(hasNote || hasDesc) && (
+                        <div className="w-full text-xs sm:text-sm text-stone-700 dark:text-stone-300 bg-stone-50 dark:bg-stone-900/60 p-3.5 rounded-2xl border border-stone-200/60 dark:border-stone-700/60 whitespace-pre-wrap break-words leading-relaxed">
                           <span className="font-bold text-[10px] text-stone-400 block mb-1">備考 / メモ:</span>
-                          {activeQuest.note}
+                          {hasNote && <div>{activeQuest.note}</div>}
+                          {hasDesc && (
+                            <div className={`text-xs text-stone-500 dark:text-stone-400 ${hasNote ? 'mt-2 pt-2 border-t border-stone-200/50 dark:border-stone-700/50' : ''}`}>
+                              {activeQuestTemplate?.description}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -625,11 +635,16 @@ export function ActiveMissionMoaiPanel({
                     {activeQuest.questName}
                   </h4>
 
-                  {/* Clean unsqueezed note */}
-                  {activeQuest.note && (
-                    <div className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-900/60 p-3 rounded-xl whitespace-pre-wrap break-words leading-relaxed border border-stone-200/60 dark:border-stone-700/60">
+                  {/* Clean, spacious note & description display */}
+                  {(hasNote || hasDesc) && (
+                    <div className="w-full text-xs sm:text-sm text-stone-700 dark:text-stone-300 bg-stone-50 dark:bg-stone-900/60 p-3.5 rounded-xl whitespace-pre-wrap break-words leading-relaxed border border-stone-200/60 dark:border-stone-700/60">
                       <span className="font-bold text-[10px] text-stone-400 block mb-1">備考 / メモ:</span>
-                      {activeQuest.note}
+                      {hasNote && <div>{activeQuest.note}</div>}
+                      {hasDesc && (
+                        <div className={`text-xs text-stone-500 dark:text-stone-400 ${hasNote ? 'mt-2 pt-2 border-t border-stone-200/50 dark:border-stone-700/50' : ''}`}>
+                          {activeQuestTemplate?.description}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
