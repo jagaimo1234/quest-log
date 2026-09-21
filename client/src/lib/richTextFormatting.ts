@@ -198,34 +198,45 @@ export function applyFormatToRange(
     // Split endContainer first if it is a text node
     if (range.endContainer.nodeType === Node.TEXT_NODE) {
       const endText = range.endContainer as Text;
-      if (range.endOffset < endText.length) {
+      if (range.endOffset > 0 && range.endOffset < endText.length) {
         endText.splitText(range.endOffset);
+        range.setEnd(endText, endText.length);
       }
     }
 
     // Split startContainer if it is a text node
-    let startNode: Node = range.startContainer;
-    if (startNode.nodeType === Node.TEXT_NODE) {
-      const startText = startNode as Text;
+    if (range.startContainer.nodeType === Node.TEXT_NODE) {
+      const startText = range.startContainer as Text;
       if (range.startOffset > 0 && range.startOffset < startText.length) {
-        startNode = startText.splitText(range.startOffset);
+        const secondPart = startText.splitText(range.startOffset);
+        range.setStart(secondPart, 0);
       }
     }
 
-    // Collect all text nodes between startNode and range.endContainer
+    // Helper: test if node intersects the range
+    const nodeIntersects = (node: Node): boolean => {
+      if (typeof range.intersectsNode === "function") {
+        try {
+          return range.intersectsNode(node);
+        } catch {}
+      }
+      try {
+        const len = node.nodeType === Node.TEXT_NODE ? (node as Text).length : node.childNodes.length;
+        const startCmp = range.comparePoint(node, len);
+        const endCmp = range.comparePoint(node, 0);
+        return startCmp >= 0 && endCmp <= 0;
+      } catch {
+        return false;
+      }
+    };
+
+    // Collect all text nodes that intersect the range
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     let curr: Text | null = walker.nextNode() as Text | null;
-    let recording = false;
 
     while (curr) {
-      if (curr === startNode) {
-        recording = true;
-      }
-      if (recording && curr.length > 0) {
+      if (nodeIntersects(curr) && curr.length > 0) {
         selectedTextNodes.push(curr);
-      }
-      if (curr === range.endContainer) {
-        break;
       }
       curr = walker.nextNode() as Text | null;
     }

@@ -932,7 +932,7 @@ export function RichDocEditor({
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applyFormatting("marker", m.id)}
                   title={`マーカー: ${m.label}【${m.ruleTitle}】${m.ruleDesc}`}
-                  className="w-4 h-4 rounded-full hover:scale-130 transition-transform cursor-pointer shadow-xs"
+                  className="w-4 h-4 rounded-full hover:ring-2 hover:ring-white/80 hover:brightness-125 transition-all cursor-pointer shadow-xs"
                   style={{ backgroundColor: m.hex, border: `1.5px solid ${m.border}` }}
                 />
               ))}
@@ -950,7 +950,7 @@ export function RichDocEditor({
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => applyFormatting("color", c.id)}
                   title={`文字色: ${c.label}【${c.ruleTitle}】${c.ruleDesc}`}
-                  className="w-4 h-4 rounded-full hover:scale-130 transition-transform cursor-pointer shadow-xs border border-white/30"
+                  className="w-4 h-4 rounded-full hover:ring-2 hover:ring-white/80 hover:brightness-125 transition-all cursor-pointer shadow-xs border border-white/30"
                   style={{ backgroundColor: c.hex }}
                 />
               ))}
@@ -1002,20 +1002,26 @@ export function RichDocEditor({
             </button>
           </div>
 
-          {/* Live rule preview bar in floating palette */}
-          {activePalettePreview && (
-            <div className="pt-1 border-t border-stone-800 flex items-center gap-1.5 text-[10px] text-stone-300 animate-in fade-in duration-100 max-w-[280px]">
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{
-                  backgroundColor: activePalettePreview.hex,
-                  border: activePalettePreview.border ? `1px solid ${activePalettePreview.border}` : undefined,
-                }}
-              />
-              <span className="font-bold text-amber-300 shrink-0">{activePalettePreview.ruleTitle}</span>
-              <span className="text-[9px] text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
-            </div>
-          )}
+          {/* Live rule preview bar in floating palette with FIXED HEIGHT to prevent any vibration/oscillation */}
+          <div className="h-5 pt-1 border-t border-stone-800/80 flex items-center gap-1.5 text-[10px] text-stone-300 max-w-[290px] overflow-hidden px-0.5">
+            {activePalettePreview ? (
+              <>
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: activePalettePreview.hex,
+                    border: activePalettePreview.border ? `1px solid ${activePalettePreview.border}` : undefined,
+                  }}
+                />
+                <span className="font-bold text-amber-300 shrink-0">{activePalettePreview.ruleTitle}</span>
+                <span className="text-[9.5px] text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
+              </>
+            ) : (
+              <span className="text-[9px] text-stone-500/80 select-none">
+                カーソルを合わせると用途ルールを表示
+              </span>
+            )}
+          </div>
         </div>
       )}
 

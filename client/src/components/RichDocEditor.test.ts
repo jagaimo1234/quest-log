@@ -138,6 +138,20 @@ describe("richTextFormatting applyFormatToRange", () => {
     applyFormatToRange(range, div, "clear");
     expect(div.innerHTML).toBe('<mark class="marker-yellow">Fi</mark>rst middle Sec<span class="color-blue">ond</span>');
   });
+
+  it("clears formatting when startContainer and endContainer are Element nodes", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-orange"><span class="color-green">・目的がブレないよう意識すること</span></mark><br><mark class="marker-orange"><span class="color-green">・次のアクション、判断を明確にしておく。</span></mark>';
+    
+    // User selected by dragging across lines, so range starts at div child 0 and ends at div child 3
+    const range = document.createRange();
+    range.setStart(div, 0);
+    range.setEnd(div, div.childNodes.length);
+
+    const res = applyFormatToRange(range, div, "clear");
+    expect(res).not.toBeNull();
+    expect(div.innerHTML).toBe("・目的がブレないよう意識すること<br>・次のアクション、判断を明確にしておく。");
+  });
 });
 
 describe("Color Rules overlay resolution", () => {

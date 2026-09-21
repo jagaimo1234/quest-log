@@ -3679,12 +3679,16 @@ function BulletinBoard() {
 
     if (!isDirtyRef.current) {
       setContent(serverContent);
-      if (localDraft && localDraft.length > serverDiary.length) {
+      if (serverDiary) {
+        setDiary(serverDiary);
+        try {
+          localStorage.removeItem(localDraftKey);
+        } catch {}
+      } else if (localDraft) {
         setDiary(localDraft);
-        // Automatically sync longer local draft to server so it's persisted permanently
         triggerSave(serverContent, localDraft);
       } else {
-        setDiary(serverDiary);
+        setDiary("");
       }
     }
   }, [board?.content, (board as any)?.diary, selectedDate]);
@@ -3714,7 +3718,7 @@ function BulletinBoard() {
   // Safety net: Save draft to localStorage before page unloads or reloads
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (diary) {
+      if (diary && isDirtyRef.current) {
         try {
           localStorage.setItem(`diary_draft_${selectedDate}`, diary);
         } catch {}
@@ -3744,6 +3748,9 @@ function BulletinBoard() {
         onSuccess: () => {
           setIsSaving(false);
           isDirtyRef.current = false;
+          try {
+            localStorage.removeItem(`diary_draft_${selectedDate}`);
+          } catch {}
         },
         onError: (err) => {
           setIsSaving(false);
