@@ -730,7 +730,7 @@ function TodayItem({
 
   return (
     <div
-      className={`group relative flex items-center gap-2 p-2 rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
+      className={`group relative flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[4px] sm:border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
       // 過去分でなければドラッグ開始イベントを有効にする
       // Long press triggers menu, but we also need to allow drag if it's not a long press?
       // Actually, if we touch start, we start drag AND long press timer?
@@ -760,45 +760,45 @@ function TodayItem({
         onMouseDown={(e) => { e.stopPropagation(); onReorderStart && onReorderStart(e); }}
         onTouchStart={(e) => { e.stopPropagation(); onReorderStart && onReorderStart(e); }}
       >
-        <GripVertical className="w-4 h-4" />
+        <GripVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       </div>
       <div
         onClick={(e) => { e.stopPropagation(); handleNext(); }}
-        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors ${isCompleted ? 'bg-primary border-primary text-primary-foreground' :
+        className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors ${isCompleted ? 'bg-primary border-primary text-primary-foreground' :
           isFailed ? 'bg-destructive border-destructive text-destructive-foreground' :
             isChallenging ? 'border-amber-500 text-amber-600 bg-amber-100 dark:bg-amber-900/30' :
               'border-muted-foreground/30 hover:border-primary'
           } ${isPending ? 'pointer-events-none' : ''}`}
       >
-        {isCompleted && <CheckCircle2 className="w-3 h-3" />}
-        {isFailed && <XCircle className="w-3 h-3" />}
-        {isChallenging && <PlayCircle className="w-3 h-3 fill-current" />}
+        {isCompleted && <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+        {isFailed && <XCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+        {isChallenging && <PlayCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />}
       </div>
       <div className="flex-1 min-w-0 z-10">
-        <div className={`font-bold text-xs sm:text-[13px] leading-snug break-words ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
+        <div className={`font-bold text-[11.5px] sm:text-[13px] leading-snug break-words ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
         {(quest.note || template?.description) && (
-          <div className="w-full min-w-0 text-[11px] sm:text-xs text-foreground/85 dark:text-stone-200 leading-relaxed mt-1.5 break-words whitespace-pre-wrap bg-muted/40 dark:bg-stone-800/60 rounded-lg p-2 border border-border/40">
+          <div className="w-full min-w-0 text-[10px] sm:text-xs text-foreground/85 dark:text-stone-200 leading-snug sm:leading-relaxed mt-1 sm:mt-1.5 break-words line-clamp-2 sm:line-clamp-none bg-muted/25 sm:bg-muted/40 dark:bg-stone-800/40 dark:sm:bg-stone-800/60 rounded-md sm:rounded-lg p-1 sm:p-2 border border-border/30 sm:border-border/40">
             {quest.note && <div>{quest.note}</div>}
             {template?.description && template.description !== quest.note && (
-              <div className={`text-[10px] text-muted-foreground ${quest.note ? 'mt-1 pt-1 border-t border-border/30' : ''}`}>
+              <div className={`text-[9px] sm:text-[10px] text-muted-foreground ${quest.note ? 'mt-0.5 sm:mt-1 pt-0.5 sm:pt-1 border-t border-border/30' : ''}`}>
                 {template.description}
               </div>
             )}
           </div>
         )}
-        <div className="text-[9px] text-muted-foreground flex gap-1.5 items-center leading-none mt-1.5">
+        <div className="text-[8.5px] sm:text-[9px] text-muted-foreground flex gap-1.5 items-center leading-none mt-1 sm:mt-1.5">
           <span className="opacity-80 uppercase tracking-wider font-semibold">
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
           {isChallenging && (
-            <span className="text-amber-600 font-bold bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.2 rounded text-[9px] animate-pulse">
+            <span className="text-amber-600 font-bold bg-amber-100 dark:bg-amber-900/40 px-1 sm:px-1.5 py-0.2 rounded text-[8.5px] sm:text-[9px] animate-pulse">
               RUNNING
             </span>
           )}
           {quest.targetCount > 1 && (
-            <span className="flex items-center gap-1 ml-1 font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 ml-1 font-bold text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400">
               <span className="px-1 bg-emerald-100 dark:bg-emerald-900/40 rounded">
                 [{quest.currentCount}/{quest.targetCount}]
               </span>
@@ -808,9 +808,9 @@ function TodayItem({
       </div>
 
       {isCompleted && (
-        <div className="absolute right-2.5 top-2 z-0 animate-in zoom-in-50 duration-300 pointer-events-none opacity-85">
+        <div className="absolute right-1.5 top-1.5 sm:right-2.5 sm:top-2 z-0 animate-in zoom-in-50 duration-300 pointer-events-none opacity-85 scale-80 sm:scale-100 origin-top-right">
           <div className="border-[2px] border-red-500/80 rounded-sm px-1.5 py-0.2 -rotate-12 flex items-center justify-center shadow-sm bg-white/40 dark:bg-black/20 backdrop-blur-[1px]">
-            <span className="text-[11px] font-black text-red-500/90 tracking-widest leading-none">CLEAR</span>
+            <span className="text-[10px] sm:text-[11px] font-black text-red-500/90 tracking-widest leading-none">CLEAR</span>
           </div>
         </div>
       )}
@@ -2825,12 +2825,12 @@ export default function Home() {
               {planningViewMode === 'today' ? (
                 /* TODAY VIEW (Original Layout, but dynamic slots) */
                 <div className="relative">
-                  <div ref={containerRef} className="flex justify-between gap-4 items-start relative min-h-[500px]">
+                  <div ref={containerRef} className="flex justify-between gap-1 sm:gap-4 items-start relative min-h-[500px]">
                     <ConnectionLines quests={todayQuests} parentRef={containerRef as React.RefObject<HTMLDivElement>} templates={templates || []} onUnlink={handleUnlink} />
 
                     <div
-                      className="flex flex-col gap-3 rounded-xl p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150"
-                      style={{ width: `${cardWidth}px`, maxWidth: 'calc(100% - 100px)' }}
+                      className="flex flex-col gap-1.5 sm:gap-3 rounded-lg sm:rounded-xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150"
+                      style={{ width: `${cardWidth}px`, maxWidth: 'calc(100% - 76px)' }}
                     >
                       {todayQuests.map(q => (
                         <div
