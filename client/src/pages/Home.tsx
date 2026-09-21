@@ -25,6 +25,40 @@ const QUEST_TYPE_LABELS: Record<string, string> = {
   Relax: "R",
 };
 
+const SHORT_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const SHORT_WEEKS = ["第1週", "第2週", "第3週", "第4週", "第5週"];
+
+const getTemplateScheduleLabel = (t: any): string => {
+  if (!t) return "";
+  if (t.questType === "Daily") return "毎日";
+  if (t.questType === "Weekly") {
+    const days = t.daysOfWeek && t.daysOfWeek !== "[]" ? (typeof t.daysOfWeek === "string" ? JSON.parse(t.daysOfWeek) : t.daysOfWeek) : [];
+    if (days.length > 0) {
+      return days.map((d: number) => (SHORT_WEEKDAYS[d] != null ? `${SHORT_WEEKDAYS[d]}曜` : `${d}曜`)).join("・");
+    }
+    return "毎週";
+  }
+  if (t.questType === "Monthly") {
+    const dates = t.datesOfMonth && t.datesOfMonth !== "[]" ? (typeof t.datesOfMonth === "string" ? JSON.parse(t.datesOfMonth) : t.datesOfMonth) : [];
+    const weeks = t.weeksOfMonth && t.weeksOfMonth !== "[]" ? (typeof t.weeksOfMonth === "string" ? JSON.parse(t.weeksOfMonth) : t.weeksOfMonth) : [];
+    const days = t.daysOfWeek && t.daysOfWeek !== "[]" ? (typeof t.daysOfWeek === "string" ? JSON.parse(t.daysOfWeek) : t.daysOfWeek) : [];
+    const parts = [];
+    if (dates.length > 0) parts.push(`${dates.join("・")}日`);
+    if (weeks.length > 0) {
+      const w = weeks.map((n: number) => SHORT_WEEKS[n - 1] || `第${n}週`).join("・");
+      const d = days.length > 0 ? days.map((n: number) => (SHORT_WEEKDAYS[n] != null ? `${SHORT_WEEKDAYS[n]}曜` : `${n}曜`)).join("・") : "全日";
+      parts.push(`${w}${d}`);
+    }
+    if (parts.length > 0) return parts.join(" / ");
+    return "毎月";
+  }
+  if (t.questType === "Yearly") {
+    const m = t.monthOfYear ? `${t.monthOfYear}月` : "";
+    return m ? `${m}` : "毎年";
+  }
+  return "";
+};
+
 const LINE_COLORS = [
   "#ef4444", // Red
   "#f97316", // Orange
@@ -932,9 +966,31 @@ function TodayItem({
 
 function FixItem({ quest, executedCount, onReceive }: { quest: any, executedCount: number, onReceive: () => void }) {
   const isCompleted = quest.status === "cleared";
+  const isTargetDay = quest.isTargetDay !== false;
+
+  const handleClick = () => {
+    if (isCompleted) return;
+    if (!isTargetDay) {
+      const scheduleText = quest.scheduleLabel ? `【${quest.scheduleLabel}】` : "指定日外";
+      const confirmed = window.confirm(
+        `「${quest.questName}」は${scheduleText}指定のタスクですが、本日受注しますか？`
+      );
+      if (!confirmed) return;
+    }
+    onReceive();
+  };
 
   return (
-    <div onClick={isCompleted ? undefined : onReceive} className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-sky-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-sky-50'}`}>
+    <div
+      onClick={handleClick}
+      className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border transition-all shadow-sm ${
+        isCompleted
+          ? 'border-sky-200 bg-white opacity-80'
+          : isTargetDay
+            ? 'border-sky-200 bg-white hover:bg-sky-50'
+            : 'border-dashed border-slate-300 bg-slate-50/70 hover:bg-slate-100/90 text-slate-600'
+      }`}
+    >
       {isCompleted && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
           <div className="text-2xl font-black text-sky-500/50 -rotate-12 border-4 border-sky-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
@@ -942,15 +998,32 @@ function FixItem({ quest, executedCount, onReceive }: { quest: any, executedCoun
           </div>
         </div>
       )}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-sky-50 text-sky-300' : 'bg-sky-100 text-sky-600 group-hover:bg-sky-200 transition-colors'}`}>
+      <div
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+          isCompleted
+            ? 'bg-sky-50 text-sky-300'
+            : isTargetDay
+              ? 'bg-sky-100 text-sky-600 group-hover:bg-sky-200'
+              : 'bg-slate-200/80 text-slate-400 group-hover:bg-slate-300 group-hover:text-slate-600'
+        }`}
+      >
         {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
       </div>
       <div className="flex-1 min-w-0">
-        <div className={`text-xs font-bold truncate ${isCompleted ? 'text-sky-700/60' : 'text-sky-900'}`}>
-          {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className={`text-xs font-bold truncate ${isCompleted ? 'text-sky-700/60' : isTargetDay ? 'text-sky-900' : 'text-slate-700'}`}>
+            {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
+          </div>
+          {!isTargetDay && quest.scheduleLabel && (
+            <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 border border-slate-300/60 leading-tight">
+              {quest.scheduleLabel}指定
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="text-[10px] text-sky-500 uppercase tracking-wider">{QUEST_TYPE_LABELS[quest.questType]}</div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <div className={`text-[10px] uppercase tracking-wider font-semibold ${isTargetDay ? 'text-sky-500' : 'text-slate-400'}`}>
+            {QUEST_TYPE_LABELS[quest.questType]}
+          </div>
           <div className="text-[9px] text-muted-foreground">達成回数: {executedCount}</div>
         </div>
       </div>
@@ -2016,7 +2089,7 @@ export default function Home() {
       if (!q.templateId) {
         const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
         if (qDate && format(qDate, "yyyy-MM-dd") === targetStr) {
-          arr.push({ ...q, isSynthesized: false });
+          arr.push({ ...q, isSynthesized: false, isTargetDay: true });
         }
       }
     });
@@ -2025,27 +2098,29 @@ export default function Home() {
     const isTemplateValidForDate = (t: any, date: Date) => {
       if (t.questType === "Daily") return true;
       if (t.questType === "Weekly") {
-        const days = t.daysOfWeek && t.daysOfWeek !== "[]" ? JSON.parse(t.daysOfWeek) : [];
+        const days = t.daysOfWeek && t.daysOfWeek !== "[]" ? (typeof t.daysOfWeek === "string" ? JSON.parse(t.daysOfWeek) : t.daysOfWeek) : [];
         if (days.length === 0) return false;
-        const dow = date.getDay() === 0 ? 7 : date.getDay();
-        return days.includes(dow);
+        const dow0 = date.getDay(); // 0 is Sunday
+        const dow7 = date.getDay() === 0 ? 7 : date.getDay();
+        return days.includes(dow0) || days.includes(dow7);
       }
       if (t.questType === "Monthly" || t.questType === "Yearly") {
         if (t.questType === "Yearly") {
           const m = date.getMonth() + 1;
           if (t.monthOfYear !== m) return false;
         }
-        const dates = t.datesOfMonth && t.datesOfMonth !== "[]" ? JSON.parse(t.datesOfMonth) : [];
-        const weeks = t.weeksOfMonth && t.weeksOfMonth !== "[]" ? JSON.parse(t.weeksOfMonth) : [];
-        const days = t.daysOfWeek && t.daysOfWeek !== "[]" ? JSON.parse(t.daysOfWeek) : [];
+        const dates = t.datesOfMonth && t.datesOfMonth !== "[]" ? (typeof t.datesOfMonth === "string" ? JSON.parse(t.datesOfMonth) : t.datesOfMonth) : [];
+        const weeks = t.weeksOfMonth && t.weeksOfMonth !== "[]" ? (typeof t.weeksOfMonth === "string" ? JSON.parse(t.weeksOfMonth) : t.weeksOfMonth) : [];
+        const days = t.daysOfWeek && t.daysOfWeek !== "[]" ? (typeof t.daysOfWeek === "string" ? JSON.parse(t.daysOfWeek) : t.daysOfWeek) : [];
 
         const d = date.getDate();
-        const dow = date.getDay() === 0 ? 7 : date.getDay();
+        const dow0 = date.getDay();
+        const dow7 = date.getDay() === 0 ? 7 : date.getDay();
         const wom = Math.ceil(d / 7);
 
         if (dates.length > 0) return dates.includes(d);
         if (weeks.length > 0) {
-          return weeks.includes(wom) && (days.length === 0 || days.includes(dow));
+          return weeks.includes(wom) && (days.length === 0 || days.includes(dow0) || days.includes(dow7));
         }
         return false;
       }
@@ -2062,7 +2137,8 @@ export default function Home() {
         (!t.datesOfMonth || t.datesOfMonth === "[]");
       if (isPool) return;
 
-      if (!isTemplateValidForDate(t, targetDate)) return;
+      const isTargetDay = isTemplateValidForDate(t, targetDate);
+      const scheduleLabel = getTemplateScheduleLabel(t);
 
       const alreadyPlanned = activeQuests?.some(aq => {
         if (aq.templateId !== t.id) return false;
@@ -2085,7 +2161,7 @@ export default function Home() {
       if (existingUnreceived && planningDayOffset === 0) {
         // We have a real quest generated for today
         if (!arr.find(x => x.id === existingUnreceived.id)) {
-          arr.push({ ...existingUnreceived, isSynthesized: false });
+          arr.push({ ...existingUnreceived, isSynthesized: false, isTargetDay, scheduleLabel });
         }
       } else {
         // Synthesize for UI
@@ -2098,6 +2174,8 @@ export default function Home() {
           templateId: t.id,
           status: "unreceived",
           isSynthesized: true,
+          isTargetDay,
+          scheduleLabel,
           template: t
         });
       }
@@ -2118,12 +2196,22 @@ export default function Home() {
       if (isPool) return;
 
       if (!arr.find(x => x.id === q.id)) {
-        arr.push({ ...q, isSynthesized: false });
+        arr.push({ ...q, isSynthesized: false, isTargetDay: true, scheduleLabel: getTemplateScheduleLabel(t) });
       }
     });
 
     return arr.sort((a, b) => {
-      // Sort consistently by templateId or quest id
+      // 1. Cleared items at the end
+      const aCleared = a.status === "cleared" ? 1 : 0;
+      const bCleared = b.status === "cleared" ? 1 : 0;
+      if (aCleared !== bCleared) return aCleared - bCleared;
+
+      // 2. Today's target items first, off-day items below
+      const aTarget = a.isTargetDay !== false ? 1 : 0;
+      const bTarget = b.isTargetDay !== false ? 1 : 0;
+      if (aTarget !== bTarget) return bTarget - aTarget;
+
+      // 3. Sort consistently by templateId or quest id
       const idA = a.templateId ?? (typeof a.id === 'number' ? a.id : 0);
       const idB = b.templateId ?? (typeof b.id === 'number' ? b.id : 0);
       return idA - idB;
@@ -2839,7 +2927,7 @@ export default function Home() {
               </div>
               {
                 fixShelfQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No scheduled tasks.</div> : (
-                  <div>{fixShelfQuests.map(q => {
+                  <div className="space-y-2">{fixShelfQuests.map(q => {
                     const t = templates?.find(tp => tp.id === q.templateId);
                     return <FixItem key={q.id} quest={q} executedCount={t?.executedCount || 0} onReceive={() => handleReceiveFix(q.id)} />;
                   })}</div>
