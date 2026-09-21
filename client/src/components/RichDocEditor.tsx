@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { compressImage } from "../lib/imageCompression";
-import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw } from "lucide-react";
+import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { applyFormatToRange } from "../lib/richTextFormatting";
 
@@ -9,22 +9,69 @@ export type DocBlock =
   | { id: string; type: "text"; text: string }
   | { id: string; type: "image"; src: string; caption?: string };
 
-export const MARKER_PALETTE = [
-  { id: "yellow", label: "イエロー", hex: "#fde047", border: "#eab308" },
-  { id: "green", label: "グリーン", hex: "#86efac", border: "#22c55e" },
-  { id: "pink", label: "ピンク", hex: "#f472b6", border: "#ec4899" },
-  { id: "blue", label: "ブルー", hex: "#7dd3fc", border: "#0ea5e9" },
-  { id: "orange", label: "オレンジ", hex: "#fb923c", border: "#f97316" },
+export interface ColorRule {
+  id: string;
+  label: string;
+  ruleTitle: string;
+  ruleDesc: string;
+  hex: string;
+  border?: string;
+}
+
+export const MARKER_PALETTE: ColorRule[] = [
+  { id: "yellow", label: "イエロー", ruleTitle: "重要・キーポイント", ruleDesc: "最優先の確認事項・要点・重要キーワード", hex: "#fde047", border: "#eab308" },
+  { id: "orange", label: "オレンジ", ruleTitle: "アクション・TODO", ruleDesc: "次にやること・宿題・次回までの課題", hex: "#fb923c", border: "#f97316" },
+  { id: "pink", label: "ピンク", ruleTitle: "注意・要警戒", ruleDesc: "ボトルネック・懸念点・失敗談・リスク", hex: "#f472b6", border: "#ec4899" },
+  { id: "green", label: "グリーン", ruleTitle: "ポジティブ・収穫", ruleDesc: "達成したこと・好調・閃き・新しい学び", hex: "#86efac", border: "#22c55e" },
+  { id: "blue", label: "ブルー", ruleTitle: "事実・データ・参照", ruleDesc: "日時・場所・数値実績・参考URL・引用", hex: "#7dd3fc", border: "#0ea5e9" },
 ];
 
-export const TEXT_COLOR_PALETTE = [
-  { id: "red", label: "赤", hex: "#ef4444" },
-  { id: "blue", label: "青", hex: "#3b82f6" },
-  { id: "green", label: "緑", hex: "#10b981" },
-  { id: "purple", label: "紫", hex: "#a855f7" },
-  { id: "orange", label: "橙", hex: "#f97316" },
-  { id: "gray", label: "灰", hex: "#9ca3af" },
+export const TEXT_COLOR_PALETTE: ColorRule[] = [
+  { id: "red", label: "赤", ruleTitle: "警告・最重要", ruleDesc: "締め切り厳守・緊急アラート・忘れてはならないこと", hex: "#ef4444" },
+  { id: "orange", label: "橙", ruleTitle: "アクション・着目", ruleDesc: "これから着手すること・重要な補足事項", hex: "#f97316" },
+  { id: "green", label: "緑", ruleTitle: "進捗・良好", ruleDesc: "クリアした課題・習慣の継続・コンディション良好", hex: "#10b981" },
+  { id: "blue", label: "青", ruleTitle: "客観・連絡", ruleDesc: "冷静な記録・事務連絡・定型メモ", hex: "#3b82f6" },
+  { id: "purple", label: "紫", ruleTitle: "大目標・指針", ruleDesc: "クエストの根本目的・長期ビジョン・ボス討伐目標", hex: "#a855f7" },
+  { id: "gray", label: "灰", ruleTitle: "注釈・優先度低", ruleDesc: "補足コメント・頭の片隅に置くメモ・完了済", hex: "#9ca3af" },
 ];
+
+export function findRuleForElement(el: HTMLElement | null): {
+  markerRule?: ColorRule;
+  colorRule?: ColorRule;
+  element: HTMLElement;
+} | null {
+  let curr: HTMLElement | null = el;
+  let markerRule: ColorRule | undefined;
+  let colorRule: ColorRule | undefined;
+  let primaryEl: HTMLElement | null = null;
+
+  while (curr && curr.nodeType === Node.ELEMENT_NODE) {
+    const tagName = curr.tagName.toUpperCase();
+    const className = curr.className || "";
+
+    if (!markerRule && (tagName === "MARK" || className.includes("marker-"))) {
+      const match = className.match(/marker-([a-z0-9]+)/);
+      const colorId = match ? match[1] : "yellow";
+      markerRule = MARKER_PALETTE.find((m) => m.id === colorId) || MARKER_PALETTE[0];
+      if (!primaryEl) primaryEl = curr;
+    }
+
+    if (!colorRule && className.includes("color-")) {
+      const match = className.match(/color-([a-z0-9]+)/);
+      const colorId = match ? match[1] : "red";
+      colorRule = TEXT_COLOR_PALETTE.find((c) => c.id === colorId) || TEXT_COLOR_PALETTE[0];
+      if (!primaryEl) primaryEl = curr;
+    }
+
+    if (curr.getAttribute("contenteditable") === "true") break;
+    curr = curr.parentElement;
+  }
+
+  if (markerRule || colorRule) {
+    return { markerRule, colorRule, element: primaryEl || el! };
+  }
+  return null;
+}
 
 export function parseDocBlocks(raw: string): DocBlock[] {
   if (!raw) return [{ id: "b-txt-0", type: "text", text: "" }];
@@ -268,6 +315,29 @@ export function RichDocEditor({
     y: number;
   }>({ show: false, x: 0, y: 0 });
 
+  // Hover & Tap Rule Overlay Bubble ("ぼやっと表示される注釈バブル")
+  const [hoverHint, setHoverHint] = useState<{
+    visible: boolean;
+    markerRule?: ColorRule;
+    colorRule?: ColorRule;
+    x: number;
+    y: number;
+  }>({ visible: false, x: 0, y: 0 });
+  const mobileTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Active palette preview for floating & bottom toolbar
+  const [activePalettePreview, setActivePalettePreview] = useState<{
+    id?: string;
+    label: string;
+    ruleTitle: string;
+    ruleDesc: string;
+    hex: string;
+    border?: string;
+  } | null>(null);
+
+  // Legend popover state
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const activeBlockIndexRef = useRef<number>(0);
   const editableRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -275,6 +345,48 @@ export function RichDocEditor({
   const isInternalUpdate = useRef(false);
   const isInteractingWithToolbarRef = useRef(false);
   const savedSelectionRangeRef = useRef<Range | null>(null);
+
+  // Target inspector for hover/tap rule bubble
+  const updateHoverHintFromTarget = useCallback((target: EventTarget | null, isTap = false) => {
+    if (!containerRef.current || !(target instanceof HTMLElement)) {
+      if (!isTap) setHoverHint((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      return;
+    }
+
+    const match = findRuleForElement(target);
+    if (!match) {
+      if (!isTap) setHoverHint((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      return;
+    }
+
+    const editorRect = containerRef.current.getBoundingClientRect();
+    const elemRect = match.element.getBoundingClientRect();
+
+    const centerX = elemRect.left + elemRect.width / 2 - editorRect.left;
+    const clampedX = Math.max(90, Math.min(centerX, editorRect.width - 90));
+    const targetY = elemRect.top - editorRect.top - 6;
+
+    setHoverHint({
+      visible: true,
+      markerRule: match.markerRule,
+      colorRule: match.colorRule,
+      x: clampedX,
+      y: Math.max(10, targetY),
+    });
+
+    if (isTap) {
+      if (mobileTapTimeoutRef.current) clearTimeout(mobileTapTimeoutRef.current);
+      mobileTapTimeoutRef.current = setTimeout(() => {
+        setHoverHint((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      }, 2500);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (mobileTapTimeoutRef.current) clearTimeout(mobileTapTimeoutRef.current);
+    };
+  }, []);
 
   // Sync external value changes (e.g. date change or DB load)
   useEffect(() => {
@@ -651,7 +763,24 @@ export function RichDocEditor({
   }[theme];
 
   return (
-    <div ref={containerRef} className={`relative flex flex-col ${className}`}>
+    <div
+      ref={containerRef}
+      className={`relative flex flex-col ${className}`}
+      onPointerMove={(e) => {
+        if (e.pointerType === "mouse") {
+          updateHoverHintFromTarget(e.target, false);
+        }
+      }}
+      onPointerLeave={() => {
+        if (mobileTapTimeoutRef.current) clearTimeout(mobileTapTimeoutRef.current);
+        setHoverHint((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      }}
+      onPointerDown={(e) => {
+        if (e.pointerType === "touch") {
+          updateHoverHintFromTarget(e.target, true);
+        }
+      }}
+    >
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -660,6 +789,57 @@ export function RichDocEditor({
         className="hidden"
         onChange={handleToolbarFileSelect}
       />
+
+      {/* "ぼやっと浮かぶ注釈バブル" (Soft Floating Annotation Bubble on Hover/Tap) */}
+      {hoverHint.visible && !floatingToolbar.show && (
+        <div
+          style={{
+            top: `${hoverHint.y}px`,
+            left: `${hoverHint.x}px`,
+            transform: "translate(-50%, -100%)",
+          }}
+          className="pointer-events-none absolute z-40 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-stone-950/85 text-stone-100 backdrop-blur-md border border-amber-500/40 shadow-xl transition-all duration-150 animate-in fade-in zoom-in-95 text-xs select-none max-w-xs"
+        >
+          {hoverHint.markerRule && (
+            <div className="flex items-center gap-1.5">
+              <span
+                className="w-2.5 h-2.5 rounded-full inline-block shrink-0 shadow-xs"
+                style={{
+                  backgroundColor: hoverHint.markerRule.hex,
+                  border: hoverHint.markerRule.border ? `1px solid ${hoverHint.markerRule.border}` : undefined,
+                }}
+              />
+              <div className="flex flex-col leading-tight">
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-amber-300 text-[11px]">{hoverHint.markerRule.ruleTitle}</span>
+                  <span className="text-[9.5px] text-stone-400">({hoverHint.markerRule.label})</span>
+                </div>
+                <span className="text-[9px] text-stone-300/90 whitespace-nowrap">{hoverHint.markerRule.ruleDesc}</span>
+              </div>
+            </div>
+          )}
+
+          {hoverHint.markerRule && hoverHint.colorRule && (
+            <div className="w-px h-5 bg-stone-700/80 mx-0.5" />
+          )}
+
+          {hoverHint.colorRule && (
+            <div className="flex items-center gap-1.5">
+              <span
+                className="w-2.5 h-2.5 rounded-full inline-block shrink-0 shadow-xs border border-white/30"
+                style={{ backgroundColor: hoverHint.colorRule.hex }}
+              />
+              <div className="flex flex-col leading-tight">
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-amber-300 text-[11px]">{hoverHint.colorRule.ruleTitle}</span>
+                  <span className="text-[9.5px] text-stone-400">({hoverHint.colorRule.label})</span>
+                </div>
+                <span className="text-[9px] text-stone-300/90 whitespace-nowrap">{hoverHint.colorRule.ruleDesc}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Notion-style Floating Palette on Selection */}
       {floatingToolbar.show && (
@@ -674,56 +854,88 @@ export function RichDocEditor({
           }}
           onMouseLeave={() => {
             isInteractingWithToolbarRef.current = false;
+            setActivePalettePreview(null);
           }}
           onMouseDown={(e) => {
             e.preventDefault();
             isInteractingWithToolbarRef.current = true;
           }}
-          className="absolute z-50 flex items-center gap-1.5 px-2 py-1 bg-stone-900/95 dark:bg-stone-950/95 text-white backdrop-blur-md rounded-xl shadow-2xl border border-stone-700/80 animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto text-xs"
+          className="absolute z-50 flex flex-col gap-1 px-2 py-1.5 bg-stone-900/95 dark:bg-stone-950/95 text-white backdrop-blur-md rounded-xl shadow-2xl border border-stone-700/80 animate-in fade-in zoom-in-95 duration-150 select-none pointer-events-auto text-xs"
         >
-          {/* Marker Colors */}
-          <div className="flex items-center gap-1 pr-1.5 border-r border-stone-700/80">
-            <span className="text-[10px] text-stone-400 font-bold mr-0.5">🖍️</span>
-            {MARKER_PALETTE.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => applyFormatting("marker", m.id)}
-                title={`マーカー: ${m.label}`}
-                className="w-4 h-4 rounded-full hover:scale-130 transition-transform cursor-pointer shadow-xs"
-                style={{ backgroundColor: m.hex, border: `1.5px solid ${m.border}` }}
-              />
-            ))}
+          <div className="flex items-center gap-1.5">
+            {/* Marker Colors */}
+            <div className="flex items-center gap-1 pr-1.5 border-r border-stone-700/80">
+              <span className="text-[10px] text-stone-400 font-bold mr-0.5">🖍️</span>
+              {MARKER_PALETTE.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onMouseEnter={() => setActivePalettePreview(m)}
+                  onMouseLeave={() => setActivePalettePreview(null)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormatting("marker", m.id)}
+                  title={`マーカー: ${m.label}【${m.ruleTitle}】${m.ruleDesc}`}
+                  className="w-4 h-4 rounded-full hover:scale-130 transition-transform cursor-pointer shadow-xs"
+                  style={{ backgroundColor: m.hex, border: `1.5px solid ${m.border}` }}
+                />
+              ))}
+            </div>
+
+            {/* Text Colors */}
+            <div className="flex items-center gap-1 pr-1.5 border-r border-stone-700/80">
+              <span className="text-[10px] text-stone-400 font-bold mr-0.5">A</span>
+              {TEXT_COLOR_PALETTE.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onMouseEnter={() => setActivePalettePreview(c)}
+                  onMouseLeave={() => setActivePalettePreview(null)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormatting("color", c.id)}
+                  title={`文字色: ${c.label}【${c.ruleTitle}】${c.ruleDesc}`}
+                  className="w-4 h-4 rounded-full hover:scale-130 transition-transform cursor-pointer shadow-xs border border-white/30"
+                  style={{ backgroundColor: c.hex }}
+                />
+              ))}
+            </div>
+
+            {/* Clear Style */}
+            <button
+              type="button"
+              onMouseEnter={() =>
+                setActivePalettePreview({
+                  id: "clear",
+                  label: "解除",
+                  ruleTitle: "装飾解除",
+                  ruleDesc: "選択箇所のマーカー・文字色をクリア",
+                  hex: "#ffffff",
+                })
+              }
+              onMouseLeave={() => setActivePalettePreview(null)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyFormatting("clear")}
+              title="装飾を解除"
+              className="p-1 text-stone-300 hover:text-white hover:bg-white/15 rounded-md transition cursor-pointer text-[10px] font-bold flex items-center gap-0.5"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>解除</span>
+            </button>
           </div>
 
-          {/* Text Colors */}
-          <div className="flex items-center gap-1 pr-1.5 border-r border-stone-700/80">
-            <span className="text-[10px] text-stone-400 font-bold mr-0.5">A</span>
-            {TEXT_COLOR_PALETTE.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => applyFormatting("color", c.id)}
-                title={`文字色: ${c.label}`}
-                className="w-4 h-4 rounded-full hover:scale-130 transition-transform cursor-pointer shadow-xs border border-white/30"
-                style={{ backgroundColor: c.hex }}
+          {/* Live rule preview bar in floating palette */}
+          {activePalettePreview && (
+            <div className="pt-1 border-t border-stone-800 flex items-center gap-1.5 text-[10px] text-stone-300 animate-in fade-in duration-100 max-w-[280px]">
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{
+                  backgroundColor: activePalettePreview.hex,
+                  border: activePalettePreview.border ? `1px solid ${activePalettePreview.border}` : undefined,
+                }}
               />
-            ))}
-          </div>
-
-          {/* Clear Style */}
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => applyFormatting("clear")}
-            title="装飾を解除"
-            className="p-1 text-stone-300 hover:text-white hover:bg-white/15 rounded-md transition cursor-pointer text-[10px] font-bold flex items-center gap-0.5"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>解除</span>
-          </button>
+              <span className="font-bold text-amber-300 shrink-0">{activePalettePreview.ruleTitle}</span>
+              <span className="text-[9px] text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -829,29 +1041,57 @@ export function RichDocEditor({
               {isMarkerMenuOpen && (
                 <div
                   onMouseDown={(e) => e.preventDefault()}
-                  className="absolute bottom-full mb-1.5 left-0 z-40 flex items-center gap-1.5 p-1.5 bg-white dark:bg-stone-900 rounded-xl shadow-xl border border-stone-200 dark:border-stone-700 animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute bottom-full mb-1.5 left-0 z-40 flex flex-col p-2 bg-white dark:bg-stone-900 rounded-xl shadow-xl border border-stone-200 dark:border-stone-700 animate-in fade-in zoom-in-95 duration-150 min-w-[190px]"
                 >
-                  {MARKER_PALETTE.map((m) => (
+                  <div className="flex items-center gap-1.5">
+                    {MARKER_PALETTE.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onMouseEnter={() => setActivePalettePreview(m)}
+                        onMouseLeave={() => setActivePalettePreview(null)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyFormatting("marker", m.id)}
+                        title={`マーカー: ${m.label}【${m.ruleTitle}】${m.ruleDesc}`}
+                        className="w-5 h-5 rounded-full hover:scale-120 transition-transform cursor-pointer shadow-xs"
+                        style={{ backgroundColor: m.hex, border: `1.5px solid ${m.border}` }}
+                      />
+                    ))}
+                    <div className="w-px h-4 bg-stone-200 dark:bg-stone-700 mx-0.5" />
                     <button
-                      key={m.id}
                       type="button"
+                      onMouseEnter={() =>
+                        setActivePalettePreview({
+                          id: "clear",
+                          label: "解除",
+                          ruleTitle: "装飾解除",
+                          ruleDesc: "マーカーを解除",
+                          hex: "#ffffff",
+                        })
+                      }
+                      onMouseLeave={() => setActivePalettePreview(null)}
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => applyFormatting("marker", m.id)}
-                      title={`マーカー: ${m.label}`}
-                      className="w-5 h-5 rounded-full hover:scale-120 transition-transform cursor-pointer shadow-xs"
-                      style={{ backgroundColor: m.hex, border: `1.5px solid ${m.border}` }}
-                    />
-                  ))}
-                  <div className="w-px h-4 bg-stone-200 dark:bg-stone-700 mx-0.5" />
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => applyFormatting("clear")}
-                    title="マーカーを解除"
-                    className="px-1.5 py-0.5 text-[10px] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded font-bold cursor-pointer"
-                  >
-                    解除
-                  </button>
+                      onClick={() => applyFormatting("clear")}
+                      title="マーカーを解除"
+                      className="px-1.5 py-0.5 text-[10px] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded font-bold cursor-pointer"
+                    >
+                      解除
+                    </button>
+                  </div>
+
+                  {activePalettePreview && (
+                    <div className="mt-1.5 pt-1 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5 text-[10px] text-stone-700 dark:text-stone-300 animate-in fade-in duration-100">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: activePalettePreview.hex,
+                          border: activePalettePreview.border ? `1px solid ${activePalettePreview.border}` : undefined,
+                        }}
+                      />
+                      <span className="font-bold text-amber-600 dark:text-amber-400 shrink-0">{activePalettePreview.ruleTitle}</span>
+                      <span className="text-[9px] text-stone-500 dark:text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -876,37 +1116,131 @@ export function RichDocEditor({
               {isTextColorMenuOpen && (
                 <div
                   onMouseDown={(e) => e.preventDefault()}
-                  className="absolute bottom-full mb-1.5 left-0 z-40 flex items-center gap-1.5 p-1.5 bg-white dark:bg-stone-900 rounded-xl shadow-xl border border-stone-200 dark:border-stone-700 animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute bottom-full mb-1.5 left-0 z-40 flex flex-col p-2 bg-white dark:bg-stone-900 rounded-xl shadow-xl border border-stone-200 dark:border-stone-700 animate-in fade-in zoom-in-95 duration-150 min-w-[210px]"
                 >
-                  {TEXT_COLOR_PALETTE.map((c) => (
+                  <div className="flex items-center gap-1.5">
+                    {TEXT_COLOR_PALETTE.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onMouseEnter={() => setActivePalettePreview(c)}
+                        onMouseLeave={() => setActivePalettePreview(null)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyFormatting("color", c.id)}
+                        title={`文字色: ${c.label}【${c.ruleTitle}】${c.ruleDesc}`}
+                        className="w-5 h-5 rounded-full hover:scale-120 transition-transform cursor-pointer shadow-xs border border-white/40"
+                        style={{ backgroundColor: c.hex }}
+                      />
+                    ))}
+                    <div className="w-px h-4 bg-stone-200 dark:bg-stone-700 mx-0.5" />
                     <button
-                      key={c.id}
                       type="button"
+                      onMouseEnter={() =>
+                        setActivePalettePreview({
+                          id: "clear",
+                          label: "解除",
+                          ruleTitle: "装飾解除",
+                          ruleDesc: "文字色を解除",
+                          hex: "#ffffff",
+                        })
+                      }
+                      onMouseLeave={() => setActivePalettePreview(null)}
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => applyFormatting("color", c.id)}
-                      title={`文字色: ${c.label}`}
-                      className="w-5 h-5 rounded-full hover:scale-120 transition-transform cursor-pointer shadow-xs border border-white/40"
-                      style={{ backgroundColor: c.hex }}
-                    />
-                  ))}
-                  <div className="w-px h-4 bg-stone-200 dark:bg-stone-700 mx-0.5" />
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => applyFormatting("clear")}
-                    title="文字色を解除"
-                    className="px-1.5 py-0.5 text-[10px] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded font-bold cursor-pointer"
-                  >
-                    解除
-                  </button>
+                      onClick={() => applyFormatting("clear")}
+                      title="文字色を解除"
+                      className="px-1.5 py-0.5 text-[10px] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded font-bold cursor-pointer"
+                    >
+                      解除
+                    </button>
+                  </div>
+
+                  {activePalettePreview && (
+                    <div className="mt-1.5 pt-1 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5 text-[10px] text-stone-700 dark:text-stone-300 animate-in fade-in duration-100">
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0 border border-white/30"
+                        style={{ backgroundColor: activePalettePreview.hex }}
+                      />
+                      <span className="font-bold text-amber-600 dark:text-amber-400 shrink-0">{activePalettePreview.ruleTitle}</span>
+                      <span className="text-[9px] text-stone-500 dark:text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          <span className={`text-[10px] ${themeStyles.hint} font-mono hidden sm:inline select-none`}>
-            💡 文字を選択するとNotion風パレットが出現
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Color Rules Legend Popover Button */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsLegendOpen(!isLegendOpen)}
+                className={`flex items-center gap-1 px-2 py-1 ${isLegendOpen ? "bg-amber-200/90 text-amber-950 font-bold" : themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
+                title="色分けルール一覧を確認"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
+                <span>色の心得</span>
+              </button>
+
+              {isLegendOpen && (
+                <div
+                  onMouseDown={(e) => e.preventDefault()}
+                  className="absolute bottom-full mb-1.5 right-0 sm:right-0 z-40 w-72 p-3 bg-stone-900/95 text-stone-100 backdrop-blur-md rounded-xl shadow-2xl border border-amber-500/40 animate-in fade-in zoom-in-95 duration-150 text-xs select-none"
+                >
+                  <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-stone-800">
+                    <span className="font-bold text-amber-300 flex items-center gap-1">
+                      <span>📜</span> 冒険の手帳：色分けの心得
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsLegendOpen(false)}
+                      className="text-stone-400 hover:text-white p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                    <div>
+                      <div className="text-[10px] font-bold text-amber-400/90 mb-1">🖍️ マーカー（強調）</div>
+                      <div className="space-y-1">
+                        {MARKER_PALETTE.map((m) => (
+                          <div key={m.id} className="flex items-center gap-1.5 text-[11px]">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: m.hex, border: `1px solid ${m.border}` }}
+                            />
+                            <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{m.ruleTitle}</span>
+                            <span className="text-[10px] text-stone-400 truncate">{m.ruleDesc}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-stone-800">
+                      <div className="text-[10px] font-bold text-amber-400/90 mb-1">🎨 文字色</div>
+                      <div className="space-y-1">
+                        {TEXT_COLOR_PALETTE.map((c) => (
+                          <div key={c.id} className="flex items-center gap-1.5 text-[11px]">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
+                              style={{ backgroundColor: c.hex }}
+                            />
+                            <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{c.ruleTitle}</span>
+                            <span className="text-[10px] text-stone-400 truncate">{c.ruleDesc}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <span className={`text-[10px] ${themeStyles.hint} font-mono hidden sm:inline select-none`}>
+              💡 文字を選択するとNotion風パレットが出現
+            </span>
+          </div>
         </div>
       )}
 

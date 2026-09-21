@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
-import { parseDocBlocks, serializeDocBlocks, extractPlainText } from "./RichDocEditor";
+import { parseDocBlocks, serializeDocBlocks, extractPlainText, findRuleForElement } from "./RichDocEditor";
 
 describe("RichDocEditor parsing & serialization", () => {
   it("parses empty string to single text block with stable id", () => {
@@ -139,3 +139,46 @@ describe("richTextFormatting applyFormatToRange", () => {
     expect(div.innerHTML).toBe('<mark class="marker-yellow">Fi</mark>rst middle Sec<span class="color-blue">ond</span>');
   });
 });
+
+describe("Color Rules overlay resolution", () => {
+  it("resolves marker rule for marker element", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-yellow">重要メモ</mark>';
+    const mark = div.querySelector("mark") as HTMLElement;
+    const res = findRuleForElement(mark);
+    expect(res).not.toBeNull();
+    expect(res?.markerRule?.id).toBe("yellow");
+    expect(res?.markerRule?.ruleTitle).toBe("重要・キーポイント");
+  });
+
+  it("resolves text color rule for color span element", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<span class="color-red">緊急アラート</span>';
+    const span = div.querySelector("span") as HTMLElement;
+    const res = findRuleForElement(span);
+    expect(res).not.toBeNull();
+    expect(res?.colorRule?.id).toBe("red");
+    expect(res?.colorRule?.ruleTitle).toBe("警告・最重要");
+  });
+
+  it("resolves both rules when marker and color span are nested", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<mark class="marker-pink"><span class="color-purple">ボス討伐目標</span></mark>';
+    const innerSpan = div.querySelector("span") as HTMLElement;
+    const res = findRuleForElement(innerSpan);
+    expect(res).not.toBeNull();
+    expect(res?.markerRule?.id).toBe("pink");
+    expect(res?.markerRule?.ruleTitle).toBe("注意・要警戒");
+    expect(res?.colorRule?.id).toBe("purple");
+    expect(res?.colorRule?.ruleTitle).toBe("大目標・指針");
+  });
+
+  it("returns null for unstyled element", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<p>プレーンテキスト</p>';
+    const p = div.querySelector("p") as HTMLElement;
+    const res = findRuleForElement(p);
+    expect(res).toBeNull();
+  });
+});
+
