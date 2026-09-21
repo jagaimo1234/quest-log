@@ -1,0 +1,328 @@
+import { z } from "zod";
+import { router, protectedProcedure } from "../_core/trpc.js";
+import type { TrpcContext } from "../_core/context.js";
+import { awarenessItems, awarenessLogs } from "../../drizzle/schema.js";
+import { getDb, ensureAwarenessTables } from "../db.js";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
+
+export const awarenessRouter = router({
+  list: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
+    await ensureAwarenessTables();
+    const db = await getDb();
+    if (!db) throw new Error("Database unavailable");
+
+    // Fetch non-archived items
+    const items = await db
+      .select()
+      .from(awarenessItems)
+      .where(and(
+        eq(awarenessItems.userId, ctx.user!.id),
+        sql`${awarenessItems.status} != 'archived'`
+      ))
+      .orderBy(desc(awarenessItems.updatedAt));
+
+    if (items.length === 0) return [];
+
+    const itemIds = items.map((i: any) => i.id);
+
+    // Fetch all logs for these items
+    const logs = await db
+      .select()
+      .from(awarenessLogs)
+      .where(and(
+        eq(awarenessLogs.userId, ctx.user!.id),
+        inArray(awarenessLogs.awarenessId, itemIds)
+      ))
+      .orderBy(desc(awarenessLogs.loggedAt));
+
+    // Group logs by awarenessId
+    const logsByItem: Record<number, typeof logs> = {};
+    logs.forEach((l: any) => {
+      if (!logsByItem[l.awarenessId]) logsByItem[l.awarenessId] = [];
+      logsByItem[l.awarenessId].push(l);
+    });
+
+    return items.map((item: any) => {
+      const itemLogs = logsByItem[item.id] || [];
+      const successCount = itemLogs.filter((l: any) => l.logType === "success").length;
+      const failureCount = itemLogs.filter((l: any) => l.logType === "failure").length;
+      const insightCount = itemLogs.filter((l: any) => l.logType === "insight").length;
+      const totalCount = itemLogs.length;
+
+      // Calculate automated stage if not explicitly set to anchored
+      let computedStage = item.retentionStage;
+      if (item.status === "anchored") {
+        computedStage = "anchored";
+      } else if (totalCount >= 5) {
+        computedStage = "anchored";
+      } else if (totalCount >= 1) {
+        computedStage = "growing";
+      } else {
+        computedStage = "sprout";
+      }
+
+      return {
+        ...item,
+        retentionStage: computedStage,
+        logs: itemLogs,
+        counts: {
+          success: successCount,
+          failure: failureCount,
+          insight: insightCount,
+          total: totalCount,
+        },
+      };
+    });
+  }),
+
+  create: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().min(1),
+        contextBefore: z.string().optional(),
+        contextAfter: z.string().optional(),
+        sourceType: z.string().optional(),
+        sourceId: z.string().optional(),
+        sourceTitle: z.string().optional(),
+        sourceUrl: z.string().optional(),
+        status: z.enum(["active", "standby", "anchored"]).optional(),
+        color: z.string().optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      // Count currently active items
+      let defaultStatus = input.status || "standby";
+      if (!input.status) {
+        const activeItems = await db
+          .select({ id: awarenessItems.id })
+          .from(awarenessItems)
+          .where(and(
+            eq(awarenessItems.userId, ctx.user!.id),
+            eq(awarenessItems.status, "active")
+          ));
+        // If user currently has fewer than 3 active items, auto-promote to active
+        if (activeItems.length < 3) {
+          defaultStatus = "active";
+        }
+      }
+
+      const now = new Date();
+      const result = await db
+        .insert(awarenessItems)
+        .values({
+          userId: ctx.user!.id,
+          title: input.title.trim(),
+          contextBefore: input.contextBefore || null,
+          contextAfter: input.contextAfter || null,
+          sourceType: input.sourceType || "general",
+          sourceId: input.sourceId ? String(input.sourceId) : null,
+          sourceTitle: input.sourceTitle || null,
+          sourceUrl: input.sourceUrl || null,
+          status: defaultStatus,
+          retentionStage: "sprout",
+          color: input.color || "amber",
+          notes: input.notes || null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+
+      return result[0];
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        status: z.enum(["active", "standby", "anchored", "archived"]).optional(),
+        retentionStage: z.enum(["sprout", "growing", "anchored"]).optional(),
+        color: z.string().optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+      if (input.title !== undefined) updateData.title = input.title.trim();
+      if (input.status !== undefined) updateData.status = input.status;
+      if (input.retentionStage !== undefined) updateData.retentionStage = input.retentionStage;
+      if (input.color !== undefined) updateData.color = input.color;
+      if (input.notes !== undefined) updateData.notes = input.notes;
+
+      const result = await db
+        .update(awarenessItems)
+        .set(updateData)
+        .where(and(
+          eq(awarenessItems.id, input.id),
+          eq(awarenessItems.userId, ctx.user!.id)
+        ))
+        .returning();
+
+      return result[0];
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: { id: number } }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      // Delete logs first
+      await db
+        .delete(awarenessLogs)
+        .where(and(
+          eq(awarenessLogs.awarenessId, input.id),
+          eq(awarenessLogs.userId, ctx.user!.id)
+        ));
+
+      // Delete item
+      await db
+        .delete(awarenessItems)
+        .where(and(
+          eq(awarenessItems.id, input.id),
+          eq(awarenessItems.userId, ctx.user!.id)
+        ));
+
+      return { success: true };
+    }),
+
+  addLog: protectedProcedure
+    .input(
+      z.object({
+        awarenessId: z.number(),
+        logType: z.enum(["success", "failure", "insight"]),
+        content: z.string().min(1),
+        loggedAt: z.string().optional(), // ISO date string or undefined for now
+      })
+    )
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      const now = new Date();
+      const loggedDate = input.loggedAt ? new Date(input.loggedAt) : now;
+
+      const newLog = await db
+        .insert(awarenessLogs)
+        .values({
+          awarenessId: input.awarenessId,
+          userId: ctx.user!.id,
+          logType: input.logType,
+          content: input.content.trim(),
+          loggedAt: loggedDate,
+          createdAt: now,
+        })
+        .returning();
+
+      // Update the parent item's updatedAt timestamp
+      await db
+        .update(awarenessItems)
+        .set({ updatedAt: now })
+        .where(and(
+          eq(awarenessItems.id, input.awarenessId),
+          eq(awarenessItems.userId, ctx.user!.id)
+        ));
+
+      return newLog[0];
+    }),
+
+  deleteLog: protectedProcedure
+    .input(z.object({ logId: z.number(), awarenessId: z.number() }))
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: { logId: number; awarenessId: number } }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      await db
+        .delete(awarenessLogs)
+        .where(and(
+          eq(awarenessLogs.id, input.logId),
+          eq(awarenessLogs.userId, ctx.user!.id)
+        ));
+
+      return { success: true };
+    }),
+
+  merge: protectedProcedure
+    .input(
+      z.object({
+        sourceId: z.number(), // The item to merge and archive
+        targetId: z.number(), // The destination item
+      })
+    )
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: { sourceId: number; targetId: number } }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      // Verify both items belong to user
+      const source = await db
+        .select()
+        .from(awarenessItems)
+        .where(and(
+          eq(awarenessItems.id, input.sourceId),
+          eq(awarenessItems.userId, ctx.user!.id)
+        ))
+        .then((res: any) => res[0]);
+
+      const target = await db
+        .select()
+        .from(awarenessItems)
+        .where(and(
+          eq(awarenessItems.id, input.targetId),
+          eq(awarenessItems.userId, ctx.user!.id)
+        ))
+        .then((res: any) => res[0]);
+
+      if (!source || !target) {
+        throw new Error("Source or target item not found");
+      }
+
+      // Reassign all logs from source to target
+      await db
+        .update(awarenessLogs)
+        .set({ awarenessId: input.targetId })
+        .where(and(
+          eq(awarenessLogs.awarenessId, input.sourceId),
+          eq(awarenessLogs.userId, ctx.user!.id)
+        ));
+
+      // Append source title/notes to target notes if relevant
+      const now = new Date();
+      const mergedNoteSnippet = `\n【統合元: 「${source.title}」${source.notes ? ` (メモ: ${source.notes})` : ""}】`;
+      const newTargetNotes = (target.notes || "") + mergedNoteSnippet;
+
+      await db
+        .update(awarenessItems)
+        .set({
+          notes: newTargetNotes.trim(),
+          updatedAt: now,
+        })
+        .where(eq(awarenessItems.id, input.targetId));
+
+      // Mark source as archived with mergedIntoId
+      await db
+        .update(awarenessItems)
+        .set({
+          status: "archived",
+          mergedIntoId: input.targetId,
+          updatedAt: now,
+        })
+        .where(eq(awarenessItems.id, input.sourceId));
+
+      return { success: true };
+    }),
+});

@@ -32,8 +32,15 @@ import {
   diarySparkReports,
   DiarySparkReport,
   InsertDiarySparkReport,
+  awarenessItems,
+  AwarenessItem,
+  InsertAwarenessItem,
+  awarenessLogs,
+  AwarenessLog,
+  InsertAwarenessLog,
 } from "../drizzle/schema.js";
-export { diarySparkReports };
+export { diarySparkReports, awarenessItems, awarenessLogs };
+export type { AwarenessItem, InsertAwarenessItem, AwarenessLog, InsertAwarenessLog };
 import { ENV } from './_core/env.js';
 
 // Fallback Turso credentials to ensure cloud deployments (Vercel) always connect
@@ -70,6 +77,49 @@ export async function getDb() {
     console.warn("Database is not initialized. Check environment variables.");
   }
   return _db;
+}
+
+let _awarenessTablesEnsured = false;
+export async function ensureAwarenessTables() {
+  if (_awarenessTablesEnsured) return;
+  if (!_client) initDb();
+  if (!_client) return;
+  try {
+    await _client.execute(`
+      CREATE TABLE IF NOT EXISTS awareness_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        contextBefore TEXT,
+        contextAfter TEXT,
+        sourceType TEXT,
+        sourceId TEXT,
+        sourceTitle TEXT,
+        sourceUrl TEXT,
+        status TEXT NOT NULL DEFAULT 'standby',
+        retentionStage TEXT NOT NULL DEFAULT 'sprout',
+        color TEXT DEFAULT 'amber',
+        notes TEXT,
+        mergedIntoId INTEGER,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+      );
+    `);
+    await _client.execute(`
+      CREATE TABLE IF NOT EXISTS awareness_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        awarenessId INTEGER NOT NULL,
+        userId INTEGER NOT NULL,
+        logType TEXT NOT NULL,
+        content TEXT NOT NULL,
+        loggedAt INTEGER NOT NULL,
+        createdAt INTEGER NOT NULL
+      );
+    `);
+    _awarenessTablesEnsured = true;
+  } catch (err) {
+    console.error("Failed to ensure awareness tables:", err);
+  }
 }
 
 export async function checkDbConnection() {

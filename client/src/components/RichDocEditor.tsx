@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { compressImage } from "../lib/imageCompression";
-import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw, HelpCircle } from "lucide-react";
+import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw, HelpCircle, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { applyFormatToRange } from "../lib/richTextFormatting";
+import { trpc } from "../lib/trpc";
 
 export type DocBlock =
   | { id: string; type: "text"; text: string }
@@ -345,6 +346,61 @@ export function RichDocEditor({
   const isInternalUpdate = useRef(false);
   const isInteractingWithToolbarRef = useRef(false);
   const savedSelectionRangeRef = useRef<Range | null>(null);
+
+  const utils = trpc.useUtils();
+  const createAwarenessMutation = trpc.awareness.create.useMutation({
+    onSuccess: (data) => {
+      utils.awareness.list.invalidate();
+      toast.success(`「${data.title.slice(0, 20)}${data.title.length > 20 ? '...' : ''}」を意識リストに追加しました！`, {
+        action: {
+          label: "意識画面へ",
+          onClick: () => {
+            window.location.href = "/awareness";
+          },
+        },
+      });
+      setFloatingToolbar((prev) => ({ ...prev, show: false }));
+    },
+    onError: () => toast.error("意識への登録に失敗しました"),
+  });
+
+  const handleAddToAwareness = () => {
+    const range = savedSelectionRangeRef.current;
+    if (!range) {
+      toast.info("追加したいテキストを選択してください");
+      return;
+    }
+    const selectedText = range.toString().trim();
+    if (!selectedText) {
+      toast.info("テキストを選択してください");
+      return;
+    }
+
+    let activeIdx = activeBlockIndexRef.current;
+    editableRefs.current.forEach((el, idx) => {
+      if (el && el.contains(range.commonAncestorContainer)) {
+        activeIdx = idx;
+      }
+    });
+    const activeEl = editableRefs.current[activeIdx];
+    const fullText = activeEl ? activeEl.textContent || "" : "";
+    const idx = fullText.indexOf(selectedText);
+    let contextBefore = "";
+    let contextAfter = "";
+    if (idx !== -1) {
+      contextBefore = fullText.substring(Math.max(0, idx - 60), idx).trim();
+      contextAfter = fullText.substring(idx + selectedText.length, Math.min(fullText.length, idx + selectedText.length + 60)).trim();
+    }
+
+    createAwarenessMutation.mutate({
+      title: selectedText,
+      contextBefore,
+      contextAfter,
+      sourceTitle: document.title || "メモ・エディタ",
+      sourceUrl: window.location.pathname + window.location.search,
+      sourceType: "editor",
+    });
+  };
 
   // Target inspector for hover/tap rule bubble
   const updateHoverHintFromTarget = useCallback((target: EventTarget | null, isTap = false) => {
@@ -765,6 +821,7 @@ export function RichDocEditor({
   return (
     <div
       ref={containerRef}
+      data-rich-doc-editor="true"
       className={`relative flex flex-col ${className}`}
       onPointerMove={(e) => {
         if (e.pointerType === "mouse") {
@@ -919,6 +976,29 @@ export function RichDocEditor({
             >
               <RotateCcw className="w-3 h-3" />
               <span>解除</span>
+            </button>
+
+            {/* Add to Awareness */}
+            <div className="w-px h-4 bg-stone-700/80 mx-0.5" />
+            <button
+              type="button"
+              onMouseEnter={() =>
+                setActivePalettePreview({
+                  id: "awareness",
+                  label: "意識",
+                  ruleTitle: "💡 意識に追加",
+                  ruleDesc: "選択した言葉を「意識を育てる」へ保存",
+                  hex: "#f59e0b",
+                })
+              }
+              onMouseLeave={() => setActivePalettePreview(null)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleAddToAwareness}
+              title="選択した文章を「意識を育てる」に追加"
+              className="px-1.5 py-0.5 text-amber-300 hover:text-amber-200 hover:bg-amber-500/20 rounded-md transition cursor-pointer text-[10px] font-bold flex items-center gap-1 border border-amber-500/30"
+            >
+              <Lightbulb className="w-3 h-3 fill-amber-300" />
+              <span>意識へ</span>
             </button>
           </div>
 

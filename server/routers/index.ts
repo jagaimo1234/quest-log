@@ -51,6 +51,7 @@ import { investmentTickerRouter } from "./investmentTicker.js";
 import { insightFeedbackRouter } from "./insightFeedback.js";
 import { attachmentRouter } from "./attachment.js";
 import { sparkRouter } from "./spark.js";
+import { awarenessRouter } from "./awareness.js";
 
 export const appRouter = router({
   system: systemRouter,
@@ -61,6 +62,7 @@ export const appRouter = router({
   insightFeedback: insightFeedbackRouter,
   attachment: attachmentRouter,
   spark: sparkRouter,
+  awareness: awarenessRouter,
   book: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();

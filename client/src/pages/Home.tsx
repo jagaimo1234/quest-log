@@ -2548,6 +2548,7 @@ export default function Home() {
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/awareness"} className="text-amber-600 dark:text-amber-400 font-semibold"><Lightbulb className="w-4 h-4 mr-1 fill-amber-500/20" /> 意識を育てる</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"}><Database className="w-4 h-4 mr-1" /> DB</Button>
               <QuestCreateDialog onCreated={refreshAll} planningDayOffset={planningDayOffset} />
             </div>

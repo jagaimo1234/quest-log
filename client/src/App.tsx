@@ -6,9 +6,11 @@ import History from "@/pages/History";
 import Templates from "@/pages/Templates";
 import Projects from "@/pages/Projects";
 import AdminDbConfig from "@/pages/AdminDbConfig";
+import Awareness from "@/pages/Awareness";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { GlobalAwarenessCapture } from "./components/GlobalAwarenessCapture";
 
 function Router() {
   return (
@@ -17,6 +19,7 @@ function Router() {
       <Route path={"/history"} component={History} />
       <Route path={"/templates"} component={Templates} />
       <Route path={"/projects"} component={Projects} />
+      <Route path={"/awareness"} component={Awareness} />
       <Route path={"/admin/db"} component={AdminDbConfig} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -33,6 +36,7 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
+          <GlobalAwarenessCapture />
           <Router />
         </TooltipProvider>
       </ThemeProvider>

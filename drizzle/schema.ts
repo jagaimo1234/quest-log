@@ -461,3 +461,46 @@ export const diarySparkReports = sqliteTable("diary_spark_reports", {
 export type DiarySparkReport = typeof diarySparkReports.$inferSelect;
 export type InsertDiarySparkReport = typeof diarySparkReports.$inferInsert;
 
+/**
+ * 意識を育てる（Awareness Items）テーブル
+ * どこからでも文章を選択して「昇格」させた意識
+ */
+export const awarenessItems = sqliteTable("awareness_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  title: text("title").notNull(),              // 選択された文章（意識の中心）
+  contextBefore: text("contextBefore"),        // 前後の文脈
+  contextAfter: text("contextAfter"),
+  sourceType: text("sourceType"),              // 'quest' | 'diary' | 'kaizen' | 'bulletin' | 'goal' | 'memo' | 'general'
+  sourceId: text("sourceId"),                  // 元のIDや日付
+  sourceTitle: text("sourceTitle"),            // 元のタイトル
+  sourceUrl: text("sourceUrl"),                // 元の画面リンク
+  status: text("status", { enum: ["active", "standby", "anchored", "archived"] }).default("standby").notNull(), // active: 育成中, standby: 待機中, anchored: 定着済み
+  retentionStage: text("retentionStage", { enum: ["sprout", "growing", "anchored"] }).default("sprout").notNull(), // sprout: 芽生え, growing: 成長中, anchored: 定着
+  color: text("color").default("amber"),
+  notes: text("notes"),                        // 自由メモ・対策など
+  mergedIntoId: integer("mergedIntoId"),       // 統合先のID
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type AwarenessItem = typeof awarenessItems.$inferSelect;
+export type InsertAwarenessItem = typeof awarenessItems.$inferInsert;
+
+/**
+ * 意識の実例ログ（Awareness Logs）テーブル
+ * 日常での成功・失敗・気づきのエピソード
+ */
+export const awarenessLogs = sqliteTable("awareness_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  awarenessId: integer("awarenessId").notNull(),
+  userId: integer("userId").notNull(),
+  logType: text("logType", { enum: ["success", "failure", "insight"] }).notNull(), // 成功 / 失敗 / 気づき
+  content: text("content").notNull(),          // 一言実例メモ
+  loggedAt: integer("loggedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type AwarenessLog = typeof awarenessLogs.$inferSelect;
+export type InsertAwarenessLog = typeof awarenessLogs.$inferInsert;
+
