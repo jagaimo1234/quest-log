@@ -1,15 +1,20 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+import { getDb } from "./db";
+import { quests } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
+const TEST_USER_ID = 999999;
+
 function createAuthContext(): { ctx: TrpcContext } {
   const user: AuthenticatedUser = {
-    id: 1,
-    openId: "test-user",
-    email: "test@example.com",
-    name: "Test User",
+    id: TEST_USER_ID,
+    openId: "test-user-dummy",
+    email: "test-dummy@example.com",
+    name: "Test User Dummy",
     loginMethod: "test",
     role: "user",
     createdAt: new Date(),
@@ -176,4 +181,16 @@ describe("開始日と期限機能", () => {
     expect(quest.questType).toBe("Daily");
     expect(quest.deadline?.getTime()).toBe(deadline.getTime());
   });
+
+  afterAll(async () => {
+    try {
+      const db = await getDb();
+      if (db) {
+        await db.delete(quests).where(eq(quests.userId, TEST_USER_ID));
+      }
+    } catch (e) {
+      console.error("Cleanup error:", e);
+    }
+  });
 });
+
