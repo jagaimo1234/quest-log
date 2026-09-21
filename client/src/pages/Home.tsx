@@ -778,14 +778,22 @@ function TodayItem({
         <div className={`font-bold text-xs truncate ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
-        <div className="text-[9px] text-muted-foreground flex gap-1 items-center leading-none mt-0.5">
-          <span className="opacity-80 uppercase tracking-tighter">
-            {quest.note ? <span className="mr-2 font-normal text-foreground/80">{quest.note}</span> : null}
+        {quest.note && (
+          <div className="w-full min-w-0 text-[10.5px] text-muted-foreground/90 leading-snug mt-0.5 break-words line-clamp-2">
+            {quest.note}
+          </div>
+        )}
+        <div className="text-[9px] text-muted-foreground flex gap-1.5 items-center leading-none mt-1">
+          <span className="opacity-80 uppercase tracking-wider font-semibold">
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
-          {isChallenging && <span className="text-amber-600 font-bold bg-amber-100 px-1 rounded animate-pulse">RUNNING</span>}
+          {isChallenging && (
+            <span className="text-amber-600 font-bold bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.2 rounded text-[9px] animate-pulse">
+              RUNNING
+            </span>
+          )}
           {quest.targetCount > 1 && (
-            <span className="flex items-center gap-1 ml-2 font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 ml-1 font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
               <span className="px-1 bg-emerald-100 dark:bg-emerald-900/40 rounded">
                 [{quest.currentCount}/{quest.targetCount}]
               </span>
@@ -1781,6 +1789,25 @@ export default function Home() {
     return todayQuests.find((q: any) => q.status === "challenging" || q.status === "almost") || null;
   }, [todayQuests]);
 
+  // Slide transition sub-view: 'planning' (TODAY PLANNING) vs 'focus' (脳みその画面)
+  const [todaySubView, setTodaySubView] = useState<'planning' | 'focus'>(() => {
+    try {
+      const saved = localStorage.getItem('today_sub_view');
+      if (saved === 'focus' || saved === 'planning') return saved;
+    } catch {}
+    return 'planning';
+  });
+
+  const handleSubViewChange = (mode: 'planning' | 'focus') => {
+    setTodaySubView(mode);
+    try { localStorage.setItem('today_sub_view', mode); } catch {}
+    if (mode === 'planning') {
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 550);
+    }
+  };
+
   const oneOffTemplates = React.useMemo(() => {
     return (templates || []).filter(t => {
       if (t.questType !== "Free" || !t.isActive) return false;
@@ -2566,18 +2593,77 @@ export default function Home() {
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="today" className="space-y-8 animate-fade-in">
+          <TabsContent value="today" className="space-y-6 animate-fade-in">
 
-            {/* ACTIVE MISSION MOAI PANEL (RUNNING 連動) */}
-            <ActiveMissionMoaiPanel
-              activeQuest={activeRunningQuest}
-              todayQuests={todayQuests}
-              templates={templates || []}
-              onStatusChange={refreshAll}
-            />
+            {/* SLIDE NAVIGATION BAR: [ 📋 今日の計画 (TODAY PLANNING) | 🗿 集中モード (脳みその画面) ] */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-stone-100/80 dark:bg-stone-900/80 p-1.5 sm:p-2 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-2xs">
+              <div className="flex items-center gap-1.5 p-1 bg-white/70 dark:bg-stone-800/70 rounded-xl border border-stone-200/50 dark:border-stone-700/50 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => handleSubViewChange('planning')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    todaySubView === 'planning'
+                      ? 'bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 shadow-xs font-black'
+                      : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
+                  }`}
+                >
+                  <span>📋</span>
+                  <span>TODAY PLANNING</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-stone-200 dark:bg-stone-700 font-mono">
+                    {todayQuests.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSubViewChange('focus')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    todaySubView === 'focus'
+                      ? 'bg-amber-500 text-stone-950 shadow-xs font-black'
+                      : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
+                  }`}
+                >
+                  <span>🗿</span>
+                  <span>脳みその画面 (FOCUS)</span>
+                  {activeRunningQuest && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  )}
+                </button>
+              </div>
 
-            {/* SHELF 1: TODAY / WEEKLY PLANNING */}
-            <section className="space-y-4">
+              {/* Quick banner if a quest is RUNNING */}
+              {activeRunningQuest && (
+                <button
+                  type="button"
+                  onClick={() => handleSubViewChange(todaySubView === 'planning' ? 'focus' : 'planning')}
+                  className="flex items-center justify-between sm:justify-end gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+                    <span className="truncate max-w-[220px]">⚡ 実行中: {activeRunningQuest.questName}</span>
+                  </div>
+                  <span className="shrink-0 text-[11px] underline font-extrabold group-hover:translate-x-0.5 transition-transform">
+                    {todaySubView === 'planning' ? '集中画面へスライド ▶' : '◀ 計画へスライド'}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* SLIDING HORIZONTAL CONTAINER */}
+            <div className="relative w-full overflow-hidden">
+              <div
+                className="flex w-[200%] transition-transform duration-500 ease-in-out items-start"
+                style={{
+                  transform: todaySubView === 'planning' ? 'translateX(0%)' : 'translateX(-50%)',
+                }}
+              >
+                {/* SLIDE 1: TODAY / WEEKLY PLANNING (SHELF 1) */}
+                <div
+                  className={`w-1/2 shrink-0 pr-2 transition-opacity duration-300 ${
+                    todaySubView === 'planning' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  {/* SHELF 1: TODAY / WEEKLY PLANNING */}
+                  <section className="space-y-4">
               {/* Header and Toggle Controls */}
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-1 select-none">
                 <div className="flex flex-wrap items-center gap-3">
@@ -2858,6 +2944,24 @@ export default function Home() {
                 </div>
               )}
             </section>
+                </div>
+
+                {/* SLIDE 2: 脳みその画面 (MOAI FOCUS ROOM) */}
+                <div
+                  className={`w-1/2 shrink-0 pl-2 transition-opacity duration-300 ${
+                    todaySubView === 'focus' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  <ActiveMissionMoaiPanel
+                    activeQuest={activeRunningQuest}
+                    todayQuests={todayQuests}
+                    templates={templates || []}
+                    onStatusChange={refreshAll}
+                    onBackToPlanning={() => handleSubViewChange('planning')}
+                  />
+                </div>
+              </div>
+            </div>
 
             {
               dragState.active && dragState.itemId && (
