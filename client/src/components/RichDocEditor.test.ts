@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
-import { parseDocBlocks, serializeDocBlocks, extractPlainText, findRuleForElement } from "./RichDocEditor";
+import { parseDocBlocks, serializeDocBlocks, extractPlainText, findRuleForElement, cleanEmptyFormattingHtml } from "./RichDocEditor";
 
 describe("RichDocEditor parsing & serialization", () => {
   it("parses empty string to single text block with stable id", () => {
@@ -52,7 +52,7 @@ describe("RichDocEditor parsing & serialization", () => {
   });
 });
 
-import { applyFormatToRange } from "../lib/richTextFormatting";
+import { applyFormatToRange, cleanupEmptyFormatting } from "../lib/richTextFormatting";
 
 describe("richTextFormatting applyFormatToRange", () => {
   it("completely clears formatting on fully selected text", () => {
@@ -193,6 +193,86 @@ describe("Color Rules overlay resolution", () => {
     const p = div.querySelector("p") as HTMLElement;
     const res = findRuleForElement(p);
     expect(res).toBeNull();
+  });
+});
+
+describe("cleanEmptyFormattingHtml and residual pill prevention", () => {
+  it("unwraps <mark><br></mark> to clean <br>", () => {
+    const raw = '<mark class="marker-orange"><br></mark>';
+    expect(cleanEmptyFormattingHtml(raw)).toBe("<br>");
+  });
+
+  it("removes empty <mark></mark> tags completely", () => {
+    const raw = '<mark class="marker-yellow"></mark>';
+    expect(cleanEmptyFormattingHtml(raw)).toBe("");
+  });
+
+  it("unwraps <mark>&nbsp;</mark> preserving space without color pill", () => {
+    const raw = '<mark class="marker-orange">&nbsp;</mark>';
+    expect(cleanEmptyFormattingHtml(raw)).toBe("&nbsp;");
+  });
+
+  it("unwraps nested empty formatting tags cleanly", () => {
+    const raw = '<mark class="marker-orange"><span class="color-red"><br></span></mark>';
+    expect(cleanEmptyFormattingHtml(raw)).toBe("<br>");
+  });
+
+  it("cleans empty formatting in multi-line diary text while preserving text highlights", () => {
+    const diaryWithPillArtifacts = 
+      '・目的がブレないよう意識すること\n' +
+      '・次のアクション、判断を明確にしておく。\n' +
+      '・やらないことも意識する\n' +
+      '<mark class="marker-orange"><br></mark>\n' +
+      '<mark class="marker-orange"><br></mark>\n' +
+      '<mark class="marker-yellow"><br></mark>';
+
+    const cleaned = cleanEmptyFormattingHtml(diaryWithPillArtifacts);
+    expect(cleaned).toBe(
+      '・目的がブレないよう意識すること\n' +
+      '・次のアクション、判断を明確にしておく。\n' +
+      '・やらないことも意識する\n' +
+      '<br>\n' +
+      '<br>\n' +
+      '<br>'
+    );
+  });
+
+  it("preserves actual highlighted text without stripping", () => {
+    const validRich = '<mark class="marker-yellow">重要メモ</mark>と<span class="color-red">赤文字</span>';
+    expect(cleanEmptyFormattingHtml(validRich)).toBe(validRich);
+  });
+});
+
+describe("cleanupEmptyFormatting DOM cleanup", () => {
+  it("cleans empty marks wrapping <br> from root element", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<p><mark class="marker-orange"><br></mark></p>';
+    cleanupEmptyFormatting(div);
+    expect(div.innerHTML).toBe("<p><br></p>");
+  });
+
+  it("removes whitespace-only marks from root element", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<p>前 <mark class="marker-yellow">   </mark> 後</p>';
+    cleanupEmptyFormatting(div);
+    expect(div.innerHTML).toBe("<p>前     後</p>");
+  });
+
+  it("cleans empty formatting during applyFormatToRange clear", () => {
+    const div = document.createElement("div");
+    div.innerHTML = 
+      '・目的がブレないよう意識すること<br>' +
+      '<mark class="marker-orange"><br></mark>';
+    
+    // Select the first line and clear
+    const firstText = div.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(firstText, 0);
+    range.setEnd(firstText, 5);
+
+    applyFormatToRange(range, div, "clear");
+    // Residual empty mark on the second line should also be cleaned up automatically
+    expect(div.innerHTML).toBe('・目的がブレないよう意識すること<br><br>');
   });
 });
 

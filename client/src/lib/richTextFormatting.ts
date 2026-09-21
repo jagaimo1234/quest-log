@@ -69,6 +69,23 @@ export function unwrapAllFormatting(el: HTMLElement, formatFilter?: "marker" | "
 }
 
 /**
+ * Removes or unwraps any formatting elements that contain no visible text
+ * (e.g. <mark><br></mark>, <span class="color-red"> </span>, <mark></mark>).
+ * Preserves structural elements like <br> while eliminating empty formatting wrappers.
+ */
+export function cleanupEmptyFormatting(root: HTMLElement) {
+  const allFormatting = Array.from(root.querySelectorAll("mark, span, font")).filter(isFormattingElement);
+  for (let i = allFormatting.length - 1; i >= 0; i--) {
+    const el = allFormatting[i] as HTMLElement;
+    if (!el.parentNode) continue;
+    const cleanText = (el.textContent || "").replace(/[\s\u200B\uFEFF]/g, "");
+    if (cleanText === "") {
+      unwrapElement(el);
+    }
+  }
+}
+
+/**
  * Splits `parent` around `target` so that `target` is the only child of `parent`.
  * Preceding siblings go to a cloned parent on the left.
  * Subsequent siblings go to a cloned parent on the right.
@@ -291,13 +308,8 @@ export function applyFormatToRange(
     }
   }
 
-  // Remove any leftover empty formatting elements
-  const allFormatting = Array.from(root.querySelectorAll("mark, span, font")).filter(isFormattingElement);
-  for (const el of allFormatting) {
-    if (!el.textContent && !el.hasChildNodes()) {
-      el.parentNode?.removeChild(el);
-    }
-  }
+  // Remove any leftover empty formatting elements (including ones wrapping only <br> or whitespace)
+  cleanupEmptyFormatting(root);
 
   // Create a new Range spanning from the first selected node to the last
   const newRange = document.createRange();

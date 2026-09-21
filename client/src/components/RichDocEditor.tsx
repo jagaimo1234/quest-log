@@ -85,7 +85,7 @@ export function parseDocBlocks(raw: string): DocBlock[] {
 
   while ((match = regex.exec(raw)) !== null) {
     const textBefore = raw.substring(lastIndex, match.index);
-    const cleanedBefore = textBefore.replace(/\n+$/, "");
+    const cleanedBefore = cleanEmptyFormattingHtml(textBefore.replace(/\n+$/, ""));
     if (cleanedBefore.trim() !== "" || blocks.length === 0) {
       blocks.push({
         id: `b-txt-${counter++}`,
@@ -104,7 +104,7 @@ export function parseDocBlocks(raw: string): DocBlock[] {
     lastIndex = regex.lastIndex;
   }
 
-  const remaining = raw.substring(lastIndex).replace(/^\n+/, "");
+  const remaining = cleanEmptyFormattingHtml(raw.substring(lastIndex).replace(/^\n+/, ""));
   if (remaining.trim() !== "" || blocks.length === 0) {
     blocks.push({
       id: `b-txt-${counter++}`,
@@ -163,7 +163,7 @@ export function serializeDocBlocks(blocks: DocBlock[]): string {
       if (b.type === "image") {
         return `![${b.caption || "image"}](${b.src})`;
       }
-      return b.text;
+      return cleanEmptyFormattingHtml(b.text);
     })
     .filter((content, idx, arr) => {
       if (content === "" && arr.length > 1) return false;
@@ -171,6 +171,25 @@ export function serializeDocBlocks(blocks: DocBlock[]): string {
     })
     .join("\n")
     .trim();
+}
+
+/**
+ * Strips empty or whitespace-only formatting tags (<mark>, <span>, <font>)
+ * while preserving structural line breaks (<br>) and spacing.
+ * This prevents empty tags on blank lines from rendering as colored pill artifacts.
+ */
+export function cleanEmptyFormattingHtml(html: string): string {
+  if (!html) return "";
+  let prev = "";
+  let curr = html;
+  const emptyTagRegex = /<(mark|span|font)\b[^>]*>((?:<br\s*\/?>|&nbsp;|\s|[\u200B\uFEFF])*)<\/\1>/gi;
+  let iterations = 0;
+  while (prev !== curr && iterations < 10) {
+    prev = curr;
+    curr = curr.replace(emptyTagRegex, "$2");
+    iterations++;
+  }
+  return curr;
 }
 
 export function extractPlainText(raw: string): string {
@@ -183,7 +202,7 @@ export function extractPlainText(raw: string): string {
 }
 
 function normalizeHtml(str: string): string {
-  return (str || "")
+  return cleanEmptyFormattingHtml(str || "")
     .replace(/&nbsp;/g, " ")
     .replace(/<br\s*\/?>/gi, "")
     .replace(/\s+/g, " ")
@@ -478,8 +497,11 @@ export function RichDocEditor({
   const commitBlocks = useCallback(
     (newBlocks: DocBlock[]) => {
       isInternalUpdate.current = true;
-      setBlocks(newBlocks);
-      const serialized = serializeDocBlocks(newBlocks);
+      const sanitized = newBlocks.map((b) =>
+        b.type === "text" ? { ...b, text: cleanEmptyFormattingHtml(b.text) } : b
+      );
+      setBlocks(sanitized);
+      const serialized = serializeDocBlocks(sanitized);
       onChange(serialized);
       if (onTextChange) {
         onTextChange(extractPlainText(serialized));

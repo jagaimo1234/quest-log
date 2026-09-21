@@ -158,6 +158,17 @@
 }
 
 /* Document Rich Styling: Markers (Highlighters) */
+mark:empty,
+mark:has(> br:only-child) {
+  padding: 0 !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+}
+
+mark:empty {
+  display: none !important;
+}
+
 .marker-yellow {
   background-color: rgba(253, 224, 71, 0.85);
   color: #451a03;
