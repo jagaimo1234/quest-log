@@ -130,6 +130,18 @@ export default function Awareness() {
     onError: () => toast.error("統合に失敗しました"),
   });
 
+  const togglePracticeMutation = trpc.awareness.togglePractice.useMutation({
+    onSuccess: (res) => {
+      utils.awareness.list.invalidate();
+      if (res.practiced) {
+        toast.success("パカンッ！意識を本日のトレイに定着させました 🏺✨");
+      } else {
+        toast.info("意識を空へ戻しました 🎈");
+      }
+    },
+    onError: () => toast.error("操作に失敗しました"),
+  });
+
   // View State
   const [viewMode, setViewMode] = useState<"balloons" | "list" | "visuals">(() => {
     if (typeof window !== "undefined") {
@@ -384,6 +396,7 @@ export default function Awareness() {
             <AwarenessBalloons
               items={balloonDisplayItems}
               onSelectItem={(item) => setSelectedBalloonItem(item)}
+              onTogglePractice={(item) => togglePracticeMutation.mutate({ awarenessId: item.id })}
               filterTab={effectiveBalloonFilter}
               onFilterChange={(tab) => setBalloonFilterTab(tab)}
               activeCount={activeItems.length}
@@ -448,7 +461,23 @@ export default function Awareness() {
                         </div>
 
                         {/* Card Dropdown Menu */}
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
+                          {/* Daily Practice Toggle Button */}
+                          <button
+                            type="button"
+                            onClick={() => togglePracticeMutation.mutate({ awarenessId: item.id })}
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                              item.isPracticedToday
+                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                                : "bg-muted/80 text-muted-foreground hover:bg-amber-500/20 hover:text-amber-400 border-border"
+                            }`}
+                            title={item.isPracticedToday ? "本日定着済み（クリックで空へ戻す）" : "今日意識できた！として定着トレイへ落とす"}
+                          >
+                            <Check className={`w-3 h-3 ${item.isPracticedToday ? "text-emerald-400" : "text-muted-foreground"}`} />
+                            <span>{item.isPracticedToday ? "本日定着済" : "今日意識した"}</span>
+                            <span className="font-mono text-[9.5px] opacity-75">({item.practiceCount || 0}回)</span>
+                          </button>
+
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">

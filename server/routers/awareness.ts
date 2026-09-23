@@ -1,79 +1,116 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc.js";
 import type { TrpcContext } from "../_core/context.js";
-import { awarenessItems, awarenessLogs, awarenessVisuals } from "../../drizzle/schema.js";
+import { awarenessItems, awarenessLogs, awarenessVisuals, awarenessPractices } from "../../drizzle/schema.js";
 import { getDb, ensureAwarenessTables } from "../db.js";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 
 export const awarenessRouter = router({
-  list: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
-    await ensureAwarenessTables();
-    const db = await getDb();
-    if (!db) throw new Error("Database unavailable");
+  list: protectedProcedure
+    .input(z.object({ date: z.string().optional() }).optional())
+    .query(async ({ ctx, input }: { ctx: TrpcContext; input?: { date?: string } }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
 
-    // Fetch non-archived items
-    const items = await db
-      .select()
-      .from(awarenessItems)
-      .where(and(
-        eq(awarenessItems.userId, ctx.user!.id),
-        sql`${awarenessItems.status} != 'archived'`
-      ))
-      .orderBy(desc(awarenessItems.updatedAt));
+      const todayStr = input?.date || new Date().toISOString().slice(0, 10);
 
-    if (items.length === 0) return [];
+      // Fetch non-archived items
+      const items = await db
+        .select()
+        .from(awarenessItems)
+        .where(and(
+          eq(awarenessItems.userId, ctx.user!.id),
+          sql`${awarenessItems.status} != 'archived'`
+        ))
+        .orderBy(desc(awarenessItems.updatedAt));
 
-    const itemIds = items.map((i: any) => i.id);
+      if (items.length === 0) return [];
 
-    // Fetch all logs for these items
-    const logs = await db
-      .select()
-      .from(awarenessLogs)
-      .where(and(
-        eq(awarenessLogs.userId, ctx.user!.id),
-        inArray(awarenessLogs.awarenessId, itemIds)
-      ))
-      .orderBy(desc(awarenessLogs.loggedAt));
+      const itemIds = items.map((i: any) => i.id);
 
-    // Group logs by awarenessId
-    const logsByItem: Record<number, typeof logs> = {};
-    logs.forEach((l: any) => {
-      if (!logsByItem[l.awarenessId]) logsByItem[l.awarenessId] = [];
-      logsByItem[l.awarenessId].push(l);
-    });
+      // Fetch all logs for these items
+      const logs = await db
+        .select()
+        .from(awarenessLogs)
+        .where(and(
+          eq(awarenessLogs.userId, ctx.user!.id),
+          inArray(awarenessLogs.awarenessId, itemIds)
+        ))
+        .orderBy(desc(awarenessLogs.loggedAt));
 
-    return items.map((item: any) => {
-      const itemLogs = logsByItem[item.id] || [];
-      const successCount = itemLogs.filter((l: any) => l.logType === "success").length;
-      const failureCount = itemLogs.filter((l: any) => l.logType === "failure").length;
-      const insightCount = itemLogs.filter((l: any) => l.logType === "insight").length;
-      const totalCount = itemLogs.length;
+      // Fetch all practices for these items
+      const practices = await db
+        .select()
+        .from(awarenessPractices)
+        .where(and(
+          eq(awarenessPractices.userId, ctx.user!.id),
+          inArray(awarenessPractices.awarenessId, itemIds)
+        ));
 
-      // Calculate automated stage if not explicitly set to anchored
-      let computedStage = item.retentionStage;
-      if (item.status === "anchored") {
-        computedStage = "anchored";
-      } else if (totalCount >= 5) {
-        computedStage = "anchored";
-      } else if (totalCount >= 1) {
-        computedStage = "growing";
-      } else {
-        computedStage = "sprout";
-      }
+      // Group logs by awarenessId
+      const logsByItem: Record<number, typeof logs> = {};
+      logs.forEach((l: any) => {
+        if (!logsByItem[l.awarenessId]) logsByItem[l.awarenessId] = [];
+        logsByItem[l.awarenessId].push(l);
+      });
 
-      return {
-        ...item,
-        retentionStage: computedStage,
-        logs: itemLogs,
-        counts: {
-          success: successCount,
-          failure: failureCount,
-          insight: insightCount,
-          total: totalCount,
-        },
-      };
-    });
-  }),
+      // Group practices by awarenessId
+      const practicesByItem: Record<number, typeof practices> = {};
+      practices.forEach((p: any) => {
+        if (!practicesByItem[p.awarenessId]) practicesByItem[p.awarenessId] = [];
+        practicesByItem[p.awarenessId].push(p);
+      });
+
+      return items.map((item: any) => {
+        const itemLogs = logsByItem[item.id] || [];
+        const itemPractices = practicesByItem[item.id] || [];
+        const successCount = itemLogs.filter((l: any) => l.logType === "success").length;
+        const failureCount = itemLogs.filter((l: any) => l.logType === "failure").length;
+        const insightCount = itemLogs.filter((l: any) => l.logType === "insight").length;
+        const totalCount = itemLogs.length;
+
+        const practiceCount = itemPractices.length;
+        const isPracticedToday = itemPractices.some((p: any) => p.date === todayStr);
+
+        // Visual stage calculation (1: 0~2, 2: 3~6, 3: 7~13, 4: 14+)
+        let visualStage: 1 | 2 | 3 | 4 = 1;
+        if (practiceCount >= 14 || item.status === "anchored") {
+          visualStage = 4;
+        } else if (practiceCount >= 7) {
+          visualStage = 3;
+        } else if (practiceCount >= 3) {
+          visualStage = 2;
+        } else {
+          visualStage = 1;
+        }
+
+        // Calculate automated stage
+        let computedStage = item.retentionStage;
+        if (item.status === "anchored" || practiceCount >= 14) {
+          computedStage = "anchored";
+        } else if (practiceCount >= 3 || totalCount >= 1) {
+          computedStage = "growing";
+        } else {
+          computedStage = "sprout";
+        }
+
+        return {
+          ...item,
+          retentionStage: computedStage,
+          visualStage,
+          practiceCount,
+          isPracticedToday,
+          logs: itemLogs,
+          counts: {
+            success: successCount,
+            failure: failureCount,
+            insight: insightCount,
+            total: totalCount,
+          },
+        };
+      });
+    }),
 
   create: protectedProcedure
     .input(
@@ -254,6 +291,53 @@ export const awarenessRouter = router({
         ));
 
       return { success: true };
+    }),
+
+  togglePractice: protectedProcedure
+    .input(
+      z.object({
+        awarenessId: z.number(),
+        date: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: { awarenessId: number; date?: string } }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      const todayStr = input.date || new Date().toISOString().slice(0, 10);
+      const now = new Date();
+
+      // Check if existing practice record exists for this item on this date
+      const existing = await db
+        .select()
+        .from(awarenessPractices)
+        .where(and(
+          eq(awarenessPractices.userId, ctx.user!.id),
+          eq(awarenessPractices.awarenessId, input.awarenessId),
+          eq(awarenessPractices.date, todayStr)
+        ));
+
+      if (existing.length > 0) {
+        // Toggle OFF (remove practice)
+        await db
+          .delete(awarenessPractices)
+          .where(eq(awarenessPractices.id, existing[0].id));
+
+        return { success: true, practiced: false, awarenessId: input.awarenessId };
+      } else {
+        // Toggle ON (insert practice)
+        await db
+          .insert(awarenessPractices)
+          .values({
+            userId: ctx.user!.id,
+            awarenessId: input.awarenessId,
+            date: todayStr,
+            createdAt: now,
+          });
+
+        return { success: true, practiced: true, awarenessId: input.awarenessId };
+      }
     }),
 
   merge: protectedProcedure

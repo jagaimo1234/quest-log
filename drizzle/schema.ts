@@ -525,3 +525,22 @@ export const awarenessVisuals = sqliteTable("awareness_visuals", {
 export type AwarenessVisual = typeof awarenessVisuals.$inferSelect;
 export type InsertAwarenessVisual = typeof awarenessVisuals.$inferInsert;
 
+/**
+ * 意識の実践・撃ち落とし（Awareness Practices）テーブル
+ * 日々の意識できたチェック（定着トレイへの落下）履歴
+ */
+export const awarenessPractices = sqliteTable("awareness_practices", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  awarenessId: integer("awarenessId").notNull(),
+  date: text("date").notNull(), // 'YYYY-MM-DD'
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => {
+  return {
+    userAwarenessDateUnique: uniqueIndex("user_awareness_date_idx").on(table.userId, table.awarenessId, table.date),
+  };
+});
+
+export type AwarenessPractice = typeof awarenessPractices.$inferSelect;
+export type InsertAwarenessPractice = typeof awarenessPractices.$inferInsert;
+

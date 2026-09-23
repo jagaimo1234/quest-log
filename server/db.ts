@@ -134,6 +134,16 @@ export async function ensureAwarenessTables() {
         updatedAt INTEGER NOT NULL
       );
     `);
+    await _client.execute(`
+      CREATE TABLE IF NOT EXISTS awareness_practices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        awarenessId INTEGER NOT NULL,
+        userId INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        createdAt INTEGER NOT NULL,
+        UNIQUE(userId, awarenessId, date)
+      );
+    `);
     _awarenessTablesEnsured = true;
   } catch (err) {
     console.error("Failed to ensure awareness tables:", err);
