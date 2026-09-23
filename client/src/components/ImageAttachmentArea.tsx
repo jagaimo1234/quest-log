@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } f
 import { createPortal } from "react-dom";
 import { trpc } from "../lib/trpc";
 import { compressImage } from "../lib/imageCompression";
-import { Camera, Image as ImageIcon, Trash2, X, ZoomIn, Loader2, Download, Plus } from "lucide-react";
+import { Camera, Image as ImageIcon, Trash2, X, ZoomIn, Loader2, Download, Plus, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 
 export interface ImageAttachmentAreaRef {
@@ -37,6 +37,8 @@ export const ImageAttachmentArea = forwardRef<ImageAttachmentAreaRef, ImageAttac
     const fileInputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
+  const utils = trpc.useUtils();
+
   // Queries & Mutations
   const { data: attachments, refetch } = trpc.attachment.list.useQuery(
     { targetType, targetId },
@@ -44,6 +46,35 @@ export const ImageAttachmentArea = forwardRef<ImageAttachmentAreaRef, ImageAttac
   );
   const uploadMutation = trpc.attachment.upload.useMutation();
   const deleteMutation = trpc.attachment.delete.useMutation();
+
+  const getHumanReadableSourceTitle = (type: string, id: string) => {
+    if (type === "bulletin" || type === "notice_board") {
+      if (id.startsWith("month-") || id.includes("-m-")) return `月間掲示板 (${id})`;
+      if (id.startsWith("week-") || id.includes("-w-")) return `週間掲示板 (${id})`;
+      return `日間掲示板 (${id})`;
+    }
+    if (type === "diary" || type === "bonfire") return `焚き火日記 (${id})`;
+    if (type === "goal") return `目標 (${id})`;
+    if (type === "investment") return `投資掲示板 (${id})`;
+    return `${type} (${id})`;
+  };
+
+  const saveVisualMutation = trpc.awareness.saveVisual.useMutation({
+    onSuccess: () => {
+      utils.awareness.listVisuals.invalidate();
+      toast.success("💡 意識のインフォビジュアルライブラリに残しました！", {
+        action: {
+          label: "意識画面へ",
+          onClick: () => {
+            window.location.href = "/awareness?tab=visuals";
+          },
+        },
+      });
+    },
+    onError: () => {
+      toast.error("意識ライブラリへの保存に失敗しました");
+    },
+  });
 
   // Process and upload a file or blob
   const processAndUpload = async (fileOrBlob: File | Blob, name?: string) => {
@@ -230,6 +261,24 @@ export const ImageAttachmentArea = forwardRef<ImageAttachmentAreaRef, ImageAttac
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                 <ZoomIn className="w-3.5 h-3.5 text-white" />
               </div>
+              {/* 💡 意識に残す (Quick Action) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveVisualMutation.mutate({
+                    dataUrl: att.dataUrl,
+                    sourceType: targetType,
+                    sourceId: targetId,
+                    sourceTitle: getHumanReadableSourceTitle(targetType, targetId),
+                  });
+                }}
+                disabled={saveVisualMutation.isPending}
+                className="absolute top-0.5 left-0.5 p-1 bg-amber-500/90 hover:bg-amber-400 text-stone-950 rounded opacity-0 group-hover:opacity-100 transition-all cursor-pointer shadow-xs"
+                title="💡 意識に残す (インフォビジュアルライブラリへ)"
+              >
+                <Lightbulb className="w-2.5 h-2.5 fill-stone-950" />
+              </button>
               <button
                 type="button"
                 onClick={(e) => handleDelete(att.id, e)}
@@ -294,7 +343,23 @@ export const ImageAttachmentArea = forwardRef<ImageAttachmentAreaRef, ImageAttac
                 alt="拡大プレビュー"
                 className="max-w-[94vw] max-h-[78vh] object-contain rounded-xl shadow-2xl border border-stone-800 bg-stone-950/80"
               />
-              <div className="mt-3 flex items-center gap-3 shrink-0">
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveVisualMutation.mutate({
+                      dataUrl: lightboxUrl,
+                      sourceType: targetType,
+                      sourceId: targetId,
+                      sourceTitle: getHumanReadableSourceTitle(targetType, targetId),
+                    });
+                  }}
+                  disabled={saveVisualMutation.isPending}
+                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold rounded-lg border border-amber-300 flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  <Lightbulb className="w-3.5 h-3.5 fill-stone-950" />
+                  <span>💡 意識に残す</span>
+                </button>
                 <a
                   href={lightboxUrl}
                   download={`attachment-${Date.now()}.webp`}

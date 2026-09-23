@@ -38,9 +38,12 @@ import {
   awarenessLogs,
   AwarenessLog,
   InsertAwarenessLog,
+  awarenessVisuals,
+  AwarenessVisual,
+  InsertAwarenessVisual,
 } from "../drizzle/schema.js";
-export { diarySparkReports, awarenessItems, awarenessLogs };
-export type { AwarenessItem, InsertAwarenessItem, AwarenessLog, InsertAwarenessLog };
+export { diarySparkReports, awarenessItems, awarenessLogs, awarenessVisuals };
+export type { AwarenessItem, InsertAwarenessItem, AwarenessLog, InsertAwarenessLog, AwarenessVisual, InsertAwarenessVisual };
 import { ENV } from './_core/env.js';
 
 // Fallback Turso credentials to ensure cloud deployments (Vercel) always connect
@@ -114,6 +117,21 @@ export async function ensureAwarenessTables() {
         content TEXT NOT NULL,
         loggedAt INTEGER NOT NULL,
         createdAt INTEGER NOT NULL
+      );
+    `);
+    await _client.execute(`
+      CREATE TABLE IF NOT EXISTS awareness_visuals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
+        title TEXT DEFAULT '',
+        dataUrl TEXT NOT NULL,
+        sourceType TEXT,
+        sourceTitle TEXT,
+        sourceId TEXT,
+        memo TEXT DEFAULT '',
+        isPinned INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
       );
     `);
     _awarenessTablesEnsured = true;

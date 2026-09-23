@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc.js";
 import type { TrpcContext } from "../_core/context.js";
-import { awarenessItems, awarenessLogs } from "../../drizzle/schema.js";
+import { awarenessItems, awarenessLogs, awarenessVisuals } from "../../drizzle/schema.js";
 import { getDb, ensureAwarenessTables } from "../db.js";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 
@@ -322,6 +322,110 @@ export const awarenessRouter = router({
           updatedAt: now,
         })
         .where(eq(awarenessItems.id, input.sourceId));
+
+      return { success: true };
+    }),
+
+  listVisuals: protectedProcedure.query(async ({ ctx }: { ctx: TrpcContext }) => {
+    await ensureAwarenessTables();
+    const db = await getDb();
+    if (!db) throw new Error("Database unavailable");
+
+    const visuals = await db
+      .select()
+      .from(awarenessVisuals)
+      .where(eq(awarenessVisuals.userId, ctx.user!.id))
+      .orderBy(desc(awarenessVisuals.isPinned), desc(awarenessVisuals.createdAt));
+
+    return visuals;
+  }),
+
+  saveVisual: protectedProcedure
+    .input(
+      z.object({
+        dataUrl: z.string().min(1),
+        title: z.string().optional(),
+        sourceType: z.string().optional(),
+        sourceTitle: z.string().optional(),
+        sourceId: z.string().optional(),
+        memo: z.string().optional(),
+        isPinned: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      const now = new Date();
+      const [inserted] = await db
+        .insert(awarenessVisuals)
+        .values({
+          userId: ctx.user!.id,
+          title: input.title || "",
+          dataUrl: input.dataUrl,
+          sourceType: input.sourceType || "direct",
+          sourceTitle: input.sourceTitle || "",
+          sourceId: input.sourceId || "",
+          memo: input.memo || "",
+          isPinned: input.isPinned ? true : false,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+
+      return inserted;
+    }),
+
+  updateVisual: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        memo: z.string().optional(),
+        isPinned: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+      if (input.title !== undefined) updateData.title = input.title;
+      if (input.memo !== undefined) updateData.memo = input.memo;
+      if (input.isPinned !== undefined) updateData.isPinned = input.isPinned;
+
+      await db
+        .update(awarenessVisuals)
+        .set(updateData)
+        .where(
+          and(
+            eq(awarenessVisuals.id, input.id),
+            eq(awarenessVisuals.userId, ctx.user!.id)
+          )
+        );
+
+      return { success: true };
+    }),
+
+  deleteVisual: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: { id: number } }) => {
+      await ensureAwarenessTables();
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      await db
+        .delete(awarenessVisuals)
+        .where(
+          and(
+            eq(awarenessVisuals.id, input.id),
+            eq(awarenessVisuals.userId, ctx.user!.id)
+          )
+        );
 
       return { success: true };
     }),

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -151,21 +151,27 @@ function DayColumn({
   const { data: board, refetch: refetchBoard } = trpc.bulletin.get.useQuery({ date: dateStr });
   const saveBoard = trpc.bulletin.save.useMutation();
   const [localContent, setLocalContent] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState("");
+  const contentTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setLocalContent(board?.content || "");
   }, [board?.content]);
 
-  const handleBlur = () => {
-    if (localContent !== (board?.content || "")) {
+  const handleContentChange = (val: string) => {
+    setLocalContent(val);
+    if (contentTimeout.current) clearTimeout(contentTimeout.current);
+    contentTimeout.current = setTimeout(() => {
       saveBoard.mutate({
-        content: localContent,
+        content: val,
         diary: board?.diary || "",
         date: dateStr
       }, {
         onSuccess: () => refetchBoard()
       });
-    }
+    }, 1000);
   };
 
   return (
@@ -207,15 +213,92 @@ function DayColumn({
         </div>
 
         {/* Bulletin Board Daily Note (Focus / Reflection) */}
-        <div>
-          <textarea
-            value={localContent}
-            onChange={(e) => setLocalContent(e.target.value)}
-            onBlur={handleBlur}
-            placeholder="本日のフォーカス・振り返り..."
-            className="w-full text-[10px] p-2 border border-slate-100 rounded-lg bg-white/60 focus:bg-white focus:ring-1 focus:ring-amber-300 resize-none min-h-[48px] placeholder-slate-300 outline-none transition-all scrollbar-none"
-          />
+        <div className="relative group/note rounded-xl border border-stone-200/90 dark:border-stone-800 bg-white/80 dark:bg-stone-900/60 transition-all shadow-2xs hover:border-amber-400/60">
+          <div className="flex items-center justify-between px-2.5 py-1 border-b border-stone-100 dark:border-stone-800/80 text-[10px] text-muted-foreground select-none">
+            <span className="font-bold flex items-center gap-1 text-stone-600 dark:text-stone-300">
+              📝 フォーカス・メモ
+            </span>
+            <div className="flex items-center gap-1 opacity-70 group-hover/note:opacity-100 transition-opacity">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
+                title={isExpanded ? "枠を縮小" : "枠を広げる"}
+              >
+                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalContent(localContent);
+                  setIsModalOpen(true);
+                }}
+                className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
+                title="大画面で拡大表示・編集"
+              >
+                <Maximize2 className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          <div className={`p-1.5 overflow-y-auto transition-all ${isExpanded ? "max-h-[300px]" : "max-h-[110px]"}`}>
+            <RichDocEditor
+              value={localContent}
+              onChange={handleContentChange}
+              placeholder="本日のフォーカス・振り返り..."
+              showToolbar={false}
+              minHeight={isExpanded ? 150 : 54}
+              theme="stone"
+              textAreaClassName="text-[11px] leading-5 text-stone-700 dark:text-stone-300"
+            />
+          </div>
         </div>
+
+        {/* 拡大編集モーダル */}
+        <Dialog open={isModalOpen} onOpenChange={(open) => {
+          if (!open) {
+            setIsModalOpen(false);
+            if (modalContent !== localContent) {
+              handleContentChange(modalContent);
+            }
+          }
+        }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-4 sm:p-6">
+            <DialogHeader className="pb-2 border-b border-border/50">
+              <DialogTitle className="text-sm sm:text-base font-bold flex items-center justify-between">
+                <span>📝 {format(date, "yyyy年M月d日 (E)")} のフォーカス・日間メモ</span>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto py-2">
+              <RichDocEditor
+                value={modalContent}
+                onChange={(val) => {
+                  setModalContent(val);
+                  handleContentChange(val);
+                }}
+                placeholder="今日のフォーカス、やること、振り返り、気づきなどを自由に書き込み..."
+                showToolbar={true}
+                minHeight={280}
+                theme="stone"
+                textAreaClassName="text-sm leading-6 text-stone-700 dark:text-stone-300"
+              />
+            </div>
+
+            <DialogFooter className="pt-2 border-t border-border/50 flex items-center justify-between sm:justify-between">
+              <span className="text-[11px] text-muted-foreground">
+                ※ 入力内容は自動保存されます
+              </span>
+              <Button
+                size="sm"
+                onClick={() => setIsModalOpen(false)}
+                className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs"
+              >
+                閉じる
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Create Quest Dialog trigger inside this day */}
         <QuestCreateDialog

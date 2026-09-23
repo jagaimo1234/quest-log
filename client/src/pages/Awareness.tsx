@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { AwarenessBalloons, BalloonAwarenessItem } from "@/components/AwarenessBalloons";
 import { AwarenessDetailDialog } from "@/components/AwarenessDetailDialog";
+import { AwarenessVisualGallery } from "@/components/AwarenessVisualGallery";
 
 const STAGE_CONFIG = {
   sprout: {
@@ -130,7 +131,13 @@ export default function Awareness() {
   });
 
   // View State
-  const [viewMode, setViewMode] = useState<"balloons" | "list">("balloons");
+  const [viewMode, setViewMode] = useState<"balloons" | "list" | "visuals">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "visuals") return "visuals";
+    }
+    return "balloons";
+  });
   const [balloonFilterTab, setBalloonFilterTab] = useState<"all" | "active" | "standby" | "anchored">("active");
   const [selectedBalloonItem, setSelectedBalloonItem] = useState<BalloonAwarenessItem | null>(null);
 
@@ -303,7 +310,7 @@ export default function Awareness() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* View Mode Toggle: [ 🎈 バルーン | 📋 リスト ] */}
+            {/* View Mode Toggle: [ 🎈 バルーン | 📋 リスト | 🖼️ ビジュアル ] */}
             <div className="flex items-center p-0.5 bg-muted/60 dark:bg-muted/40 rounded-xl border border-border/50 text-xs">
               <button
                 type="button"
@@ -326,6 +333,17 @@ export default function Awareness() {
                 }`}
               >
                 <span>📋 リスト</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("visuals")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  viewMode === "visuals"
+                    ? "bg-amber-500 text-stone-950 shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>🖼️ ビジュアル</span>
               </button>
             </div>
 
@@ -359,7 +377,9 @@ export default function Awareness() {
           </div>
         </div>
 
-        {viewMode === "balloons" ? (
+        {viewMode === "visuals" ? (
+          <AwarenessVisualGallery />
+        ) : viewMode === "balloons" ? (
           <div className="space-y-4">
             <AwarenessBalloons
               items={balloonDisplayItems}

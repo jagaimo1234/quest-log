@@ -504,3 +504,24 @@ export const awarenessLogs = sqliteTable("awareness_logs", {
 export type AwarenessLog = typeof awarenessLogs.$inferSelect;
 export type InsertAwarenessLog = typeof awarenessLogs.$inferInsert;
 
+/**
+ * 意識のインフォビジュアル（Awareness Visuals）テーブル
+ * 日記や掲示板から昇格、あるいは直接登録された習慣・気づき・行動の図解画像
+ */
+export const awarenessVisuals = sqliteTable("awareness_visuals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  title: text("title").default(""),              // 画像タイトル・要約（任意）
+  dataUrl: text("dataUrl").notNull(),            // WebP画像データ
+  sourceType: text("sourceType"),                // 'bulletin' | 'diary' | 'direct' | 'goal' など
+  sourceTitle: text("sourceTitle"),              // 出典元タイトル（例: '日間掲示板 2026-09-23'）
+  sourceId: text("sourceId"),                    // 出典元ID / 日付など
+  memo: text("memo").default(""),                // 気づき・行動指針メモ
+  isPinned: integer("isPinned", { mode: "boolean" }).default(false).notNull(), // ピン留め（常時フォーカス）
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type AwarenessVisual = typeof awarenessVisuals.$inferSelect;
+export type InsertAwarenessVisual = typeof awarenessVisuals.$inferInsert;
+
