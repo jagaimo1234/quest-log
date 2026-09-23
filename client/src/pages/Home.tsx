@@ -156,6 +156,28 @@ function DayColumn({
   const [modalContent, setModalContent] = useState("");
   const contentTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  const [isHideDone, setIsHideDone] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("quest_board_hide_done") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        setIsHideDone(localStorage.getItem("quest_board_hide_done") === "true");
+      } catch {}
+    };
+    window.addEventListener("quest_board_hide_done_change", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("quest_board_hide_done_change", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, []);
+
   useEffect(() => {
     setLocalContent(board?.content || "");
   }, [board?.content]);
@@ -253,7 +275,9 @@ function DayColumn({
             {localContent ? (
               <div
                 dangerouslySetInnerHTML={{ __html: localContent }}
-                className="text-stone-700 dark:text-stone-300 [&_div]:my-0.5 [&_img]:max-h-24 [&_img]:rounded-md"
+                className={`text-stone-700 dark:text-stone-300 [&_div]:my-0.5 [&_img]:max-h-24 [&_img]:rounded-md ${
+                  isHideDone ? "hide-done-active" : ""
+                }`}
               />
             ) : (
               <span className="text-stone-300 dark:text-stone-600 italic select-none">

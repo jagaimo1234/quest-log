@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { compressImage } from "../lib/imageCompression";
-import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw, HelpCircle, Lightbulb } from "lucide-react";
+import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw, HelpCircle, Lightbulb, Eye, EyeOff, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { applyFormatToRange } from "../lib/richTextFormatting";
 import { trpc } from "../lib/trpc";
@@ -308,6 +308,8 @@ interface RichDocEditorProps {
   onKeystroke?: () => void;
   showToolbar?: boolean;
   theme?: "amber" | "emerald" | "teal" | "stone" | "default";
+  hideDone?: boolean;
+  onToggleHideDone?: () => void;
 }
 
 export function RichDocEditor({
@@ -321,12 +323,58 @@ export function RichDocEditor({
   onKeystroke,
   showToolbar = true,
   theme = "default",
+  hideDone: externalHideDone,
+  onToggleHideDone: externalOnToggleHideDone,
 }: RichDocEditorProps) {
   const [blocks, setBlocks] = useState<DocBlock[]>(() => parseDocBlocks(value));
   const [isUploading, setIsUploading] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [isMarkerMenuOpen, setIsMarkerMenuOpen] = useState(false);
   const [isTextColorMenuOpen, setIsTextColorMenuOpen] = useState(false);
+
+  const [internalHideDone, setInternalHideDone] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("quest_board_hide_done") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const effectiveHideDone = externalHideDone !== undefined ? externalHideDone : internalHideDone;
+
+  const toggleHideDone = () => {
+    if (externalOnToggleHideDone) {
+      externalOnToggleHideDone();
+    } else {
+      setInternalHideDone((prev) => {
+        const next = !prev;
+        try {
+          localStorage.setItem("quest_board_hide_done", String(next));
+          window.dispatchEvent(new Event("quest_board_hide_done_change"));
+        } catch {}
+        return next;
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        setInternalHideDone(localStorage.getItem("quest_board_hide_done") === "true");
+      } catch {}
+    };
+    window.addEventListener("quest_board_hide_done_change", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("quest_board_hide_done_change", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, []);
+
+  const doneCount = useMemo(() => {
+    if (!value) return 0;
+    return (value.match(/class=["'][^"']*doc-done[^"']*["']/g) || []).length;
+  }, [value]);
 
   // Notion-style floating toolbar
   const [floatingToolbar, setFloatingToolbar] = useState<{
@@ -577,8 +625,8 @@ export function RichDocEditor({
     };
   }, []);
 
-  // Format application function (marker, text color, clear)
-  const applyFormatting = (formatType: "marker" | "color" | "clear", colorId?: string) => {
+  // Format application function (marker, text color, clear, done)
+  const applyFormatting = (formatType: "marker" | "color" | "clear" | "done", colorId?: string) => {
     const selection = window.getSelection();
     let range: Range | null = null;
 
@@ -592,7 +640,7 @@ export function RichDocEditor({
 
     const container = containerRef.current;
     if (!range || !container || !container.contains(range.commonAncestorContainer)) {
-      toast.info(formatType === "clear" ? "解除したいテキストを選択するかカーソルを合わせてください" : "色を適用したいテキストを選択してください");
+      toast.info(formatType === "clear" ? "解除したいテキストを選択するかカーソルを合わせてください" : "対象のテキストを選択してください");
       return;
     }
 
@@ -616,7 +664,7 @@ export function RichDocEditor({
       if (formatType === "clear") {
         toast.info("解除対象の装飾が見つかりませんでした");
       } else {
-        toast.info("色を適用したいテキストを選択してください");
+        toast.info("テキストを選択してください");
       }
       return;
     }
@@ -629,7 +677,9 @@ export function RichDocEditor({
     }
 
     if (formatType === "clear") {
-      toast.success("装飾（マーカー・文字色）を完全に解除しました");
+      toast.success("装飾を解除しました");
+    } else if (formatType === "done") {
+      toast.success("「済（完了）」状態を切り替えました");
     } else if (formatType === "marker") {
       toast.success("マーカーを適用しました");
     } else if (formatType === "color") {
@@ -861,7 +911,7 @@ export function RichDocEditor({
     <div
       ref={containerRef}
       data-rich-doc-editor="true"
-      className={`relative flex flex-col ${className}`}
+      className={`relative flex flex-col ${effectiveHideDone ? "hide-done-active" : ""} ${className}`}
       onPointerMove={(e) => {
         if (e.pointerType === "mouse") {
           updateHoverHintFromTarget(e.target, false);
@@ -1015,6 +1065,28 @@ export function RichDocEditor({
             >
               <RotateCcw className="w-3 h-3" />
               <span>解除</span>
+            </button>
+
+            {/* Mark as Done (Stealth / Archive) */}
+            <button
+              type="button"
+              onMouseEnter={() =>
+                setActivePalettePreview({
+                  id: "done",
+                  label: "済（完了）",
+                  ruleTitle: "☑️ 済（完了・非表示連動）",
+                  ruleDesc: "選択箇所を完了にして非表示トグルと連動",
+                  hex: "#a8a29e",
+                })
+              }
+              onMouseLeave={() => setActivePalettePreview(null)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyFormatting("done")}
+              title="選択したテキストを「済（完了）」にする"
+              className="px-1.5 py-0.5 text-stone-300 hover:text-white hover:bg-stone-700/60 rounded-md transition cursor-pointer text-[10px] font-bold flex items-center gap-1 border border-stone-600/60"
+            >
+              <CheckSquare className="w-3 h-3 text-emerald-400" />
+              <span>済</span>
             </button>
 
             {/* Add to Awareness */}
@@ -1308,9 +1380,51 @@ export function RichDocEditor({
                 </div>
               )}
             </div>
+
+            {/* Done Toggle Button */}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyFormatting("done")}
+              className={`flex items-center gap-1 px-2 py-1 ${themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
+              title="選択箇所を「済（完了）」にする / 解除する"
+            >
+              <CheckSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>☑️ 済</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Toggle Hide Done Items */}
+            <button
+              type="button"
+              onClick={toggleHideDone}
+              className={`flex items-center gap-1.5 px-2 py-1 ${
+                effectiveHideDone
+                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-bold"
+                  : themeStyles.btn
+              } text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
+              title={effectiveHideDone ? "完了項目を表示する" : "完了項目を非表示（ステルス）にする"}
+            >
+              {effectiveHideDone ? (
+                <EyeOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              ) : (
+                <Eye className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
+              )}
+              <span>{effectiveHideDone ? "非表示中" : "完了表示"}</span>
+              {doneCount > 0 && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    effectiveHideDone
+                      ? "bg-amber-500/30 text-amber-800 dark:text-amber-200"
+                      : "bg-stone-200 dark:bg-stone-700 text-stone-600 dark:text-stone-300"
+                  }`}
+                >
+                  {doneCount}
+                </span>
+              )}
+            </button>
+
             {/* Color Rules Legend Popover Button */}
             <div className="relative">
               <button
@@ -1371,6 +1485,15 @@ export function RichDocEditor({
                             <span className="text-[10px] text-stone-400 truncate">{c.ruleDesc}</span>
                           </div>
                         ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-stone-800">
+                      <div className="text-[10px] font-bold text-emerald-400/90 mb-1">☑️ 完了・ステルス保管</div>
+                      <div className="flex items-center gap-1.5 text-[11px]">
+                        <span className="w-2.5 h-2.5 rounded-xs shrink-0 bg-emerald-500 border border-emerald-400" />
+                        <span className="font-bold text-stone-200 w-28 shrink-0">済（完了）</span>
+                        <span className="text-[10px] text-stone-400 truncate">消さずに非表示トグルで非表示化</span>
                       </div>
                     </div>
                   </div>

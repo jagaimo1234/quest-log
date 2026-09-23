@@ -276,3 +276,30 @@ describe("cleanupEmptyFormatting DOM cleanup", () => {
   });
 });
 
+describe("richTextFormatting done toggle", () => {
+  it("wraps selected text in span.doc-done", () => {
+    const div = document.createElement("div");
+    div.innerHTML = "チョコザップ解約済み";
+    const textNode = div.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 6);
+
+    applyFormatToRange(range, div, "done");
+    expect(div.innerHTML).toContain('<span class="doc-done">チョコザップ</span>');
+  });
+
+  it("unwraps span.doc-done when toggled again", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<span class="doc-done">チョコザップ</span>解約済み';
+    const span = div.firstChild as HTMLElement;
+    const textNode = span.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 6);
+
+    applyFormatToRange(range, div, "done");
+    expect(div.innerHTML).toBe("チョコザップ解約済み");
+  });
+});
+

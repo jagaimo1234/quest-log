@@ -291,3 +291,26 @@ mark:empty {
   pointer-events: none;
   display: block;
 }
+
+/* Document Done (Stealth Archive) Styles */
+.doc-done {
+  text-decoration: line-through;
+  opacity: 0.55;
+  color: #78716c !important;
+}
+.dark .doc-done {
+  color: #a8a29e !important;
+}
+
+.hide-done-active .doc-done {
+  display: none !important;
+}
+
+.hide-done-active div:has(> .doc-done:only-child),
+.hide-done-active p:has(> .doc-done:only-child),
+.hide-done-active li:has(> .doc-done:only-child),
+.hide-done-active div:has(> .doc-done:first-child:nth-last-child(2)):has(> br:last-child),
+.hide-done-active p:has(> .doc-done:first-child:nth-last-child(2)):has(> br:last-child),
+.hide-done-active li:has(> .doc-done:first-child:nth-last-child(2)):has(> br:last-child) {
+  display: none !important;
+}

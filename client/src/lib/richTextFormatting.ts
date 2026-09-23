@@ -11,7 +11,7 @@ export function isFormattingElement(node: Node): boolean {
   if (tag === "SPAN") {
     if (
       el.className &&
-      (el.className.includes("color-") || el.className.includes("marker-"))
+      (el.className.includes("color-") || el.className.includes("marker-") || el.className.includes("doc-done"))
     ) {
       return true;
     }
@@ -19,6 +19,13 @@ export function isFormattingElement(node: Node): boolean {
       return true;
     }
   }
+  return false;
+}
+
+export function isDoneElement(node: Node): boolean {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
+  const el = node as HTMLElement;
+  if (el.className && el.className.includes("doc-done")) return true;
   return false;
 }
 
@@ -51,10 +58,11 @@ export function unwrapElement(el: HTMLElement) {
   parent.removeChild(el);
 }
 
-export function unwrapAllFormatting(el: HTMLElement, formatFilter?: "marker" | "color") {
+export function unwrapAllFormatting(el: HTMLElement, formatFilter?: "marker" | "color" | "done") {
   const filterFn = (node: Node) => {
     if (formatFilter === "marker") return isMarkerElement(node);
     if (formatFilter === "color") return isColorElement(node);
+    if (formatFilter === "done") return isDoneElement(node);
     return isFormattingElement(node);
   };
 
@@ -157,7 +165,7 @@ export function isolateNodeUpToRoot(target: Node, root: HTMLElement): HTMLElemen
 export function applyFormatToRange(
   range: Range,
   root: HTMLElement,
-  formatType: "marker" | "color" | "clear",
+  formatType: "marker" | "color" | "clear" | "done",
   colorId?: string
 ): Range | null {
   // Case 1: Collapsed cursor inside a formatting element
@@ -175,6 +183,16 @@ export function applyFormatToRange(
     if (formatAncestor) {
       if (formatType === "clear") {
         unwrapAllFormatting(formatAncestor);
+      } else if (formatType === "done") {
+        if (isDoneElement(formatAncestor)) {
+          unwrapElement(formatAncestor);
+        } else {
+          const span = document.createElement("span");
+          span.className = "doc-done";
+          const parent = formatAncestor.parentNode || root;
+          parent.insertBefore(span, formatAncestor);
+          span.appendChild(formatAncestor);
+        }
       } else if (formatType === "marker") {
         unwrapAllFormatting(formatAncestor, "marker");
         const mark = document.createElement("mark");
@@ -305,6 +323,24 @@ export function applyFormatToRange(
       span.className = `color-${colorId}`;
       node.parentNode?.insertBefore(span, node);
       span.appendChild(node);
+    } else if (formatType === "done") {
+      let parent = node.parentNode;
+      let doneAncestor: HTMLElement | null = null;
+      while (parent && parent !== root) {
+        if (isDoneElement(parent)) {
+          doneAncestor = parent as HTMLElement;
+          break;
+        }
+        parent = parent.parentNode;
+      }
+      if (doneAncestor) {
+        unwrapElement(doneAncestor);
+      } else {
+        const span = document.createElement("span");
+        span.className = "doc-done";
+        node.parentNode?.insertBefore(span, node);
+        span.appendChild(node);
+      }
     }
   }
 
