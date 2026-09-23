@@ -178,7 +178,7 @@ function DayColumn({
     <div
       ref={columnRef}
       data-column-date={dateStr}
-      className={`flex p-3 rounded-xl border shrink-0 relative min-w-[340px] transition-all duration-200 ${
+      className={`flex p-3 rounded-xl border shrink-0 relative w-[350px] max-w-[350px] transition-all duration-200 ${
         isDragHovered
           ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-500/[0.08] shadow-lg scale-[1.01]'
           : isSelected
@@ -200,7 +200,7 @@ function DayColumn({
       </div>
 
       {/* Sub-column 1: Day Info & Card List */}
-      <div className="flex flex-col gap-3 flex-1 min-w-[200px] z-20">
+      <div className="flex flex-col gap-3 flex-1 min-w-0 w-full max-w-full z-20">
         {/* Header */}
         <div onClick={onSelect} className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none cursor-pointer hover:opacity-85 transition-opacity">
           <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-muted-foreground'} flex items-center gap-1.5`}>
@@ -213,7 +213,7 @@ function DayColumn({
         </div>
 
         {/* Bulletin Board Daily Note (Focus / Reflection) */}
-        <div className="relative group/note rounded-xl border border-stone-200/90 dark:border-stone-800 bg-white/80 dark:bg-stone-900/60 transition-all shadow-2xs hover:border-amber-400/60">
+        <div className="relative group/note rounded-xl border border-stone-200/90 dark:border-stone-800 bg-white/80 dark:bg-stone-900/60 transition-all shadow-2xs hover:border-amber-400/60 w-full max-w-full overflow-hidden">
           <div className="flex items-center justify-between px-2.5 py-1 border-b border-stone-100 dark:border-stone-800/80 text-[10px] text-muted-foreground select-none">
             <span className="font-bold flex items-center gap-1 text-stone-600 dark:text-stone-300">
               📝 フォーカス・メモ
@@ -223,7 +223,7 @@ function DayColumn({
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="p-1 hover:bg-stone-100 dark:hover:bg-stone-800 rounded text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
-                title={isExpanded ? "枠を縮小" : "枠を広げる"}
+                title={isExpanded ? "枠を縮小" : "枠を縦に広げる"}
               >
                 {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </button>
@@ -241,7 +241,7 @@ function DayColumn({
             </div>
           </div>
 
-          <div className={`p-1.5 overflow-y-auto transition-all ${isExpanded ? "max-h-[300px]" : "max-h-[110px]"}`}>
+          <div className={`p-1.5 overflow-y-auto transition-all w-full max-w-full ${isExpanded ? "max-h-[300px]" : "max-h-[110px]"}`}>
             <RichDocEditor
               value={localContent}
               onChange={handleContentChange}
@@ -249,7 +249,8 @@ function DayColumn({
               showToolbar={false}
               minHeight={isExpanded ? 150 : 54}
               theme="stone"
-              textAreaClassName="text-[11px] leading-5 text-stone-700 dark:text-stone-300"
+              className="w-full max-w-full overflow-hidden"
+              textAreaClassName="text-[11px] leading-5 text-stone-700 dark:text-stone-300 break-words break-all whitespace-pre-wrap"
             />
           </div>
         </div>
