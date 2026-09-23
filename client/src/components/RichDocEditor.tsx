@@ -367,6 +367,23 @@ export function RichDocEditor({
   const savedSelectionRangeRef = useRef<Range | null>(null);
 
   const utils = trpc.useUtils();
+  const saveVisualMutation = trpc.awareness.saveVisual.useMutation({
+    onSuccess: () => {
+      utils.awareness.listVisuals.invalidate();
+      toast.success("💡 意識のインフォビジュアルライブラリに残しました！", {
+        action: {
+          label: "意識画面へ",
+          onClick: () => {
+            window.location.href = "/awareness?tab=visuals";
+          },
+        },
+      });
+    },
+    onError: () => {
+      toast.error("意識ライブラリへの保存に失敗しました");
+    },
+  });
+
   const createAwarenessMutation = trpc.awareness.create.useMutation({
     onSuccess: (data) => {
       utils.awareness.list.invalidate();
@@ -1068,6 +1085,22 @@ export function RichDocEditor({
                 <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-xs p-1 rounded-lg">
                   <button
                     type="button"
+                    onClick={() => {
+                      saveVisualMutation.mutate({
+                        dataUrl: block.src,
+                        title: block.caption || "エディタ添付画像",
+                        sourceType: "editor",
+                        sourceTitle: document.title || "掲示板・日記",
+                      });
+                    }}
+                    disabled={saveVisualMutation.isPending}
+                    className="p-1 text-amber-300 hover:text-amber-200 rounded hover:bg-white/20 transition cursor-pointer"
+                    title="💡 意識に残す (インフォビジュアルライブラリへ)"
+                  >
+                    <Lightbulb className="w-3.5 h-3.5 fill-amber-300" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setLightboxUrl(block.src)}
                     className="p-1 text-stone-200 hover:text-white rounded hover:bg-white/20 transition cursor-pointer"
                     title="拡大表示"
@@ -1379,7 +1412,23 @@ export function RichDocEditor({
                 alt="拡大写真"
                 className="max-w-[94vw] max-h-[78vh] object-contain rounded-xl shadow-2xl border border-stone-800 bg-stone-950/80"
               />
-              <div className="mt-3 flex items-center gap-3 shrink-0">
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveVisualMutation.mutate({
+                      dataUrl: lightboxUrl,
+                      title: "インフォビジュアル",
+                      sourceType: "editor",
+                      sourceTitle: document.title || "掲示板・日記",
+                    });
+                  }}
+                  disabled={saveVisualMutation.isPending}
+                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold rounded-lg border border-amber-300 flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  <Lightbulb className="w-3.5 h-3.5 fill-stone-950" />
+                  <span>💡 意識に残す</span>
+                </button>
                 <a
                   href={lightboxUrl}
                   download={`photo-${Date.now()}.webp`}
