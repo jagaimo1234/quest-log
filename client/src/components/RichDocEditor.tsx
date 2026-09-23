@@ -5,6 +5,7 @@ import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, Rot
 import { toast } from "sonner";
 import { applyFormatToRange } from "../lib/richTextFormatting";
 import { trpc } from "../lib/trpc";
+import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 
 export type DocBlock =
   | { id: string; type: "text"; text: string }
@@ -1425,81 +1426,84 @@ export function RichDocEditor({
               )}
             </button>
 
-            {/* Color Rules Legend Popover Button */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsLegendOpen(!isLegendOpen)}
-                className={`flex items-center gap-1 px-2 py-1 ${isLegendOpen ? "bg-amber-200/90 text-amber-950 font-bold" : themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
-                title="色分けルール一覧を確認"
-              >
-                <HelpCircle className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
-                <span>色の心得</span>
-              </button>
-
-              {isLegendOpen && (
-                <div
-                  onMouseDown={(e) => e.preventDefault()}
-                  className="absolute bottom-full mb-1.5 right-0 sm:right-0 z-40 w-72 p-3 bg-stone-900/95 text-stone-100 backdrop-blur-md rounded-xl shadow-2xl border border-amber-500/40 animate-in fade-in zoom-in-95 duration-150 text-xs select-none"
+            {/* Color Rules Legend Popover */}
+            <Popover open={isLegendOpen} onOpenChange={setIsLegendOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={`flex items-center gap-1 px-2 py-1 ${isLegendOpen ? "bg-amber-200/90 text-amber-950 font-bold" : themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
+                  title="色分けルール一覧を確認"
                 >
-                  <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-stone-800">
-                    <span className="font-bold text-amber-300 flex items-center gap-1">
-                      <span>📜</span> 冒険の手帳：色分けの心得
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsLegendOpen(false)}
-                      className="text-stone-400 hover:text-white p-0.5 cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                  <HelpCircle className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
+                  <span>色の心得</span>
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent
+                side="top"
+                align="start"
+                sideOffset={8}
+                collisionPadding={12}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="w-80 max-w-[calc(100vw-24px)] p-3 bg-stone-900/95 text-stone-100 backdrop-blur-md rounded-xl shadow-2xl border border-amber-500/40 text-xs select-none z-[9999]"
+              >
+                <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-stone-800">
+                  <span className="font-bold text-amber-300 flex items-center gap-1">
+                    <span>📜</span> 冒険の手帳：色分けの心得
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsLegendOpen(false)}
+                    className="text-stone-400 hover:text-white p-0.5 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                  <div>
+                    <div className="text-[10px] font-bold text-amber-400/90 mb-1">🖍️ マーカー（強調）</div>
+                    <div className="space-y-1">
+                      {MARKER_PALETTE.map((m) => (
+                        <div key={m.id} className="flex items-center gap-1.5 text-[11px]">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: m.hex, border: `1px solid ${m.border}` }}
+                          />
+                          <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{m.ruleTitle}</span>
+                          <span className="text-[10px] text-stone-400 truncate">{m.ruleDesc}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-                    <div>
-                      <div className="text-[10px] font-bold text-amber-400/90 mb-1">🖍️ マーカー（強調）</div>
-                      <div className="space-y-1">
-                        {MARKER_PALETTE.map((m) => (
-                          <div key={m.id} className="flex items-center gap-1.5 text-[11px]">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
-                              style={{ backgroundColor: m.hex, border: `1px solid ${m.border}` }}
-                            />
-                            <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{m.ruleTitle}</span>
-                            <span className="text-[10px] text-stone-400 truncate">{m.ruleDesc}</span>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="pt-1.5 border-t border-stone-800">
+                    <div className="text-[10px] font-bold text-amber-400/90 mb-1">🎨 文字色</div>
+                    <div className="space-y-1">
+                      {TEXT_COLOR_PALETTE.map((c) => (
+                        <div key={c.id} className="flex items-center gap-1.5 text-[11px]">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                          <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{c.ruleTitle}</span>
+                          <span className="text-[10px] text-stone-400 truncate">{c.ruleDesc}</span>
+                        </div>
+                      ))}
                     </div>
+                  </div>
 
-                    <div className="pt-1.5 border-t border-stone-800">
-                      <div className="text-[10px] font-bold text-amber-400/90 mb-1">🎨 文字色</div>
-                      <div className="space-y-1">
-                        {TEXT_COLOR_PALETTE.map((c) => (
-                          <div key={c.id} className="flex items-center gap-1.5 text-[11px]">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
-                              style={{ backgroundColor: c.hex }}
-                            />
-                            <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{c.ruleTitle}</span>
-                            <span className="text-[10px] text-stone-400 truncate">{c.ruleDesc}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-1.5 border-t border-stone-800">
-                      <div className="text-[10px] font-bold text-emerald-400/90 mb-1">☑️ 完了・ステルス保管</div>
-                      <div className="flex items-center gap-1.5 text-[11px]">
-                        <span className="w-2.5 h-2.5 rounded-xs shrink-0 bg-emerald-500 border border-emerald-400" />
-                        <span className="font-bold text-stone-200 w-28 shrink-0">済（完了）</span>
-                        <span className="text-[10px] text-stone-400 truncate">消さずに非表示トグルで非表示化</span>
-                      </div>
+                  <div className="pt-1.5 border-t border-stone-800">
+                    <div className="text-[10px] font-bold text-emerald-400/90 mb-1">☑️ 完了・ステルス保管</div>
+                    <div className="flex items-center gap-1.5 text-[11px]">
+                      <span className="w-2.5 h-2.5 rounded-xs shrink-0 bg-emerald-500 border border-emerald-400" />
+                      <span className="font-bold text-stone-200 w-28 shrink-0">済（完了）</span>
+                      <span className="text-[10px] text-stone-400 truncate">消さずに非表示トグルで非表示化</span>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
+              </PopoverContent>
+            </Popover>
 
             <span className={`text-[10px] ${themeStyles.hint} font-mono hidden sm:inline select-none`}>
               💡 文字を選択するとNotion風パレットが出現
