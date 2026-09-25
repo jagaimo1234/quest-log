@@ -122,7 +122,7 @@ function DayColumn({
   handleTouchStart,
   handleMouseDown,
   isToday,
-  colSpacing,
+  cardWidth = 300,
   isSelected,
   onSelect,
   isDragHovered,
@@ -139,7 +139,7 @@ function DayColumn({
   handleTouchStart: any;
   handleMouseDown: any;
   isToday: boolean;
-  colSpacing: number;
+  cardWidth?: number;
   isSelected: boolean;
   onSelect: () => void;
   isDragHovered?: boolean;
@@ -200,7 +200,7 @@ function DayColumn({
     <div
       ref={columnRef}
       data-column-date={dateStr}
-      className={`flex p-3 rounded-xl border shrink-0 relative min-w-[340px] transition-all duration-200 ${
+      className={`flex gap-3 p-3 rounded-xl border shrink-0 relative transition-all duration-200 ${
         isDragHovered
           ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-500/[0.08] shadow-lg scale-[1.01]'
           : isSelected
@@ -209,7 +209,6 @@ function DayColumn({
               ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.1)] bg-amber-500/[0.02]'
               : 'border-border/60 bg-card/40'
       }`}
-      style={{ gap: `${colSpacing}px` }}
     >
       {/* SVG Connecting Lines inside this column */}
       <div className="absolute inset-0 pointer-events-none z-10 overflow-visible">
@@ -222,7 +221,10 @@ function DayColumn({
       </div>
 
       {/* Sub-column 1: Day Info & Card List */}
-      <div className="flex flex-col gap-3 flex-1 min-w-[200px] z-20">
+      <div
+        className="flex flex-col gap-3 shrink-0 z-20 min-w-0"
+        style={{ width: `${cardWidth}px`, maxWidth: `${cardWidth}px` }}
+      >
         {/* Header */}
         <div onClick={onSelect} className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none cursor-pointer hover:opacity-85 transition-opacity">
           <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-muted-foreground'} flex items-center gap-1.5`}>
@@ -3064,7 +3066,7 @@ export default function Home() {
                           handleTouchStart={handleTouchStart}
                           handleMouseDown={handleMouseDown}
                           isToday={isColToday}
-                          colSpacing={colSpacing}
+                          cardWidth={cardWidth}
                           isSelected={planningDayOffset === colOffset}
                           onSelect={() => setPlanningDayOffset(colOffset)}
                           isDragHovered={hoveredColumnDate === colDateStr && dragState.active}
