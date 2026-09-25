@@ -200,7 +200,7 @@ function DayColumn({
     <div
       ref={columnRef}
       data-column-date={dateStr}
-      className={`flex gap-3 p-3 rounded-xl border shrink-0 relative transition-all duration-200 ${
+      className={`flex gap-8 p-3 rounded-xl border shrink-0 relative transition-all duration-200 ${
         isDragHovered
           ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-500/[0.08] shadow-lg scale-[1.01]'
           : isSelected
@@ -1379,7 +1379,7 @@ function ProjectTemplateItem({ template, onReceive }: { template: any, onReceive
 }
 
 function ConnectionLines({ quests, parentRef, templates, onUnlink }: { quests: any[], parentRef: React.RefObject<HTMLDivElement>, templates: any[], onUnlink: (questId: number, slotId: string) => void }) {
-  const [paths, setPaths] = useState<{ id: string, questId: number, slotId: string, d: string, color: string }[]>([]);
+  const [paths, setPaths] = useState<{ id: string, questId: number, slotId: string, d: string, color: string, x1: number, y1: number, x2: number, y2: number }[]>([]);
 
   const getColor = (q: any) => {
     const idx = q.id % LINE_COLORS.length;
@@ -1421,7 +1421,11 @@ function ConnectionLines({ quests, parentRef, templates, onUnlink }: { quests: a
             questId: q.id,
             slotId: slotId,
             d: `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`,
-            color: getColor(q)
+            color: getColor(q),
+            x1,
+            y1,
+            x2,
+            y2,
           });
         }
       });
@@ -1457,8 +1461,8 @@ function ConnectionLines({ quests, parentRef, templates, onUnlink }: { quests: a
           >
             <title>Click to Unlink</title>
           </path>
-          <circle cx={p.d.split(" ")[1]} cy={p.d.split(" ")[2]} r="3" fill={p.color} />
-          <circle cx={p.d.split(" ").pop()?.split(" ")[0] || 0} cy={p.d.split(" ").pop()?.split(" ")[1] || 0} r="3" fill={p.color} />
+          <circle cx={p.x1} cy={p.y1} r="3.5" fill={p.color} stroke="white" strokeWidth="1" />
+          <circle cx={p.x2} cy={p.y2} r="3.5" fill={p.color} stroke="white" strokeWidth="1" />
         </React.Fragment>
       ))}
     </svg>
