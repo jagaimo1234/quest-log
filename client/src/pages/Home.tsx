@@ -749,9 +749,9 @@ function TodayItem({
     bgClass = "bg-amber-50/80 dark:bg-amber-900/10";
   }
 
-  // 過去分ならグレーアウトを強化 ＆ 操作無効化クラス付与
+  // 過去分は控えめに表示
   if (isPreviousDay) {
-    bgClass += " opacity-40 grayscale pointer-events-none"; // pointer-events-noneでクリックも無効化
+    bgClass += " opacity-90";
   }
 
   let slotCount = 0;

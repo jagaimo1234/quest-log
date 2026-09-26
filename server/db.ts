@@ -381,19 +381,6 @@ export async function getActiveQuests(userId: number): Promise<Quest[]> {
   const db = await getDb();
   if (!db) return [];
 
-  // JST基準での「今日の開始時刻（0:00）」を計算
-  // Vercel(UTC)での new Date() は UTC時刻。
-  // JSTは UTC+9 なので、現在時刻に9時間足したものが「日本時間」
-  const now = new Date();
-  const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-
-  // JSTでの「今日の0:00:00」を作成
-  jstNow.setUTCHours(0, 0, 0, 0);
-
-  // それをUTCに戻す（DB比較用）
-  // JST 0:00 は UTC 前日 15:00
-  const todayStartUtc = new Date(jstNow.getTime() - 9 * 60 * 60 * 1000);
-
   return db.select()
     .from(quests)
     .where(
@@ -404,11 +391,8 @@ export async function getActiveQuests(userId: number): Promise<Quest[]> {
           eq(quests.status, "accepted"),
           eq(quests.status, "challenging"),
           eq(quests.status, "almost"),
-          // Include Cleared/Failed only if updated today (JST)
-          and(
-            or(eq(quests.status, "cleared"), eq(quests.status, "failed")),
-            gte(quests.updatedAt, todayStartUtc)
-          )
+          eq(quests.status, "cleared"),
+          eq(quests.status, "failed")
         )
       )
     )
