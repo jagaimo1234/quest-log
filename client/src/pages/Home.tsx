@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -74,6 +74,21 @@ const LINE_COLORS = [
   "#f43f5e", // Rose
 ];
 
+export function getQuestEarliestSlot(q: any): string | null {
+  if (!q || !q.plannedTimeSlot) return null;
+  try {
+    const parsed = JSON.parse(q.plannedTimeSlot);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const sorted = [...parsed].sort();
+      return sorted[0];
+    }
+    if (typeof parsed === 'string' && parsed) return parsed;
+  } catch {
+    if (typeof q.plannedTimeSlot === 'string' && q.plannedTimeSlot) return q.plannedTimeSlot;
+  }
+  return null;
+}
+
 // ------------------------------------------------------------------
 // CONFIGURATION (ユーザー設定)
 // ------------------------------------------------------------------
@@ -126,6 +141,7 @@ function DayColumn({
   isSelected,
   onSelect,
   isDragHovered,
+  onSortByTime,
 }: {
   date: Date;
   quests: any[];
@@ -143,6 +159,7 @@ function DayColumn({
   isSelected: boolean;
   onSelect: () => void;
   isDragHovered?: boolean;
+  onSortByTime?: (dateStr: string) => void;
 }) {
   const columnRef = useRef<HTMLDivElement>(null);
   const dateStr = format(date, "yyyy-MM-dd");
@@ -231,9 +248,25 @@ function DayColumn({
             {format(date, "E M/d")}
             {isSelected && <span className="text-[8px] font-black text-primary bg-primary/10 px-1 py-0.5 rounded leading-none border border-primary/20">🎯 選択中</span>}
           </span>
-          <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
-            {quests.length} tasks
-          </span>
+          <div className="flex items-center gap-1.5">
+            {quests.length > 1 && onSortByTime && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSortByTime(dateStr);
+                }}
+                className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 px-1.5 py-0.5 rounded flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs active:scale-95"
+                title="時間枠の早い順に並び替えて保存"
+              >
+                <Clock className="w-2.5 h-2.5" />
+                時間順
+              </button>
+            )}
+            <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+              {quests.length} tasks
+            </span>
+          </div>
         </div>
 
         {/* Bulletin Board Daily Note (Focus / Reflection) */}
@@ -356,6 +389,7 @@ function DayColumn({
                 id={`source-${q.id}`}
                 key={q.id}
                 data-sort-id={q.id}
+                data-sort-date={dateStr}
                 className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${
                   dragState.itemId === q.id && dragState.mode === 'sort'
                     ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
@@ -1840,30 +1874,115 @@ export default function Home() {
     refetchMovies();
   };
 
+  const [dragState, setDragState] = useState<{
+    active: boolean,
+    itemId: number | null,
+    mode: 'plan' | 'sort', // 'plan' = time slot / move, 'sort' = reorder
+    startX: number,
+    startY: number,
+    currentX: number,
+    currentY: number
+  }>({
+    active: false, itemId: null, mode: 'plan', startX: 0, startY: 0, currentX: 0, currentY: 0
+  });
+  const [hoveredColumnDate, setHoveredColumnDate] = useState<string | null>(null);
 
   /*
-   * Reordering Logic (Server Sync)
+   * Reordering Logic (Server Sync - Scoped by Date)
    */
-  const [orderedIds, setOrderedIds] = useState<number[]>([]);
+  const [dayOrders, setDayOrders] = useState<Record<string, number[]>>({});
+  const dayOrdersRef = useRef<Record<string, number[]>>({});
+  dayOrdersRef.current = dayOrders;
+
+  const compareQuestsFallback = React.useCallback((a: any, b: any) => {
+    // 1. Both have positive manual displayOrder
+    if (a.displayOrder > 0 && b.displayOrder > 0 && a.displayOrder !== b.displayOrder) {
+      return a.displayOrder - b.displayOrder;
+    }
+    // 2. Earliest planned time slot (e.g. 07:00 < 09:00 < 21:00)
+    const slotA = getQuestEarliestSlot(a);
+    const slotB = getQuestEarliestSlot(b);
+    if (slotA && slotB && slotA !== slotB) {
+      return slotA.localeCompare(slotB);
+    }
+    if (slotA && !slotB) return -1;
+    if (!slotA && slotB) return 1;
+
+    // 3. One has manual displayOrder, one doesn't
+    if (a.displayOrder > 0 && (!b.displayOrder || b.displayOrder <= 0)) return -1;
+    if ((!a.displayOrder || a.displayOrder <= 0) && b.displayOrder > 0) return 1;
+
+    // 4. Creation id
+    return a.id - b.id;
+  }, []);
+
+  // Sync dayOrders when activeQuests changes from server
+  useEffect(() => {
+    if (!activeQuests) return;
+    if (dragState.active) return; // Do not interrupt an in-progress drag
+
+    const nextDayOrders: Record<string, number[]> = {};
+    const questsByDate: Record<string, any[]> = {};
+
+    activeQuests.forEach(q => {
+      if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return;
+      const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
+      if (!qDate) return;
+      const dStr = format(qDate, "yyyy-MM-dd");
+      if (!questsByDate[dStr]) questsByDate[dStr] = [];
+      questsByDate[dStr].push(q);
+    });
+
+    Object.keys(questsByDate).forEach(dStr => {
+      const sorted = [...questsByDate[dStr]].sort(compareQuestsFallback);
+      nextDayOrders[dStr] = sorted.map(q => q.id);
+    });
+
+    setDayOrders(nextDayOrders);
+    dayOrdersRef.current = nextDayOrders;
+  }, [activeQuests, compareQuestsFallback, dragState.active]);
+
   const updateOrderMutation = trpc.quest.updateOrder.useMutation();
 
-  // Initialize orderedIds from activeQuests (which are sorted by displayOrder from server)
-  // Only reset when the actual set of quest IDs changes (add/remove), NOT on data updates
-  useEffect(() => {
-    if (activeQuests) {
-      const serverIds = activeQuests.map(q => q.id);
-      const currentIdSet = new Set(orderedIds);
-      const serverIdSet = new Set(serverIds);
-      // Check if same set of IDs
-      const sameIds = serverIds.length === orderedIds.length && serverIds.every(id => currentIdSet.has(id));
-      if (!sameIds) {
-        // IDs changed (quest added/removed) — merge: keep existing order, append new ones
-        const newIds = serverIds.filter(id => !currentIdSet.has(id));
-        const kept = orderedIds.filter(id => serverIdSet.has(id));
-        setOrderedIds([...kept, ...newIds]);
+  const handleSortByTime = React.useCallback((dateStr: string) => {
+    const questsOnDate = activeQuests?.filter(q => {
+      if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
+      const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
+      if (!qDate) return false;
+      return format(qDate, "yyyy-MM-dd") === dateStr;
+    }) || [];
+
+    if (questsOnDate.length <= 1) return;
+
+    // Sort strictly by earliest time slot first, then unscheduled by id
+    const sorted = [...questsOnDate].sort((a, b) => {
+      const slotA = getQuestEarliestSlot(a);
+      const slotB = getQuestEarliestSlot(b);
+      if (slotA && slotB && slotA !== slotB) return slotA.localeCompare(slotB);
+      if (slotA && !slotB) return -1;
+      if (!slotA && slotB) return 1;
+      return a.id - b.id;
+    });
+
+    const sortedIds = sorted.map(q => q.id);
+
+    setDayOrders(prev => {
+      const updated = { ...prev, [dateStr]: sortedIds };
+      dayOrdersRef.current = updated;
+      return updated;
+    });
+
+    const updates = sortedIds.map((id, index) => ({ questId: id, order: index + 1 }));
+    updateOrderMutation.mutate(updates, {
+      onSuccess: () => {
+        toast.success("時間順に整列しました");
+        refetchQuests();
+      },
+      onError: () => {
+        toast.error("整列の保存に失敗しました");
       }
-    }
-  }, [activeQuests]);
+    });
+  }, [activeQuests, updateOrderMutation, refetchQuests]);
 
   const [planningViewMode, setPlanningViewMode] = useState<'today' | 'weekly'>(() => {
     try {
@@ -1896,15 +2015,20 @@ export default function Home() {
       return true;
     }) || [];
 
-    return filtered.sort((a, b) => {
-      const indexA = orderedIds.indexOf(a.id);
-      const indexB = orderedIds.indexOf(b.id);
-      if (indexA === -1 && indexB === -1) return b.id - a.id;
-      if (indexA === -1) return 1;
-      if (indexB === -1) return -1;
-      return indexA - indexB;
-    });
-  }, [activeQuests, orderedIds]);
+    const dayList = dayOrders[dateStr];
+    if (dayList && dayList.length > 0) {
+      return [...filtered].sort((a, b) => {
+        const indexA = dayList.indexOf(a.id);
+        const indexB = dayList.indexOf(b.id);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return compareQuestsFallback(a, b);
+      });
+    }
+
+    return [...filtered].sort(compareQuestsFallback);
+  }, [activeQuests, dayOrders, compareQuestsFallback]);
 
   const todayQuests = React.useMemo(() => {
     const targetDate = new Date();
@@ -1989,20 +2113,6 @@ export default function Home() {
     return { id: label, label };
   });
 
-
-  const [dragState, setDragState] = useState<{
-    active: boolean,
-    itemId: number | null,
-    mode: 'plan' | 'sort', // 'plan' = time slot / move, 'sort' = reorder
-    startX: number,
-    startY: number,
-    currentX: number,
-    currentY: number
-  }>({
-    active: false, itemId: null, mode: 'plan', startX: 0, startY: 0, currentX: 0, currentY: 0
-  });
-  const [hoveredColumnDate, setHoveredColumnDate] = useState<string | null>(null);
-
   const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
     e.preventDefault();
     e.stopPropagation(); // Stop propagation to prevent conflict
@@ -2047,15 +2157,19 @@ export default function Home() {
         const sortTarget = elementsUnder.map(el => el.closest('[data-sort-id]')).find(Boolean);
         if (sortTarget) {
           const targetId = Number(sortTarget.getAttribute('data-sort-id'));
-          if (targetId && targetId !== dragState.itemId) {
-            setOrderedIds(prev => {
-              const newOrder = [...prev];
-              const fromIndex = newOrder.indexOf(dragState.itemId!);
-              const toIndex = newOrder.indexOf(targetId);
-              if (fromIndex !== -1 && toIndex !== -1) {
-                newOrder.splice(fromIndex, 1);
-                newOrder.splice(toIndex, 0, dragState.itemId!);
-                return newOrder;
+          const sortDate = sortTarget.getAttribute('data-sort-date') || hoveredColumnDate;
+          if (targetId && targetId !== dragState.itemId && sortDate) {
+            setDayOrders(prev => {
+              const currentList = prev[sortDate] || [];
+              const fromIndex = currentList.indexOf(dragState.itemId!);
+              const toIndex = currentList.indexOf(targetId);
+              if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+                const nextList = [...currentList];
+                nextList.splice(fromIndex, 1);
+                nextList.splice(toIndex, 0, dragState.itemId!);
+                const updated = { ...prev, [sortDate]: nextList };
+                dayOrdersRef.current = updated;
+                return updated;
               }
               return prev;
             });
@@ -2087,15 +2201,19 @@ export default function Home() {
         const sortTarget = elementsUnder.map(el => el.closest('[data-sort-id]')).find(Boolean);
         if (sortTarget) {
           const targetId = Number(sortTarget.getAttribute('data-sort-id'));
-          if (targetId && targetId !== dragState.itemId) {
-            setOrderedIds(prev => {
-              const newOrder = [...prev];
-              const fromIndex = newOrder.indexOf(dragState.itemId!);
-              const toIndex = newOrder.indexOf(targetId);
-              if (fromIndex !== -1 && toIndex !== -1) {
-                newOrder.splice(fromIndex, 1);
-                newOrder.splice(toIndex, 0, dragState.itemId!);
-                return newOrder;
+          const sortDate = sortTarget.getAttribute('data-sort-date') || hoveredColumnDate;
+          if (targetId && targetId !== dragState.itemId && sortDate) {
+            setDayOrders(prev => {
+              const currentList = prev[sortDate] || [];
+              const fromIndex = currentList.indexOf(dragState.itemId!);
+              const toIndex = currentList.indexOf(targetId);
+              if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+                const nextList = [...currentList];
+                nextList.splice(fromIndex, 1);
+                nextList.splice(toIndex, 0, dragState.itemId!);
+                const updated = { ...prev, [sortDate]: nextList };
+                dayOrdersRef.current = updated;
+                return updated;
               }
               return prev;
             });
@@ -2193,9 +2311,23 @@ export default function Home() {
       setHoveredColumnDate(null);
 
       // Trigger server update if order changed
-      if (dragState.mode === 'sort') {
-        const updates = orderedIds.map((id, index) => ({ questId: id, order: index }));
-        updateOrderMutation.mutate(updates);
+      if (dragState.mode === 'sort' && dragState.itemId) {
+        const quest = activeQuests?.find(q => q.id === dragState.itemId);
+        if (quest) {
+          const qDate = quest.startDate ? new Date(quest.startDate) : (quest.createdAt ? new Date(quest.createdAt) : null);
+          if (qDate) {
+            const dateStr = format(qDate, "yyyy-MM-dd");
+            const dayList = dayOrdersRef.current[dateStr];
+            if (dayList && dayList.length > 0) {
+              const updates = dayList.map((id, index) => ({ questId: id, order: index + 1 }));
+              updateOrderMutation.mutate(updates, {
+                onSuccess: () => {
+                  refetchQuests();
+                }
+              });
+            }
+          }
+        }
       }
     };
 
@@ -2211,7 +2343,7 @@ export default function Home() {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleMouseUp);
     };
-  }, [dragState.active, dragState.itemId, dragState.mode, activeQuests, orderedIds]);
+  }, [dragState.active, dragState.itemId, dragState.mode, activeQuests]);
 
   const handleUnlink = async (questId: number, slotId: string) => {
     const quest = activeQuests?.find(q => q.id === questId);
@@ -2954,11 +3086,30 @@ export default function Home() {
                       className="flex flex-col gap-1.5 sm:gap-3 rounded-lg sm:rounded-xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150"
                       style={{ width: `${cardWidth}px`, maxWidth: 'calc(100% - 76px)' }}
                     >
+                      {todayQuests.length > 0 && (
+                        <div className="flex items-center justify-between px-1 pb-1">
+                          <span className="text-[10px] font-bold text-muted-foreground">
+                            {todayQuests.length} tasks
+                          </span>
+                          {todayQuests.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleSortByTime(targetDateStr)}
+                              className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 px-1.5 py-0.5 rounded flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95"
+                              title="時間枠の早い順に並び替えて保存"
+                            >
+                              <Clock className="w-2.5 h-2.5" />
+                              時間順に整列
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {todayQuests.map(q => (
                         <div
                           id={`source-${q.id}`}
                           key={q.id}
                           data-sort-id={q.id}
+                          data-sort-date={targetDateStr}
                           className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${dragState.itemId === q.id && dragState.mode === 'sort' ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary' : 'hover:scale-[1.02]'}`}
                         >
                           <TodayItem
@@ -3074,6 +3225,7 @@ export default function Home() {
                           isSelected={planningDayOffset === colOffset}
                           onSelect={() => setPlanningDayOffset(colOffset)}
                           isDragHovered={hoveredColumnDate === colDateStr && dragState.active}
+                          onSortByTime={handleSortByTime}
                         />
                       );
                     })}

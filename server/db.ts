@@ -1550,6 +1550,20 @@ export async function fixInconsistentData(userId: number) {
  * クエストの並び順を更新
  */
 export async function updateQuestOrder(userId: number, updates: { id: number, order: number }[]) {
+  if (!updates || updates.length === 0) return true;
+  if (!_client) initDb();
+
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  if (_client?.batch) {
+    const statements = updates.map(u => ({
+      sql: 'UPDATE quests SET displayOrder = ?, updatedAt = ? WHERE id = ? AND userId = ?',
+      args: [u.order, nowSec, u.id, userId]
+    }));
+    await _client.batch(statements);
+    return true;
+  }
+
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
