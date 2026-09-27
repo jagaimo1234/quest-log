@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown, Clock } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown, Clock, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
@@ -384,33 +384,43 @@ function DayColumn({
           {quests.length === 0 ? (
             <div className="text-[10px] text-muted-foreground/30 italic text-center py-8 select-none">No tasks</div>
           ) : (
-            quests.map(q => (
-              <div
-                id={`source-${q.id}`}
-                key={q.id}
-                data-sort-id={q.id}
-                data-sort-date={dateStr}
-                className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${
-                  dragState.itemId === q.id && dragState.mode === 'sort'
-                    ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
-                    : 'hover:scale-[1.02]'
-                }`}
-              >
-                <TodayItem
-                  quest={q}
-                  templates={templates}
-                  onStatusChange={refreshAll}
-                  onDragStart={(e) => {
-                    if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
-                    else handleMouseDown(e as any, q.id, 'plan');
-                  }}
-                  onReorderStart={(e) => {
-                    if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
-                    else handleMouseDown(e as any, q.id, 'sort');
-                  }}
-                />
-              </div>
-            ))
+            quests.map(q => {
+              const isDraggingCurrent = dragState.itemId === q.id && dragState.mode === 'sort';
+              const effectiveAdhoc = isDraggingCurrent
+                ? (dragState.adhocPreview !== undefined ? dragState.adhocPreview : !!q.isAdhoc)
+                : !!q.isAdhoc;
+
+              return (
+                <div
+                  id={`source-${q.id}`}
+                  key={q.id}
+                  data-sort-id={q.id}
+                  data-sort-date={dateStr}
+                  className={`cursor-default relative bg-background rounded-xl z-20 transition-all duration-150 ${
+                    effectiveAdhoc ? 'ml-4 sm:ml-5 w-[calc(100%-1rem)] sm:w-[calc(100%-1.25rem)]' : 'ml-0 w-full'
+                  } ${
+                    isDraggingCurrent
+                      ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
+                      : 'hover:scale-[1.01]'
+                  }`}
+                >
+                  <TodayItem
+                    quest={q}
+                    templates={templates}
+                    onStatusChange={refreshAll}
+                    isAdhocEffective={effectiveAdhoc}
+                    onDragStart={(e) => {
+                      if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
+                      else handleMouseDown(e as any, q.id, 'plan');
+                    }}
+                    onReorderStart={(e) => {
+                      if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
+                      else handleMouseDown(e as any, q.id, 'sort');
+                    }}
+                  />
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -659,14 +669,17 @@ function TodayItem({
   templates,
   onStatusChange,
   onDragStart,
-  onReorderStart
+  onReorderStart,
+  isAdhocEffective
 }: {
   quest: any,
   templates: any[],
   onStatusChange: () => void,
   onDragStart: (e: React.MouseEvent | React.TouchEvent) => void,
-  onReorderStart?: (e: React.MouseEvent | React.TouchEvent) => void
+  onReorderStart?: (e: React.MouseEvent | React.TouchEvent) => void,
+  isAdhocEffective?: boolean
 }) {
+  const isAdhoc = isAdhocEffective !== undefined ? isAdhocEffective : !!quest.isAdhoc;
   const updateStatus = trpc.quest.updateStatus.useMutation();
   const deleteQuest = trpc.quest.delete.useMutation();
   const incrementCount = trpc.quest.incrementCount.useMutation();
@@ -944,6 +957,11 @@ function TodayItem({
           <span className="opacity-80 uppercase tracking-wider font-semibold">
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
+          {isAdhoc && (
+            <span className="text-amber-700 dark:text-amber-300 font-bold bg-amber-500/15 border border-amber-500/25 px-1 py-0.2 rounded text-[8px] sm:text-[8.5px] select-none">
+              隙間
+            </span>
+          )}
           {isChallenging && (
             <span className="text-amber-600 font-bold bg-amber-100 dark:bg-amber-900/40 px-1 sm:px-1.5 py-0.2 rounded text-[8.5px] sm:text-[9px] animate-pulse">
               RUNNING
@@ -1097,6 +1115,30 @@ function TodayItem({
             </div>
 
             <div className="h-px bg-border my-2" />
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={async () => {
+                const nextAdhoc = !isAdhoc;
+                await updateQuest.mutateAsync({ questId: quest.id, isAdhoc: nextAdhoc });
+                setIsMenuOpen(false);
+                toast.success(nextAdhoc ? "隙間時間（1段下げ）に設定しました" : "本予定に戻しました");
+                onStatusChange();
+              }}
+              className="w-full justify-start h-14 text-sm font-bold text-foreground border-stone-200 dark:border-stone-800"
+            >
+              {isAdhoc ? (
+                <>
+                  <ArrowLeftToLine className="w-5 h-5 mr-3 text-muted-foreground" />
+                  本予定に戻す（左揃え）
+                </>
+              ) : (
+                <>
+                  <ArrowRightToLine className="w-5 h-5 mr-3 text-amber-500" />
+                  隙間時間に設定（1段下げる）
+                </>
+              )}
+            </Button>
             <Button
               variant="outline"
               size="lg"
@@ -1881,9 +1923,10 @@ export default function Home() {
     startX: number,
     startY: number,
     currentX: number,
-    currentY: number
+    currentY: number,
+    adhocPreview?: boolean
   }>({
-    active: false, itemId: null, mode: 'plan', startX: 0, startY: 0, currentX: 0, currentY: 0
+    active: false, itemId: null, mode: 'plan', startX: 0, startY: 0, currentX: 0, currentY: 0, adhocPreview: false
   });
   const [hoveredColumnDate, setHoveredColumnDate] = useState<string | null>(null);
 
@@ -2116,6 +2159,7 @@ export default function Home() {
   const handleMouseDown = (e: React.MouseEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
     e.preventDefault();
     e.stopPropagation(); // Stop propagation to prevent conflict
+    const q = activeQuests?.find(item => item.id === itemId);
     setDragState({
       active: true,
       itemId,
@@ -2123,13 +2167,15 @@ export default function Home() {
       startX: e.clientX,
       startY: e.clientY,
       currentX: e.clientX,
-      currentY: e.clientY
+      currentY: e.clientY,
+      adhocPreview: !!q?.isAdhoc
     });
   };
 
   const handleTouchStart = (e: React.TouchEvent, itemId: number, mode: 'plan' | 'sort' = 'plan') => {
     const touch = e.touches[0];
     e.stopPropagation();
+    const q = activeQuests?.find(item => item.id === itemId);
     setDragState({
       active: true,
       itemId,
@@ -2137,7 +2183,8 @@ export default function Home() {
       startX: touch.clientX,
       startY: touch.clientY,
       currentX: touch.clientX,
-      currentY: touch.clientY
+      currentY: touch.clientY,
+      adhocPreview: !!q?.isAdhoc
     });
   };
 
@@ -2151,6 +2198,18 @@ export default function Home() {
       const colEl = elementsUnder.map(el => el.closest('[data-column-date]')).find(Boolean);
       const hDate = colEl ? colEl.getAttribute('data-column-date') : null;
       setHoveredColumnDate(hDate);
+
+      // Horizontal slide detection for 隙間時間 (Adhoc) indent toggle
+      if (dragState.mode === 'sort' && dragState.itemId) {
+        const deltaX = e.clientX - dragState.startX;
+        if (!dragState.adhocPreview && deltaX > 25) {
+          setDragState(prev => ({ ...prev, adhocPreview: true }));
+          if (window.navigator?.vibrate) window.navigator.vibrate(15);
+        } else if (dragState.adhocPreview && deltaX < -20) {
+          setDragState(prev => ({ ...prev, adhocPreview: false }));
+          if (window.navigator?.vibrate) window.navigator.vibrate(15);
+        }
+      }
 
       // Reorder Logic (Swiss Swap) when dragging sort handle within same column
       if (dragState.mode === 'sort' && dragState.itemId) {
@@ -2195,6 +2254,18 @@ export default function Home() {
       const colEl = elementsUnder.map(el => el.closest('[data-column-date]')).find(Boolean);
       const hDate = colEl ? colEl.getAttribute('data-column-date') : null;
       setHoveredColumnDate(hDate);
+
+      // Horizontal slide detection for 隙間時間 (Adhoc) indent toggle
+      if (dragState.mode === 'sort' && dragState.itemId) {
+        const deltaX = touch.clientX - dragState.startX;
+        if (!dragState.adhocPreview && deltaX > 25) {
+          setDragState(prev => ({ ...prev, adhocPreview: true }));
+          if (window.navigator?.vibrate) window.navigator.vibrate(15);
+        } else if (dragState.adhocPreview && deltaX < -20) {
+          setDragState(prev => ({ ...prev, adhocPreview: false }));
+          if (window.navigator?.vibrate) window.navigator.vibrate(15);
+        }
+      }
 
       // Reorder Logic (Swiss Swap) - Touch
       if (dragState.mode === 'sort' && dragState.itemId) {
@@ -2310,10 +2381,21 @@ export default function Home() {
       setDragState(prev => ({ ...prev, active: false, itemId: null, mode: 'plan' }));
       setHoveredColumnDate(null);
 
-      // Trigger server update if order changed
+      // Trigger server update if order changed or adhoc state changed
       if (dragState.mode === 'sort' && dragState.itemId) {
         const quest = activeQuests?.find(q => q.id === dragState.itemId);
         if (quest) {
+          // Check if adhoc state changed via horizontal drag
+          if (dragState.adhocPreview !== undefined && dragState.adhocPreview !== !!quest.isAdhoc) {
+            const nextAdhoc = dragState.adhocPreview;
+            updateQuest.mutate({ questId: quest.id, isAdhoc: nextAdhoc }, {
+              onSuccess: () => {
+                toast.success(nextAdhoc ? "隙間時間（1段下げ）に設定しました" : "本予定に戻しました");
+                refetchQuests();
+              }
+            });
+          }
+
           const qDate = quest.startDate ? new Date(quest.startDate) : (quest.createdAt ? new Date(quest.createdAt) : null);
           if (qDate) {
             const dateStr = format(qDate, "yyyy-MM-dd");
@@ -2343,7 +2425,7 @@ export default function Home() {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleMouseUp);
     };
-  }, [dragState.active, dragState.itemId, dragState.mode, activeQuests]);
+  }, [dragState.active, dragState.itemId, dragState.mode, dragState.adhocPreview, activeQuests]);
 
   const handleUnlink = async (questId: number, slotId: string) => {
     const quest = activeQuests?.find(q => q.id === questId);
@@ -3104,29 +3186,43 @@ export default function Home() {
                           )}
                         </div>
                       )}
-                      {todayQuests.map(q => (
-                        <div
-                          id={`source-${q.id}`}
-                          key={q.id}
-                          data-sort-id={q.id}
-                          data-sort-date={targetDateStr}
-                          className={`cursor-default relative bg-background rounded-xl z-20 transition-transform ${dragState.itemId === q.id && dragState.mode === 'sort' ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary' : 'hover:scale-[1.02]'}`}
-                        >
-                          <TodayItem
-                            quest={q}
-                            templates={templates || []}
-                            onStatusChange={() => refreshAll()}
-                            onDragStart={(e) => {
-                              if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
-                              else handleMouseDown(e as any, q.id, 'plan');
-                            }}
-                            onReorderStart={(e) => {
-                              if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
-                              else handleMouseDown(e as any, q.id, 'sort');
-                            }}
-                          />
-                        </div>
-                      ))}
+                      {todayQuests.map(q => {
+                        const isDraggingCurrent = dragState.itemId === q.id && dragState.mode === 'sort';
+                        const effectiveAdhoc = isDraggingCurrent
+                          ? (dragState.adhocPreview !== undefined ? dragState.adhocPreview : !!q.isAdhoc)
+                          : !!q.isAdhoc;
+
+                        return (
+                          <div
+                            id={`source-${q.id}`}
+                            key={q.id}
+                            data-sort-id={q.id}
+                            data-sort-date={targetDateStr}
+                            className={`cursor-default relative bg-background rounded-xl z-20 transition-all duration-150 ${
+                              effectiveAdhoc ? 'ml-4 sm:ml-5 w-[calc(100%-1rem)] sm:w-[calc(100%-1.25rem)]' : 'ml-0 w-full'
+                            } ${
+                              isDraggingCurrent
+                                ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
+                                : 'hover:scale-[1.01]'
+                            }`}
+                          >
+                            <TodayItem
+                              quest={q}
+                              templates={templates || []}
+                              onStatusChange={() => refreshAll()}
+                              isAdhocEffective={effectiveAdhoc}
+                              onDragStart={(e) => {
+                                if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
+                                else handleMouseDown(e as any, q.id, 'plan');
+                              }}
+                              onReorderStart={(e) => {
+                                if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
+                                else handleMouseDown(e as any, q.id, 'sort');
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>

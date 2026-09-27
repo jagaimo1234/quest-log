@@ -76,10 +76,26 @@ export async function getDb() {
   if (!_db) {
     initDb();
   }
+  if (_client && !_questColumnsEnsured) {
+    ensureQuestColumns().catch(() => {});
+  }
   if (!_db) {
     console.warn("Database is not initialized. Check environment variables.");
   }
   return _db;
+}
+
+let _questColumnsEnsured = false;
+export async function ensureQuestColumns() {
+  if (_questColumnsEnsured) return;
+  if (!_client) initDb();
+  if (!_client) return;
+  try {
+    await _client.execute(`ALTER TABLE quests ADD COLUMN isAdhoc INTEGER DEFAULT 0;`);
+  } catch (err) {
+    // Column might already exist
+  }
+  _questColumnsEnsured = true;
 }
 
 let _awarenessTablesEnsured = false;
@@ -337,6 +353,7 @@ export async function createQuest(
     note?: string | null;
     targetCount?: number;
     plannedTimeSlot?: string | null;
+    isAdhoc?: boolean | number;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -367,6 +384,7 @@ export async function createQuest(
     targetCount: input.targetCount || 1,
     currentCount: 0,
     plannedTimeSlot: input.plannedTimeSlot || null,
+    isAdhoc: input.isAdhoc ? 1 : 0,
   };
 
   const result = await db.insert(quests).values(values).returning();
@@ -570,6 +588,7 @@ export async function updateQuest(
     deadline?: Date | null;
     plannedTimeSlot?: string | null;
     note?: string | null;
+    isAdhoc?: boolean | number;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -587,6 +606,7 @@ export async function updateQuest(
   if (input.startDate !== undefined) updateData.startDate = input.startDate;
   if (input.deadline !== undefined) updateData.deadline = input.deadline;
   if (input.note !== undefined) updateData.note = input.note;
+  if (input.isAdhoc !== undefined) updateData.isAdhoc = input.isAdhoc ? 1 : 0;
 
   await db.update(quests)
     .set(updateData)

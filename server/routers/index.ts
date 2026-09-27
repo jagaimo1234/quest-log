@@ -340,6 +340,7 @@ export const appRouter = router({
         plannedTimeSlot: z.string().optional().nullable(),
         status: z.enum(["unreceived", "accepted"]).optional(),
         targetCount: z.number().optional(),
+        isAdhoc: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return createQuest(ctx.user!.id, input);
@@ -536,6 +537,7 @@ export const appRouter = router({
         deadline: z.date().optional().nullable(),
         plannedTimeSlot: z.string().optional().nullable(),
         note: z.string().optional().nullable(),
+        isAdhoc: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return updateQuest(input.questId, ctx.user!.id, input);

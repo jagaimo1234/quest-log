@@ -78,6 +78,9 @@ export const quests = sqliteTable("quests", {
   // 表示順序（同期用）
   displayOrder: integer("displayOrder").default(0).notNull(),
 
+  // 隙間時間フラグ（右インデント表示用: 0=通常/本予定, 1=隙間/突発）
+  isAdhoc: integer("isAdhoc").default(0).notNull(),
+
   // タイムスタンプ
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
