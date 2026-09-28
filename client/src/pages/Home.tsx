@@ -136,8 +136,8 @@ const MISSION_CARD_LAYOUT = "w-55 ml-0";
 
 
 // 時間枠（左右のスペース）の横幅を設定します。
-// Options: w-16 (64px), w-20 (80px), w-22 (88px), w-24 (96px), w-32 (128px)
-const TIME_SLOT_WIDTH = "w-22 sm:w-24";
+// Options: w-16 (64px), w-20 (80px), w-22 (88px), w-24 (96px), w-28 (112px), w-32 (128px)
+const TIME_SLOT_WIDTH = "w-28 sm:w-32";
 
 // ------------------------------------------------------------------
 // HELPERS
@@ -486,31 +486,21 @@ function DayColumn({
               key={slot.id}
               data-slot-id={slot.id}
               data-slot-date={dateStr}
-              className="rounded-md border border-border/80 bg-card/80 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
+              className="rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[26px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
             >
-              <div className="text-[8.5px] sm:text-[9.5px] font-black tracking-tight text-foreground/90 dark:text-stone-100 group-hover:text-accent transition-colors select-none pointer-events-none z-10 drop-shadow-xs">
+              <span className="z-10 font-mono text-[10.5px] sm:text-[11.5px] font-black text-stone-900 dark:text-stone-100 group-hover:text-accent tracking-tight select-none pointer-events-none drop-shadow-xs">
                 {slot.label}
-              </div>
+              </span>
               {!isUsed && (
                 <>
                   {isJobModeActive && isJobSlot(slot.label) ? (
-                    <>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-25 -rotate-12 select-none" />
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-15 -rotate-12 select-none" />
-                      </div>
-                    </>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 group-hover:opacity-40 transition-opacity z-0">
+                      <img src="/job_stamp.png" alt="job" className="w-14 -rotate-12 select-none" />
+                    </div>
                   ) : (
-                    <>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-25 -rotate-12 select-none" />
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-15 -rotate-12 select-none" />
-                      </div>
-                    </>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 group-hover:opacity-40 transition-opacity z-0">
+                      <img src="/free_stamp.png" alt="free" className="w-14 -rotate-12 select-none" />
+                    </div>
                   )}
                 </>
               )}
@@ -3219,7 +3209,7 @@ export default function Home() {
               {planningViewMode === 'today' ? (
                 /* TODAY VIEW (Original Layout, but dynamic slots) */
                 <div className="relative">
-                  <div ref={containerRef} className="flex justify-start gap-4 sm:gap-8 md:gap-12 items-start relative min-h-[500px]">
+                  <div ref={containerRef} className="flex justify-center gap-6 sm:gap-10 md:gap-14 items-start relative min-h-[500px] w-full">
                     <ConnectionLines
                       quests={todayQuests}
                       parentRef={containerRef as React.RefObject<HTMLDivElement>}
@@ -3309,31 +3299,21 @@ export default function Home() {
                               key={slot.id}
                               data-slot-id={slot.id}
                               data-slot-date={format(targetDate, "yyyy-MM-dd")}
-                              className="rounded-md border border-border/80 bg-card/80 p-0.5 min-h-[26px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
+                              className="rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
                             >
-                              <div className="text-[9.5px] sm:text-[10.5px] font-black tracking-tight text-foreground/90 dark:text-stone-100 group-hover:text-accent transition-colors select-none pointer-events-none z-10 drop-shadow-xs">
+                              <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-stone-900 dark:text-stone-100 group-hover:text-accent tracking-tight select-none pointer-events-none drop-shadow-xs">
                                 {slot.label}
-                              </div>
+                              </span>
                               {!isUsed && (
                                 <>
                                   {isJobModeActive && isJobSlot(slot.label) ? (
-                                    <>
-                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-25 -rotate-12 select-none" />
-                                      </div>
-                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-15 -rotate-12 select-none" />
-                                      </div>
-                                    </>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 group-hover:opacity-40 transition-opacity z-0">
+                                      <img src="/job_stamp.png" alt="job" className="w-14 -rotate-12 select-none" />
+                                    </div>
                                   ) : (
-                                    <>
-                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-25 -rotate-12 select-none" />
-                                      </div>
-                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-15 -rotate-12 select-none" />
-                                      </div>
-                                    </>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 group-hover:opacity-40 transition-opacity z-0">
+                                      <img src="/free_stamp.png" alt="free" className="w-14 -rotate-12 select-none" />
+                                    </div>
                                   )}
                                 </>
                               )}
