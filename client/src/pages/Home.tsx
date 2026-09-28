@@ -171,6 +171,276 @@ function getOffsetFromToday(date: Date): number {
 }
 
 // ------------------------------------------------------------------
+// MOAI RHYTHM ZONE DEFINITIONS (土日限定の自己暗示・リズム定着)
+// ------------------------------------------------------------------
+export function isWeekendDate(date: Date): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6; // Sunday=0, Saturday=6
+}
+
+export interface MoaiZoneInfo {
+  id: string;
+  name: string;
+  shortName: string;
+  emoji: string;
+  motto: string;
+  actionGuidance: string;
+  badgeClass: string;
+  slotClass: string;
+  headerBorderClass: string;
+  badgeText?: string;
+  badgeSubText?: string;
+}
+
+export const MOAI_WEEKEND_ZONES: Record<string, MoaiZoneInfo> = {
+  morning: {
+    id: "morning",
+    name: "朝：準備",
+    shortName: "朝：準備 (心と環境を整える)",
+    emoji: "🌅",
+    motto: "よし！1日を始めよう！",
+    actionGuidance: "心と環境を整える・起床・軽い運動・部屋掃除・予定確認",
+    badgeClass: "bg-amber-500/15 text-amber-900 dark:text-amber-200 border-amber-500/30",
+    slotClass: "border-l-4 border-l-amber-400/80 bg-amber-500/[0.02]",
+    headerBorderClass: "border-amber-400/50 bg-amber-500/10 text-amber-900 dark:text-amber-200",
+    badgeSubText: "MP上昇中",
+  },
+  golden: {
+    id: "golden",
+    name: "午前：ゴールデンタイム",
+    shortName: "午前：ゴールデンタイム",
+    emoji: "🌟",
+    motto: "今が勝負だ！高MPで一番使える時間帯！",
+    actionGuidance: "重要な判断や考える作業・ものづくり・企画・試作・発信",
+    badgeClass: "bg-amber-400/25 text-amber-950 dark:text-amber-100 border-amber-500/50 shadow-xs",
+    slotClass: "border-l-4 border-l-amber-500 bg-amber-500/[0.06] shadow-amber-500/5 ring-1 ring-amber-400/30",
+    headerBorderClass: "border-amber-500/80 bg-gradient-to-r from-amber-500/20 via-yellow-400/25 to-amber-500/20 text-amber-950 dark:text-amber-100 shadow-xs",
+    badgeText: "高MP 勝負!",
+  },
+  lunch: {
+    id: "lunch",
+    name: "昼：休憩",
+    shortName: "昼：休憩 (しっかり食べて午後もやるぞ)",
+    emoji: "🍱",
+    motto: "うまい…しっかり食べて午後もやるぞ",
+    actionGuidance: "昼ごはん・ゆっくり休憩",
+    badgeClass: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200 border-emerald-500/30",
+    slotClass: "border-l-4 border-l-emerald-500/80 bg-emerald-500/[0.02]",
+    headerBorderClass: "border-emerald-500/50 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200",
+    badgeSubText: "回復",
+  },
+  afternoon: {
+    id: "afternoon",
+    name: "午後前半",
+    shortName: "午後前半 (まだまだ戦える！)",
+    emoji: "⚡",
+    motto: "まだまだ戦える！よし、続きやるぞ！",
+    actionGuidance: "モアイの作業の続き・中MPタスク・制作・試作・イベント検討",
+    badgeClass: "bg-sky-500/15 text-sky-900 dark:text-sky-200 border-sky-500/30",
+    slotClass: "border-l-4 border-l-sky-500/80 bg-sky-500/[0.02]",
+    headerBorderClass: "border-sky-500/50 bg-sky-500/10 text-sky-900 dark:text-sky-200",
+    badgeSubText: "中MP",
+  },
+  slump: {
+    id: "slump",
+    name: "だれやすい時間帯",
+    shortName: "だれ注意帯 (軽作業・散歩に切替)",
+    emoji: "☕",
+    motto: "だんだん低下…ここがだれやすい。無理せず軽作業へ！",
+    actionGuidance: "頭を使わない作業に切替・整理・軽作業・SNS・散歩・コーヒー",
+    badgeClass: "bg-rose-500/15 text-rose-900 dark:text-rose-200 border-rose-500/30",
+    slotClass: "border-l-4 border-l-rose-400/80 bg-rose-500/[0.03]",
+    headerBorderClass: "border-rose-400/60 bg-rose-500/10 text-rose-900 dark:text-rose-200",
+    badgeText: "だれ注意",
+  },
+  evening: {
+    id: "evening",
+    name: "夕方：ひと息",
+    shortName: "夕方：ひと息 (食事・リラックス)",
+    emoji: "🍳",
+    motto: "よし ご飯作ってひと息つこう",
+    actionGuidance: "夕食の準備・食事・休憩・リラックス・家事",
+    badgeClass: "bg-orange-500/15 text-orange-900 dark:text-orange-200 border-orange-500/30",
+    slotClass: "border-l-4 border-l-orange-400/80 bg-orange-500/[0.03]",
+    headerBorderClass: "border-orange-400/50 bg-orange-500/10 text-orange-900 dark:text-orange-200",
+    badgeSubText: "ひと息",
+  },
+  night: {
+    id: "night",
+    name: "夜：頭使わない時間",
+    shortName: "夜：頭使わない時間",
+    emoji: "🌙",
+    motto: "ほぼ戦力外。無理すんな！ここからは体を動かす！考えないぞ！",
+    actionGuidance: "筋トレ・運動・洗濯・皿洗い・映画・ゲーム・AIに指示して進める",
+    badgeClass: "bg-indigo-500/15 text-indigo-900 dark:text-indigo-200 border-indigo-500/30",
+    slotClass: "border-l-4 border-l-indigo-500/80 bg-indigo-500/[0.04]",
+    headerBorderClass: "border-indigo-500/70 bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-indigo-500/20 text-indigo-950 dark:text-indigo-100 shadow-xs",
+    badgeText: "考えないぞ!",
+  },
+  midnight: {
+    id: "midnight",
+    name: "深夜：回復＆就寝",
+    shortName: "深夜：回復＆就寝 (スマホ終了・寝ろ)",
+    emoji: "🛁",
+    motto: "夜は遊び・回復の時間。それでいい。今日もよくやった…寝ろ！",
+    actionGuidance: "23:00 お風呂・23:30 スマホ終了・0:00前に就寝",
+    badgeClass: "bg-slate-500/20 text-slate-800 dark:text-slate-200 border-slate-500/40",
+    slotClass: "border-l-4 border-l-slate-600/80 bg-slate-900/[0.04]",
+    headerBorderClass: "border-slate-500/60 bg-slate-800/10 text-slate-800 dark:text-slate-200",
+    badgeSubText: "回復",
+  },
+};
+
+export function getMoaiZoneInfo(slotLabel: string): { zone: MoaiZoneInfo; isFirstSlotOfZone: boolean } {
+  const [startPart] = slotLabel.split("-");
+  const [hStr, mStr] = startPart.split(":");
+  const hour = parseInt(hStr, 10);
+  const min = parseInt(mStr || "0", 10);
+
+  let zoneKey = "morning";
+  let zoneStartHour = 6;
+
+  if (hour >= 6 && hour < 8) {
+    zoneKey = "morning";
+    zoneStartHour = 6;
+  } else if (hour >= 8 && hour < 12) {
+    zoneKey = "golden";
+    zoneStartHour = 8;
+  } else if (hour >= 12 && hour < 13) {
+    zoneKey = "lunch";
+    zoneStartHour = 12;
+  } else if (hour >= 13 && hour < 15) {
+    zoneKey = "afternoon";
+    zoneStartHour = 13;
+  } else if (hour >= 15 && hour < 17) {
+    zoneKey = "slump";
+    zoneStartHour = 15;
+  } else if (hour >= 17 && hour < 19) {
+    zoneKey = "evening";
+    zoneStartHour = 17;
+  } else if (hour >= 19 && hour < 22) {
+    zoneKey = "night";
+    zoneStartHour = 19;
+  } else {
+    zoneKey = "midnight";
+    zoneStartHour = 22;
+  }
+
+  const isFirstSlotOfZone = (hour === zoneStartHour && min === 0);
+  return { zone: MOAI_WEEKEND_ZONES[zoneKey], isFirstSlotOfZone };
+}
+
+function MoaiRhythmGuideDialog({
+  isOpen,
+  onOpenChange,
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 bg-stone-50 dark:bg-stone-950 border-stone-200 dark:border-stone-800">
+        <DialogHeader className="mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🗿</span>
+            <div>
+              <DialogTitle className="text-lg sm:text-xl font-black text-stone-900 dark:text-stone-100">
+                自分のリズムで動く、モアイの1日
+              </DialogTitle>
+              <div className="text-xs text-amber-700 dark:text-amber-400 font-bold mt-0.5">
+                〜 MPがあるうちに“悩みたくないこと”をやり、夜は頭を休めて楽しむ。〜
+              </div>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Infographic Image */}
+        <div className="rounded-xl overflow-hidden border border-stone-200 dark:border-stone-800 shadow-sm bg-stone-900">
+          <img
+            src="/moai_rhythm.jpg"
+            alt="自分のリズムで動く、モアイの1日"
+            className="w-full h-auto object-contain cursor-zoom-in"
+            onClick={() => window.open('/moai_rhythm.jpg', '_blank')}
+            title="クリックで拡大表示"
+          />
+        </div>
+
+        {/* Tactical Points */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
+            <div className="flex items-center gap-2 font-black text-amber-900 dark:text-amber-200 text-sm">
+              <span>☀️</span>
+              <span>昼モアイ軍団（高MP）</span>
+            </div>
+            <div className="text-xs text-amber-950 dark:text-amber-100 font-bold">
+              「お前たちは 昼間のうちに全力で働け！！」
+            </div>
+            <ul className="text-[11px] text-stone-700 dark:text-stone-300 space-y-1 list-disc list-inside">
+              <li>新作の発想・デザイン・企画・試作方針</li>
+              <li>重要な判断や考える作業（ゴールデンタイム 8:00-12:00）</li>
+              <li>イベント戦略、SNSの発信など</li>
+            </ul>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 space-y-2">
+            <div className="flex items-center gap-2 font-black text-indigo-900 dark:text-indigo-200 text-sm">
+              <span>🌙</span>
+              <span>夜モアイ軍団（低MP・頭使わない）</span>
+            </div>
+            <div className="text-xs text-indigo-950 dark:text-indigo-100 font-bold">
+              「お前たちは 夜は休め！遊べ！戦力じゃねえよ！！」
+            </div>
+            <ul className="text-[11px] text-stone-700 dark:text-stone-300 space-y-1 list-disc list-inside">
+              <li>運動・筋トレ、洗濯物・皿洗い・掃除</li>
+              <li>映画・ドラマ・ゲーム、英語・料理の勉強</li>
+              <li>ミッションシステムの改善（AIに指示して進めるだけ）</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* 6 Golden Rules */}
+        <div className="p-4 rounded-xl bg-white/80 dark:bg-stone-900/80 border border-stone-200 dark:border-stone-800 space-y-2.5 mt-2">
+          <div className="text-xs font-black text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
+            <span>💡</span>
+            <span>うまくいくための6つのポイント</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="flex items-start gap-2 bg-stone-100/60 dark:bg-stone-800/60 p-2 rounded-lg">
+              <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">1</span>
+              <span>MPが高い時間帯に、悩みたくないことをやる。</span>
+            </div>
+            <div className="flex items-start gap-2 bg-stone-100/60 dark:bg-stone-800/60 p-2 rounded-lg">
+              <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">2</span>
+              <span>夕方以降は、予定達成のための時間としない。</span>
+            </div>
+            <div className="flex items-start gap-2 bg-stone-100/60 dark:bg-stone-800/60 p-2 rounded-lg">
+              <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">3</span>
+              <span>15〜18時は、無理せず軽作業・散歩に切り替える。</span>
+            </div>
+            <div className="flex items-start gap-2 bg-stone-100/60 dark:bg-stone-800/60 p-2 rounded-lg">
+              <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">4</span>
+              <span>モアイ活動は「考える」と「作業する」に分ける。</span>
+            </div>
+            <div className="flex items-start gap-2 bg-stone-100/60 dark:bg-stone-800/60 p-2 rounded-lg">
+              <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">5</span>
+              <span>ミッションシステムの改善は夜枠でOK（AI指示で負担小）。</span>
+            </div>
+            <div className="flex items-start gap-2 bg-stone-100/60 dark:bg-stone-800/60 p-2 rounded-lg">
+              <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">6</span>
+              <span>23:30以降はスマホを触らず、0時前に布団に入る。</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center py-2 text-xs font-black text-stone-500 tracking-wider">
+          「昼間は、戦う。夜は、休むか遊べ。それでいい。」
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ------------------------------------------------------------------
 // COMPONENTS
 // ------------------------------------------------------------------
 
@@ -192,6 +462,9 @@ function DayColumn({
   onSelect,
   isDragHovered,
   onSortByTime,
+  isMoaiRhythmActive = true,
+  isForcePreview = false,
+  onOpenRhythmGuide,
 }: {
   date: Date;
   quests: any[];
@@ -210,9 +483,14 @@ function DayColumn({
   onSelect: () => void;
   isDragHovered?: boolean;
   onSortByTime?: (dateStr: string) => void;
+  isMoaiRhythmActive?: boolean;
+  isForcePreview?: boolean;
+  onOpenRhythmGuide?: () => void;
 }) {
   const columnRef = useRef<HTMLDivElement>(null);
   const dateStr = format(date, "yyyy-MM-dd");
+  const isWeekend = isWeekendDate(date);
+  const showMoaiRhythm = !!isMoaiRhythmActive && (isWeekend || !!isForcePreview);
 
   // Query & mutation for daily bulletin board content
   const { data: board, refetch: refetchBoard } = trpc.bulletin.get.useQuery({ date: dateStr });
@@ -478,11 +756,23 @@ function DayColumn({
 
       {/* Sub-column 2: Timeline Column */}
       <div className={`flex flex-col gap-2 shrink-0 ${TIME_SLOT_WIDTH} z-10`}>
-        <div className="text-[10px] font-bold text-muted-foreground/70 mb-2 px-1 select-none text-center">
-          TIMELINE
+        <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground/70 mb-2 px-1 select-none">
+          <span>TIMELINE</span>
+          {showMoaiRhythm && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpenRhythmGuide?.(); }}
+              className="hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 text-[8.5px] font-bold px-1 py-0.2 rounded bg-amber-500/10 text-amber-900 dark:text-amber-200 border border-amber-500/20 transition-all cursor-pointer"
+              title="モアイの1日リズム図を表示"
+            >
+              <span>🗿</span>
+              <span>リズム</span>
+            </button>
+          )}
         </div>
         {timeSlots.map(slot => {
           const currentInterval: 30 | 60 = timeSlots.length <= 18 ? 60 : 30;
+          const { zone, isFirstSlotOfZone } = getMoaiZoneInfo(slot.label);
           const isUsed = quests.some(q => {
             if (!q.plannedTimeSlot) return false;
             try {
@@ -495,29 +785,52 @@ function DayColumn({
           });
 
           return (
-            <div
-              key={slot.id}
-              data-slot-id={slot.id}
-              data-slot-date={dateStr}
-              className="rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden"
-            >
-              <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
-                {slot.label}
-              </span>
-              {!isUsed && (
-                <>
-                  {isJobModeActive && isJobSlot(slot.label) ? (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                      <img src="/job_stamp.png" alt="job" className="w-16 sm:w-20 -rotate-12 select-none" />
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                      <img src="/free_stamp.png" alt="free" className="w-16 sm:w-20 -rotate-12 select-none" />
-                    </div>
-                  )}
-                </>
+            <React.Fragment key={slot.id}>
+              {showMoaiRhythm && isFirstSlotOfZone && (
+                <div
+                  className={`mt-2 mb-0.5 px-1.5 py-0.5 rounded text-[9px] font-black border flex items-center justify-between select-none tracking-tight shadow-2xs ${zone.headerBorderClass}`}
+                  title={zone.actionGuidance}
+                >
+                  <span className="flex items-center gap-1 truncate">
+                    <span>{zone.emoji}</span>
+                    <span className="truncate">{zone.shortName}</span>
+                  </span>
+                  {zone.badgeText ? (
+                    <span className="text-[8px] px-1 py-0.2 rounded bg-stone-900/10 dark:bg-stone-100/10 font-black shrink-0">
+                      {zone.badgeText}
+                    </span>
+                  ) : zone.badgeSubText ? (
+                    <span className="text-[7.5px] opacity-75 shrink-0 font-bold">
+                      {zone.badgeSubText}
+                    </span>
+                  ) : null}
+                </div>
               )}
-            </div>
+
+              <div
+                data-slot-id={slot.id}
+                data-slot-date={dateStr}
+                title={showMoaiRhythm ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
+                className={`rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythm ? zone.slotClass : ''}`}
+              >
+                <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
+                  {slot.label}
+                </span>
+                {!isUsed && (
+                  <>
+                    {isJobModeActive && isJobSlot(slot.label) ? (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
+                        <img src="/job_stamp.png" alt="job" className="w-16 sm:w-20 -rotate-12 select-none" />
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
+                        <img src="/free_stamp.png" alt="free" className="w-16 sm:w-20 -rotate-12 select-none" />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </React.Fragment>
           );
         })}
       </div>
@@ -2180,6 +2493,28 @@ export default function Home() {
 
   const [isMoaiBoardFilter, setIsMoaiBoardFilter] = useState(false);
   const [isMoaiCreateOpen, setIsMoaiCreateOpen] = useState(false);
+  const [isMoaiRhythmActive, setIsMoaiRhythmActive] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('moai_rhythm_active');
+      if (saved !== null) return saved === 'true';
+    } catch {}
+    return true; // ON by default
+  });
+  const [isForceRhythmPreview, setIsForceRhythmPreview] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('moai_rhythm_force_preview') === 'true';
+    } catch {}
+    return false;
+  });
+  const [isMoaiRhythmGuideOpen, setIsMoaiRhythmGuideOpen] = useState(false);
+
+  const isTodayWeekend = React.useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + planningDayOffset);
+    return isWeekendDate(d);
+  }, [planningDayOffset]);
+
+  const showMoaiRhythmToday = isMoaiRhythmActive && (isTodayWeekend || isForceRhythmPreview);
 
   const getQuestsForDate = React.useCallback((date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -3377,6 +3712,49 @@ export default function Home() {
                       <span className="w-2 h-2 rounded-full bg-stone-950 dark:bg-stone-900 animate-pulse" />
                     )}
                   </button>
+
+                  {/* Moai Weekend Rhythm Toggle */}
+                  <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-xs shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !isMoaiRhythmActive;
+                        setIsMoaiRhythmActive(next);
+                        try { localStorage.setItem('moai_rhythm_active', String(next)); } catch {}
+                        toast.success(next ? "🗿 土日モアイリズム表示をONにしました（土日のみ自動適用）" : "モアイリズム表示をOFFにしました");
+                        setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        isMoaiRhythmActive
+                          ? 'bg-amber-500 text-stone-950 shadow-xs font-black'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="土日のみモアイの1日リズム（ゴールデンタイム・だれ注意・夜モード等の暗示）を表示します（テスト切り替え）"
+                    >
+                      <span>✨</span>
+                      <span>土日リズム {isMoaiRhythmActive ? 'ON' : 'OFF'}</span>
+                    </button>
+                    {isMoaiRhythmActive && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !isForceRhythmPreview;
+                          setIsForceRhythmPreview(next);
+                          try { localStorage.setItem('moai_rhythm_force_preview', String(next)); } catch {}
+                          toast.info(next ? "👀 平日でもテストプレビュー表示中（本来は土日限定）" : "土日のみ表示に戻しました");
+                          setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+                        }}
+                        className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                          isForceRhythmPreview
+                            ? 'bg-amber-200 dark:bg-amber-900/60 text-amber-950 dark:text-amber-100 ring-1 ring-amber-400 font-black'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                        title="本来は土日限定ですが、平日（月〜金）でも今すぐ画面で確認できるテストプレビューモードです"
+                      >
+                        {isForceRhythmPreview ? "平日も表示中(テスト)" : "土日のみ"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -3455,8 +3833,22 @@ export default function Home() {
 
                     <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
                       <div className="flex flex-col gap-2 w-full pb-10">
-                        <div className="text-[10px] font-bold text-muted-foreground/70 mb-1 px-1">Log</div>
+                        <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground/70 mb-1 px-1">
+                          <span>Log</span>
+                          {showMoaiRhythmToday && (
+                            <button
+                              type="button"
+                              onClick={() => setIsMoaiRhythmGuideOpen(true)}
+                              className="hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/20 transition-all cursor-pointer"
+                              title="モアイの1日リズム図を表示"
+                            >
+                              <span>🗿</span>
+                              <span>リズム図</span>
+                            </button>
+                          )}
+                        </div>
                         {timeSlots.map(slot => {
+                          const { zone, isFirstSlotOfZone } = getMoaiZoneInfo(slot.label);
                           const isUsed = todayQuests.some(q => {
                             if (!q.plannedTimeSlot) return false;
                             try {
@@ -3469,29 +3861,52 @@ export default function Home() {
                           });
 
                           return (
-                            <div
-                              key={slot.id}
-                              data-slot-id={slot.id}
-                              data-slot-date={format(targetDate, "yyyy-MM-dd")}
-                              className="rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden"
-                            >
-                              <span className="z-10 font-mono text-[11.5px] sm:text-[12.5px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
-                                {slot.label}
-                              </span>
-                              {!isUsed && (
-                                <>
-                                  {isJobModeActive && isJobSlot(slot.label) ? (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                                      <img src="/job_stamp.png" alt="job" className="w-16 sm:w-20 -rotate-12 select-none" />
-                                    </div>
-                                  ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                                      <img src="/free_stamp.png" alt="free" className="w-16 sm:w-20 -rotate-12 select-none" />
-                                    </div>
-                                  )}
-                                </>
+                            <React.Fragment key={slot.id}>
+                              {showMoaiRhythmToday && isFirstSlotOfZone && (
+                                <div
+                                  className={`mt-2.5 mb-1 px-2 py-1 rounded-md text-[10.5px] font-black border flex items-center justify-between select-none tracking-tight shadow-xs transition-all ${zone.headerBorderClass}`}
+                                  title={zone.actionGuidance}
+                                >
+                                  <span className="flex items-center gap-1.5 truncate">
+                                    <span className="text-xs">{zone.emoji}</span>
+                                    <span className="truncate">{zone.shortName}</span>
+                                  </span>
+                                  {zone.badgeText ? (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500 text-stone-950 font-black shrink-0 animate-pulse shadow-2xs">
+                                      {zone.badgeText}
+                                    </span>
+                                  ) : zone.badgeSubText ? (
+                                    <span className="text-[8px] opacity-75 shrink-0 font-bold">
+                                      {zone.badgeSubText}
+                                    </span>
+                                  ) : null}
+                                </div>
                               )}
-                            </div>
+
+                              <div
+                                data-slot-id={slot.id}
+                                data-slot-date={format(targetDate, "yyyy-MM-dd")}
+                                title={showMoaiRhythmToday ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
+                                className={`rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythmToday ? zone.slotClass : ''}`}
+                              >
+                                <span className="z-10 font-mono text-[11.5px] sm:text-[12.5px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
+                                  {slot.label}
+                                </span>
+                                {!isUsed && (
+                                  <>
+                                    {isJobModeActive && isJobSlot(slot.label) ? (
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
+                                        <img src="/job_stamp.png" alt="job" className="w-16 sm:w-20 -rotate-12 select-none" />
+                                      </div>
+                                    ) : (
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
+                                        <img src="/free_stamp.png" alt="free" className="w-16 sm:w-20 -rotate-12 select-none" />
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </React.Fragment>
                           );
                         })}
                       </div>
@@ -3547,6 +3962,9 @@ export default function Home() {
                           onSelect={() => setPlanningDayOffset(colOffset)}
                           isDragHovered={hoveredColumnDate === colDateStr && dragState.active}
                           onSortByTime={handleSortByTime}
+                          isMoaiRhythmActive={isMoaiRhythmActive}
+                          isForcePreview={isForceRhythmPreview}
+                          onOpenRhythmGuide={() => setIsMoaiRhythmGuideOpen(true)}
                         />
                       );
                     })}
@@ -3597,6 +4015,12 @@ export default function Home() {
               planningDayOffset={planningDayOffset}
               defaultType="FreeDirect"
               defaultIsMoai={true}
+            />
+
+            {/* Moai Rhythm Guide Dialog */}
+            <MoaiRhythmGuideDialog
+              isOpen={isMoaiRhythmGuideOpen}
+              onOpenChange={setIsMoaiRhythmGuideOpen}
             />
 
             {
