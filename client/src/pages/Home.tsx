@@ -89,6 +89,43 @@ export function getQuestEarliestSlot(q: any): string | null {
   return null;
 }
 
+/**
+ * 1時間モード(60分)と30分モードの間でスロットIDを双方向マッピング・正規化
+ * - 60分→30分: "09:00-10:00" -> "09:00-09:30" (開始枠に紐付け)
+ * - 30分→60分: "10:30-11:00" や "10:00-10:30" -> "10:00-11:00" (該当時間枠に紐付け)
+ */
+export function normalizeSlotForInterval(slot: string, interval: 30 | 60): string {
+  if (!slot) return slot;
+  const match = slot.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
+  if (!match) return slot;
+
+  const startH = parseInt(match[1], 10);
+  const startM = parseInt(match[2], 10);
+  const endH = parseInt(match[3], 10);
+  const endM = parseInt(match[4], 10);
+
+  const durationMin = (endH * 60 + endM) - (startH * 60 + startM);
+
+  if (interval === 30) {
+    if (durationMin === 60) {
+      // 1時間スロット (例: "09:00-10:00") -> 最初の30分ブロック ("09:00-09:30")
+      const sH = startH.toString().padStart(2, '0');
+      return `${sH}:00-${sH}:30`;
+    }
+    const sH = startH.toString().padStart(2, '0');
+    const sM = startM < 30 ? "00" : "30";
+    const eM = sM === "00" ? "30" : "00";
+    const eH = (sM === "00" ? startH : startH + 1).toString().padStart(2, '0');
+    return `${sH}:${sM}-${eH}:${eM}`;
+  } else {
+    // interval === 60
+    // その時間帯の1時間枠 (例: "10:30-11:00" -> "10:00-11:00")
+    const sH = startH.toString().padStart(2, '0');
+    const eH = (startH + 1).toString().padStart(2, '0');
+    return `${sH}:00-${eH}:00`;
+  }
+}
+
 // ------------------------------------------------------------------
 // CONFIGURATION (ユーザー設定)
 // ------------------------------------------------------------------
@@ -99,8 +136,8 @@ const MISSION_CARD_LAYOUT = "w-55 ml-0";
 
 
 // 時間枠（左右のスペース）の横幅を設定します。
-// Options: w-16 (64px), w-20 (80px), w-24 (96px), w-32 (128px)
-const TIME_SLOT_WIDTH = "w-20";
+// Options: w-16 (64px), w-20 (80px), w-22 (88px), w-24 (96px), w-32 (128px)
+const TIME_SLOT_WIDTH = "w-22 sm:w-24";
 
 // ------------------------------------------------------------------
 // HELPERS
@@ -234,6 +271,7 @@ function DayColumn({
           parentRef={columnRef as React.RefObject<HTMLDivElement>}
           templates={templates}
           onUnlink={handleUnlink}
+          timelineInterval={timeSlots.length <= 18 ? 60 : 30}
         />
       </div>
 
@@ -426,19 +464,20 @@ function DayColumn({
       </div>
 
       {/* Sub-column 2: Timeline Column */}
-      <div className={`flex flex-col gap-1 shrink-0 ${TIME_SLOT_WIDTH} z-10`}>
-        <div className="text-[10px] font-bold text-muted-foreground/60 mb-2 px-1 select-none text-center">
+      <div className={`flex flex-col gap-2 shrink-0 ${TIME_SLOT_WIDTH} z-10`}>
+        <div className="text-[10px] font-bold text-muted-foreground/70 mb-2 px-1 select-none text-center">
           TIMELINE
         </div>
         {timeSlots.map(slot => {
+          const currentInterval: 30 | 60 = timeSlots.length <= 18 ? 60 : 30;
           const isUsed = quests.some(q => {
             if (!q.plannedTimeSlot) return false;
             try {
               const parsed = JSON.parse(q.plannedTimeSlot);
-              if (Array.isArray(parsed)) return parsed.includes(slot.id);
-              return parsed === slot.id;
+              const list = Array.isArray(parsed) ? parsed : [parsed];
+              return list.some(s => s === slot.id || normalizeSlotForInterval(s, currentInterval) === slot.id);
             } catch {
-              return q.plannedTimeSlot === slot.id;
+              return q.plannedTimeSlot === slot.id || normalizeSlotForInterval(q.plannedTimeSlot, currentInterval) === slot.id;
             }
           });
 
@@ -447,9 +486,9 @@ function DayColumn({
               key={slot.id}
               data-slot-id={slot.id}
               data-slot-date={dateStr}
-              className="rounded-md border bg-card/60 p-0.5 min-h-[22px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative"
+              className="rounded-md border border-border/80 bg-card/80 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
             >
-              <div className="text-[8px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">
+              <div className="text-[8.5px] sm:text-[9.5px] font-black tracking-tight text-foreground/90 dark:text-stone-100 group-hover:text-accent transition-colors select-none pointer-events-none z-10 drop-shadow-xs">
                 {slot.label}
               </div>
               {!isUsed && (
@@ -457,19 +496,19 @@ function DayColumn({
                   {isJobModeActive && isJobSlot(slot.label) ? (
                     <>
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-50 -rotate-12 select-none" />
+                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-25 -rotate-12 select-none" />
                       </div>
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-30 -rotate-12 select-none" />
+                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-15 -rotate-12 select-none" />
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
+                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-25 -rotate-12 select-none" />
                       </div>
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
+                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-15 -rotate-12 select-none" />
                       </div>
                     </>
                   )}
@@ -1454,7 +1493,19 @@ function ProjectTemplateItem({ template, onReceive }: { template: any, onReceive
   );
 }
 
-function ConnectionLines({ quests, parentRef, templates, onUnlink }: { quests: any[], parentRef: React.RefObject<HTMLDivElement>, templates: any[], onUnlink: (questId: number, slotId: string) => void }) {
+function ConnectionLines({
+  quests,
+  parentRef,
+  templates,
+  onUnlink,
+  timelineInterval = 30
+}: {
+  quests: any[];
+  parentRef: React.RefObject<HTMLDivElement>;
+  templates: any[];
+  onUnlink: (questId: number, slotId: string) => void;
+  timelineInterval?: 30 | 60;
+}) {
   const [paths, setPaths] = useState<{ id: string, questId: number, slotId: string, d: string, color: string, x1: number, y1: number, x2: number, y2: number }[]>([]);
 
   const getColor = (q: any) => {
@@ -1481,7 +1532,8 @@ function ConnectionLines({ quests, parentRef, templates, onUnlink }: { quests: a
 
       slots.forEach(slotId => {
         const sourceEl = parentRef.current?.querySelector(`#source-${q.id}`) || document.getElementById(`source-${q.id}`);
-        const targetEl = parentRef.current?.querySelector(`[data-slot-id="${slotId}"]`);
+        const normalizedSlotId = normalizeSlotForInterval(slotId, timelineInterval);
+        const targetEl = parentRef.current?.querySelector(`[data-slot-id="${normalizedSlotId}"]`) || parentRef.current?.querySelector(`[data-slot-id="${slotId}"]`);
         if (sourceEl && targetEl) {
           const sourceRect = sourceEl.getBoundingClientRect();
           const targetRect = targetEl.getBoundingClientRect();
@@ -1519,7 +1571,7 @@ function ConnectionLines({ quests, parentRef, templates, onUnlink }: { quests: a
       window.removeEventListener("scroll", updatePaths, true);
       clearInterval(interval);
     };
-  }, [quests, templates]);
+  }, [quests, templates, timelineInterval]);
 
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
@@ -2344,13 +2396,15 @@ export default function Home() {
                 toast.success(`${format(newDate, "M/d (E)")} ${slotId} に配置しました`);
                 refreshAll();
               } else {
-                // Link on the same day
-                if (!currentSlots.includes(slotId)) {
-                  const newSlots = [...currentSlots, slotId];
-                  await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
-                  toast.success(`Planned for ${slotId}`);
-                  refreshAll();
-                }
+                const filtered = currentSlots.filter(s =>
+                  s !== slotId &&
+                  normalizeSlotForInterval(s, timelineInterval) !== slotId &&
+                  normalizeSlotForInterval(slotId, timelineInterval === 60 ? 30 : 60) !== s
+                );
+                const newSlots = [...filtered, slotId];
+                await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
+                toast.success(`Planned for ${slotId}`);
+                refreshAll();
               }
             } catch (err) {
               toast.error("Failed to plan");
@@ -2441,7 +2495,11 @@ export default function Home() {
       } catch {
         if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
       }
-      const newSlots = currentSlots.filter(s => s !== slotId);
+      const newSlots = currentSlots.filter(s =>
+        s !== slotId &&
+        normalizeSlotForInterval(s, timelineInterval) !== slotId &&
+        normalizeSlotForInterval(slotId, timelineInterval === 60 ? 30 : 60) !== s
+      );
       const val = newSlots.length === 0 ? null : JSON.stringify(newSlots);
       await updateQuest.mutateAsync({ questId, plannedTimeSlot: val });
       toast.success("Link removed");
@@ -3161,8 +3219,14 @@ export default function Home() {
               {planningViewMode === 'today' ? (
                 /* TODAY VIEW (Original Layout, but dynamic slots) */
                 <div className="relative">
-                  <div ref={containerRef} className="flex justify-between gap-1 sm:gap-4 items-start relative min-h-[500px]">
-                    <ConnectionLines quests={todayQuests} parentRef={containerRef as React.RefObject<HTMLDivElement>} templates={templates || []} onUnlink={handleUnlink} />
+                  <div ref={containerRef} className="flex justify-start gap-4 sm:gap-8 md:gap-12 items-start relative min-h-[500px]">
+                    <ConnectionLines
+                      quests={todayQuests}
+                      parentRef={containerRef as React.RefObject<HTMLDivElement>}
+                      templates={templates || []}
+                      onUnlink={handleUnlink}
+                      timelineInterval={timelineInterval}
+                    />
 
                     <div
                       className="flex flex-col gap-1.5 sm:gap-3 rounded-lg sm:rounded-xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150"
@@ -3226,41 +3290,48 @@ export default function Home() {
                     </div>
 
                     <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
-                      <div className="flex flex-col gap-1 w-full pb-10">
-                        <div className="text-[10px] font-bold text-muted-foreground mb-1 px-1">Log</div>
+                      <div className="flex flex-col gap-2 w-full pb-10">
+                        <div className="text-[10px] font-bold text-muted-foreground/70 mb-1 px-1">Log</div>
                         {timeSlots.map(slot => {
                           const isUsed = todayQuests.some(q => {
                             if (!q.plannedTimeSlot) return false;
                             try {
                               const parsed = JSON.parse(q.plannedTimeSlot);
-                              if (Array.isArray(parsed)) return parsed.includes(slot.id);
-                              return parsed === slot.id;
+                              const list = Array.isArray(parsed) ? parsed : [parsed];
+                              return list.some(s => s === slot.id || normalizeSlotForInterval(s, timelineInterval) === slot.id);
                             } catch {
-                              return q.plannedTimeSlot === slot.id;
+                              return q.plannedTimeSlot === slot.id || normalizeSlotForInterval(q.plannedTimeSlot, timelineInterval) === slot.id;
                             }
                           });
 
                           return (
-                            <div key={slot.id} data-slot-id={slot.id} data-slot-date={format(targetDate, "yyyy-MM-dd")} className="rounded-md border bg-card/60 p-0.5 min-h-[24px] flex items-center justify-center transition-all hover:bg-accent/5 hover:border-accent/50 group relative">
-                              <div className="text-[9px] font-bold text-muted-foreground/30 group-hover:text-accent transition-colors select-none pointer-events-none z-10">{slot.label}</div>
+                            <div
+                              key={slot.id}
+                              data-slot-id={slot.id}
+                              data-slot-date={format(targetDate, "yyyy-MM-dd")}
+                              className="rounded-md border border-border/80 bg-card/80 p-0.5 min-h-[26px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
+                            >
+                              <div className="text-[9.5px] sm:text-[10.5px] font-black tracking-tight text-foreground/90 dark:text-stone-100 group-hover:text-accent transition-colors select-none pointer-events-none z-10 drop-shadow-xs">
+                                {slot.label}
+                              </div>
                               {!isUsed && (
                                 <>
                                   {isJobModeActive && isJobSlot(slot.label) ? (
                                     <>
                                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-50 -rotate-12 select-none" />
+                                        <img src="/job_stamp.png" alt="job" className="w-16 opacity-25 -rotate-12 select-none" />
                                       </div>
                                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-30 -rotate-12 select-none" />
+                                        <img src="/job_stamp.png" alt="job" className="w-12 opacity-15 -rotate-12 select-none" />
                                       </div>
                                     </>
                                   ) : (
                                     <>
                                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-0">
-                                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-50 -rotate-12 select-none" />
+                                        <img src="/free_stamp.png" alt="free" className="w-16 opacity-25 -rotate-12 select-none" />
                                       </div>
                                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-30 -rotate-12 select-none" />
+                                        <img src="/free_stamp.png" alt="free" className="w-12 opacity-15 -rotate-12 select-none" />
                                       </div>
                                     </>
                                   )}
