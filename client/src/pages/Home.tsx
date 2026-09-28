@@ -499,20 +499,20 @@ function DayColumn({
               key={slot.id}
               data-slot-id={slot.id}
               data-slot-date={dateStr}
-              className="rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
+              className="rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden"
             >
-              <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-neutral-950 tracking-tight select-none pointer-events-none bg-white/90 px-1.5 py-0.5 rounded border border-neutral-200/60 shadow-2xs">
+              <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
                 {slot.label}
               </span>
               {!isUsed && (
                 <>
                   {isJobModeActive && isJobSlot(slot.label) ? (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 group-hover:opacity-40 transition-opacity z-0">
-                      <img src="/job_stamp.png" alt="job" className="w-14 -rotate-12 select-none" />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
+                      <img src="/job_stamp.png" alt="job" className="w-16 sm:w-20 -rotate-12 select-none" />
                     </div>
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 group-hover:opacity-40 transition-opacity z-0">
-                      <img src="/free_stamp.png" alt="free" className="w-14 -rotate-12 select-none" />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
+                      <img src="/free_stamp.png" alt="free" className="w-16 sm:w-20 -rotate-12 select-none" />
                     </div>
                   )}
                 </>
@@ -3473,20 +3473,20 @@ export default function Home() {
                               key={slot.id}
                               data-slot-id={slot.id}
                               data-slot-date={format(targetDate, "yyyy-MM-dd")}
-                              className="rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
+                              className="rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden"
                             >
-                              <span className="z-10 font-mono text-[11.5px] sm:text-[12.5px] font-black text-neutral-950 tracking-tight select-none pointer-events-none bg-white/90 px-2 py-0.5 rounded border border-neutral-200/60 shadow-2xs">
+                              <span className="z-10 font-mono text-[11.5px] sm:text-[12.5px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
                                 {slot.label}
                               </span>
                               {!isUsed && (
                                 <>
                                   {isJobModeActive && isJobSlot(slot.label) ? (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 group-hover:opacity-40 transition-opacity z-0">
-                                      <img src="/job_stamp.png" alt="job" className="w-14 -rotate-12 select-none" />
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
+                                      <img src="/job_stamp.png" alt="job" className="w-16 sm:w-20 -rotate-12 select-none" />
                                     </div>
                                   ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 group-hover:opacity-40 transition-opacity z-0">
-                                      <img src="/free_stamp.png" alt="free" className="w-14 -rotate-12 select-none" />
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
+                                      <img src="/free_stamp.png" alt="free" className="w-16 sm:w-20 -rotate-12 select-none" />
                                     </div>
                                   )}
                                 </>
