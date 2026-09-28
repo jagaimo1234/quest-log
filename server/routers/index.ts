@@ -341,6 +341,7 @@ export const appRouter = router({
         status: z.enum(["unreceived", "accepted"]).optional(),
         targetCount: z.number().optional(),
         isAdhoc: z.boolean().optional(),
+        isMoai: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return createQuest(ctx.user!.id, input);
@@ -538,6 +539,7 @@ export const appRouter = router({
         plannedTimeSlot: z.string().optional().nullable(),
         note: z.string().optional().nullable(),
         isAdhoc: z.boolean().optional(),
+        isMoai: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return updateQuest(input.questId, ctx.user!.id, input);
@@ -675,6 +677,7 @@ export const appRouter = router({
         endDate: z.date().optional().nullable(),
         projectId: z.number().optional().nullable(),
         scheduledHour: z.number().min(0).max(23).nullable().optional(),
+        isMoai: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return createQuestTemplate(ctx.user!.id, input);
@@ -719,6 +722,7 @@ export const appRouter = router({
         endDate: z.date().optional().nullable(),
         scheduledHour: z.number().min(0).max(23).nullable().optional(),
         isActive: z.boolean().optional(),
+        isMoai: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return updateQuestTemplate(input.templateId, ctx.user!.id, input);

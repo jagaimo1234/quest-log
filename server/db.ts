@@ -95,6 +95,16 @@ export async function ensureQuestColumns() {
   } catch (err) {
     // Column might already exist
   }
+  try {
+    await _client.execute(`ALTER TABLE quests ADD COLUMN isMoai INTEGER DEFAULT 0;`);
+  } catch (err) {
+    // Column might already exist
+  }
+  try {
+    await _client.execute(`ALTER TABLE quest_templates ADD COLUMN isMoai INTEGER DEFAULT 0;`);
+  } catch (err) {
+    // Column might already exist
+  }
   _questColumnsEnsured = true;
 }
 
@@ -354,6 +364,7 @@ export async function createQuest(
     targetCount?: number;
     plannedTimeSlot?: string | null;
     isAdhoc?: boolean | number;
+    isMoai?: boolean | number;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -385,6 +396,7 @@ export async function createQuest(
     currentCount: 0,
     plannedTimeSlot: input.plannedTimeSlot || null,
     isAdhoc: input.isAdhoc ? 1 : 0,
+    isMoai: input.isMoai ? 1 : 0,
   };
 
   const result = await db.insert(quests).values(values).returning();
@@ -589,6 +601,7 @@ export async function updateQuest(
     plannedTimeSlot?: string | null;
     note?: string | null;
     isAdhoc?: boolean | number;
+    isMoai?: boolean | number;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -607,6 +620,7 @@ export async function updateQuest(
   if (input.deadline !== undefined) updateData.deadline = input.deadline;
   if (input.note !== undefined) updateData.note = input.note;
   if (input.isAdhoc !== undefined) updateData.isAdhoc = input.isAdhoc ? 1 : 0;
+  if (input.isMoai !== undefined) updateData.isMoai = input.isMoai ? 1 : 0;
 
   await db.update(quests)
     .set(updateData)
@@ -649,6 +663,7 @@ export async function createQuestTemplate(
     startDate?: Date | null;
     endDate?: Date | null;
     projectId?: number | null;
+    isMoai?: boolean | number;
   }
 ): Promise<QuestTemplate> {
   const db = await getDb();
@@ -669,6 +684,7 @@ export async function createQuestTemplate(
     endDate: input.endDate || null,
     isActive: true,
     projectId: input.projectId || null,
+    isMoai: input.isMoai ? 1 : 0,
   };
 
   const result = await db.insert(questTemplates).values(values).returning();
@@ -761,6 +777,7 @@ export async function updateQuestTemplate(
     endDate?: Date | null;
     scheduledHour?: number | null;
     isActive?: boolean;
+    isMoai?: boolean | number;
   }
 ): Promise<QuestTemplate> {
   const db = await getDb();
@@ -783,6 +800,7 @@ export async function updateQuestTemplate(
   if (input.endDate !== undefined) updateData.endDate = input.endDate;
   if (input.scheduledHour !== undefined) updateData.scheduledHour = input.scheduledHour;
   if (input.isActive !== undefined) updateData.isActive = input.isActive;
+  if (input.isMoai !== undefined) updateData.isMoai = input.isMoai ? 1 : 0;
 
   await db.update(questTemplates)
     .set(updateData)

@@ -81,6 +81,9 @@ export const quests = sqliteTable("quests", {
   // 隙間時間フラグ（右インデント表示用: 0=通常/本予定, 1=隙間/突発）
   isAdhoc: integer("isAdhoc").default(0).notNull(),
 
+  // MOAI活動フラグ（0=通常, 1=MOAI活動）
+  isMoai: integer("isMoai").default(0).notNull(),
+
   // タイムスタンプ
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
@@ -135,6 +138,9 @@ export const questTemplates = sqliteTable("quest_templates", {
 
   // 表示順
   displayOrder: integer("displayOrder").default(0).notNull(),
+
+  // MOAI活動フラグ（0=通常, 1=MOAI活動）
+  isMoai: integer("isMoai").default(0).notNull(),
 
   // 自動スケジュール時刻 (0-23, null=未設定) - Daily専用
   scheduledHour: integer("scheduledHour"),

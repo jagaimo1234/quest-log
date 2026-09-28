@@ -7,14 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown, Clock, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown, Clock, ArrowLeftToLine, ArrowRightToLine, Check } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO, isWithinInterval } from "date-fns";
 import { BonfireDiary } from "@/components/BonfireDiary";
 import { ImageAttachmentArea, ImageAttachmentAreaRef } from "@/components/ImageAttachmentArea";
 import { RichDocEditor } from "@/components/RichDocEditor";
 import { ActiveMissionMoaiPanel } from "@/components/ActiveMissionMoaiPanel";
+import { MoaiDashboard } from "@/components/MoaiDashboard";
 
 const QUEST_TYPE_LABELS: Record<string, string> = {
   Daily: "D",
@@ -124,6 +125,18 @@ export function normalizeSlotForInterval(slot: string, interval: 30 | 60): strin
     const eH = (startH + 1).toString().padStart(2, '0');
     return `${sH}:00-${eH}:00`;
   }
+}
+
+/**
+ * MOAI活動クエストかどうかを判定（フラグ、案件名、ミッション名から総合判定）
+ */
+export function isMoaiQuest(q: any): boolean {
+  if (!q) return false;
+  return (
+    !!q.isMoai ||
+    (typeof q.projectName === 'string' && (q.projectName.toLowerCase().includes('moai') || q.projectName.includes('モアイ'))) ||
+    (typeof q.questName === 'string' && (q.questName.toLowerCase().includes('moai') || q.questName.includes('モアイ')))
+  );
 }
 
 // ------------------------------------------------------------------
@@ -517,19 +530,28 @@ function QuestCreateDialog({
   planningDayOffset = 0,
   defaultDate,
   defaultType = "FreeDirect",
+  defaultIsMoai = false,
+  isOpen,
+  onOpenChange,
   trigger
 }: {
   onCreated: () => void;
   planningDayOffset?: number;
   defaultDate?: Date;
   defaultType?: "FreeDirect" | "Free" | "Relax";
+  defaultIsMoai?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
   trigger?: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isOpen !== undefined ? isOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
   const [questType, setQuestType] = useState<string>(defaultType);
   const [startDateVal, setStartDateVal] = useState("");
   const [deadlineVal, setDeadlineVal] = useState("");
   const [targetCountVal, setTargetCountVal] = useState("1");
+  const [isMoaiVal, setIsMoaiVal] = useState(defaultIsMoai);
   const createQuest = trpc.quest.create.useMutation();
   const createTemplate = trpc.template.create.useMutation();
 
@@ -537,6 +559,7 @@ function QuestCreateDialog({
   useEffect(() => {
     if (open) {
       setQuestType(defaultType);
+      setIsMoaiVal(defaultIsMoai);
       if (defaultDate) {
         setStartDateVal(format(defaultDate, "yyyy-MM-dd"));
       } else if (planningDayOffset > 0) {
@@ -549,7 +572,7 @@ function QuestCreateDialog({
       setDeadlineVal("");
       setTargetCountVal("1");
     }
-  }, [open, planningDayOffset, defaultDate, defaultType]);
+  }, [open, planningDayOffset, defaultDate, defaultType, defaultIsMoai]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -560,31 +583,37 @@ function QuestCreateDialog({
     if (type === "Relax") {
       await createTemplate.mutateAsync({
         questName: name,
+        projectName: isMoaiVal ? "MOAI活動" : undefined,
         questType: "Relax",
         difficulty: "1",
         frequency: 1,
+        isMoai: isMoaiVal,
       });
       toast.success("Created Relax Mission");
     } else if (type === "Free") {
       // Free (Pool only)
       await createTemplate.mutateAsync({
         questName: name,
+        projectName: isMoaiVal ? "MOAI活動" : undefined,
         questType: "Free",
         difficulty: (formData.get("difficulty") as any) || "1",
         startDate: startDateVal ? parseLocalDate(startDateVal) : undefined,
         endDate: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
         frequency: parseInt(targetCountVal) || 1,
+        isMoai: isMoaiVal,
       });
       toast.success("Created One-off Mission (Pool)");
     } else if (type === "FreeDirect") {
       // 1. Create Free Template (so it appears in ONE-OFF shelf)
       const template = await createTemplate.mutateAsync({
         questName: name,
+        projectName: isMoaiVal ? "MOAI活動" : undefined,
         questType: "Free",
         difficulty: (formData.get("difficulty") as any) || "1",
         startDate: startDateVal ? parseLocalDate(startDateVal) : (defaultDate || new Date()),
         endDate: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
         frequency: parseInt(targetCountVal) || 1,
+        isMoai: isMoaiVal,
       });
 
       // 2. Determine target start date for instant plan placement
@@ -607,6 +636,7 @@ function QuestCreateDialog({
       // 3. Immediately instantiate into Planning
       await createQuest.mutateAsync({
         questName: name,
+        projectName: isMoaiVal ? "MOAI活動" : undefined,
         questType: "Free" as any,
         difficulty: (formData.get("difficulty") as any) || "1",
         templateId: template.id,
@@ -615,9 +645,10 @@ function QuestCreateDialog({
         deadline: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
         autoDeadline: false,
         targetCount: 1,
+        isMoai: isMoaiVal,
       } as any);
 
-      toast.success("Created & Added to Plan!");
+      toast.success(isMoaiVal ? "🗿 MOAI活動ミッションを作成しました！" : "Created & Added to Plan!");
     } else {
       const status = "unreceived";
       let startDate: Date | undefined;
@@ -633,6 +664,7 @@ function QuestCreateDialog({
       }
       await createQuest.mutateAsync({
         questName: name,
+        projectName: isMoaiVal ? "MOAI活動" : undefined,
         questType: type as any,
         difficulty: formData.get("difficulty") as any,
         status: status,
@@ -640,6 +672,7 @@ function QuestCreateDialog({
         deadline: deadlineVal ? parseLocalDate(deadlineVal) : undefined,
         autoDeadline: false,
         targetCount: parseInt(targetCountVal) || 1,
+        isMoai: isMoaiVal,
       } as any);
     }
     setOpen(false);
@@ -683,6 +716,33 @@ function QuestCreateDialog({
               </div>
             </div>
           )}
+
+          {/* MOAI活動タグのトグル */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setIsMoaiVal(!isMoaiVal)}
+              className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                isMoaiVal
+                  ? 'bg-amber-500/15 border-amber-500 text-amber-900 dark:text-amber-100 ring-2 ring-amber-500/30 font-black shadow-xs'
+                  : 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">🗿</span>
+                <div className="text-left">
+                  <div className="leading-tight">MOAI活動タグをつける</div>
+                  <div className="text-[10px] opacity-75 font-normal">MOAI活動として記録・振り返り対象にします</div>
+                </div>
+              </div>
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                isMoaiVal ? 'bg-amber-500 border-amber-600 text-white' : 'border-muted-foreground/30'
+              }`}>
+                {isMoaiVal && <Check className="w-3 h-3 stroke-[3]" />}
+              </div>
+            </button>
+          </div>
+
           <input type="hidden" name="difficulty" value="1" />
           <Button type="submit" className="w-full" disabled={createQuest.isPending || createTemplate.isPending}>
             {(createQuest.isPending || createTemplate.isPending) ? "Creating..." : "Create"}
@@ -709,6 +769,7 @@ function TodayItem({
   isAdhocEffective?: boolean
 }) {
   const isAdhoc = isAdhocEffective !== undefined ? isAdhocEffective : !!quest.isAdhoc;
+  const isMoai = isMoaiQuest(quest);
   const updateStatus = trpc.quest.updateStatus.useMutation();
   const deleteQuest = trpc.quest.delete.useMutation();
   const incrementCount = trpc.quest.incrementCount.useMutation();
@@ -986,6 +1047,11 @@ function TodayItem({
           <span className="opacity-80 uppercase tracking-wider font-semibold">
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
+          {isMoai && (
+            <span className="text-amber-900 dark:text-amber-100 font-black bg-amber-500/25 border border-amber-500/40 px-1 py-0.2 rounded text-[8px] sm:text-[8.5px] select-none flex items-center gap-0.5 shadow-2xs">
+              🗿 MOAI
+            </span>
+          )}
           {isAdhoc && (
             <span className="text-amber-700 dark:text-amber-300 font-bold bg-amber-500/15 border border-amber-500/25 px-1 py-0.2 rounded text-[8px] sm:text-[8.5px] select-none">
               隙間
@@ -1165,6 +1231,34 @@ function TodayItem({
                 <>
                   <ArrowRightToLine className="w-5 h-5 mr-3 text-amber-500" />
                   隙間時間に設定（1段下げる）
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={async () => {
+                const nextMoai = !isMoai;
+                await updateQuest.mutateAsync({
+                  questId: quest.id,
+                  isMoai: nextMoai,
+                  projectName: nextMoai ? (quest.projectName || "MOAI活動") : (quest.projectName === "MOAI活動" ? null : quest.projectName)
+                });
+                setIsMenuOpen(false);
+                toast.success(nextMoai ? "🗿 MOAI活動タグを設定しました" : "MOAI活動タグを解除しました");
+                onStatusChange();
+              }}
+              className="w-full justify-start h-14 text-sm font-bold text-foreground border-stone-200 dark:border-stone-800"
+            >
+              {isMoai ? (
+                <>
+                  <span className="text-xl mr-3">✖️</span>
+                  MOAI活動タグを解除する
+                </>
+              ) : (
+                <>
+                  <span className="text-xl mr-3">🗿</span>
+                  MOAI活動タグを設定する
                 </>
               )}
             </Button>
@@ -2084,10 +2178,14 @@ export default function Home() {
     return startOfWeek(now, { weekStartsOn: 1 });
   });
 
+  const [isMoaiBoardFilter, setIsMoaiBoardFilter] = useState(false);
+  const [isMoaiCreateOpen, setIsMoaiCreateOpen] = useState(false);
+
   const getQuestsForDate = React.useCallback((date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
 
     const filtered = activeQuests?.filter(q => {
+      if (isMoaiBoardFilter && !isMoaiQuest(q)) return false;
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
       
       const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
@@ -2113,7 +2211,7 @@ export default function Home() {
     }
 
     return [...filtered].sort(compareQuestsFallback);
-  }, [activeQuests, dayOrders, compareQuestsFallback]);
+  }, [activeQuests, dayOrders, compareQuestsFallback, isMoaiBoardFilter]);
 
   const todayQuests = React.useMemo(() => {
     const targetDate = new Date();
@@ -2122,19 +2220,27 @@ export default function Home() {
   }, [getQuestsForDate, planningDayOffset]);
 
   const activeRunningQuest = React.useMemo(() => {
-    return todayQuests.find((q: any) => q.status === "challenging" || q.status === "almost") || null;
-  }, [todayQuests]);
+    return activeQuests?.find((q: any) => {
+      if (q.status !== "challenging" && q.status !== "almost") return false;
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + planningDayOffset);
+      const dateStr = format(targetDate, "yyyy-MM-dd");
+      const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
+      if (!qDate) return false;
+      return format(qDate, "yyyy-MM-dd") === dateStr;
+    }) || null;
+  }, [activeQuests, planningDayOffset]);
 
-  // Slide transition sub-view: 'planning' (TODAY PLANNING) vs 'focus' (脳みその画面)
-  const [todaySubView, setTodaySubView] = useState<'planning' | 'focus'>(() => {
+  // Slide transition sub-view: 'planning' (TODAY PLANNING) vs 'focus' (脳みその画面) vs 'moai' (MOAI活動ログ)
+  const [todaySubView, setTodaySubView] = useState<'planning' | 'focus' | 'moai'>(() => {
     try {
       const saved = localStorage.getItem('today_sub_view');
-      if (saved === 'focus' || saved === 'planning') return saved;
+      if (saved === 'focus' || saved === 'planning' || saved === 'moai') return saved;
     } catch {}
     return 'planning';
   });
 
-  const handleSubViewChange = (mode: 'planning' | 'focus') => {
+  const handleSubViewChange = (mode: 'planning' | 'focus' | 'moai') => {
     setTodaySubView(mode);
     try { localStorage.setItem('today_sub_view', mode); } catch {}
     if (mode === 'planning') {
@@ -2143,6 +2249,36 @@ export default function Home() {
       }, 550);
     }
   };
+
+  const moaiWeekCount = React.useMemo(() => {
+    const now = new Date();
+    const wStart = startOfWeek(now, { weekStartsOn: 1 });
+    const wEnd = endOfWeek(now, { weekStartsOn: 1 });
+    let count = 0;
+    const counted = new Set<string>();
+
+    (activeQuests || []).forEach(q => {
+      if (!isMoaiQuest(q)) return;
+      const d = q.clearedAt ? new Date(q.clearedAt) : (q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null));
+      if (d && isWithinInterval(d, { start: wStart, end: wEnd })) {
+        counted.add(`quest-${q.id}`);
+        count++;
+      }
+    });
+
+    (history || []).forEach((h: any) => {
+      if (!isMoaiQuest(h)) return;
+      const key = h.questId ? `quest-${h.questId}` : `hist-${h.id}`;
+      if (counted.has(key)) return;
+      const d = h.clearedAt ? new Date(h.clearedAt) : (h.recordedDate ? new Date(h.recordedDate) : (h.createdAt ? new Date(h.createdAt) : null));
+      if (d && isWithinInterval(d, { start: wStart, end: wEnd })) {
+        counted.add(key);
+        count++;
+      }
+    });
+
+    return count;
+  }, [activeQuests, history]);
 
   const oneOffTemplates = React.useMemo(() => {
     return (templates || []).filter(t => {
@@ -2986,9 +3122,9 @@ export default function Home() {
 
           <TabsContent value="today" className="space-y-6 animate-fade-in">
 
-            {/* SLIDE NAVIGATION BAR: [ 📋 今日の計画 (TODAY PLANNING) | 🗿 集中モード (脳みその画面) ] */}
+            {/* SLIDE NAVIGATION BAR: [ 📋 今日の計画 (TODAY PLANNING) | 🗿 集中モード (脳みその画面) | 🗿 MOAI活動ログ ] */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-stone-100/80 dark:bg-stone-900/80 p-1.5 sm:p-2 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-2xs">
-              <div className="flex items-center gap-1.5 p-1 bg-white/70 dark:bg-stone-800/70 rounded-xl border border-stone-200/50 dark:border-stone-700/50 shadow-2xs">
+              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white/70 dark:bg-stone-800/70 rounded-xl border border-stone-200/50 dark:border-stone-700/50 shadow-2xs">
                 <button
                   type="button"
                   onClick={() => handleSubViewChange('planning')}
@@ -3019,13 +3155,28 @@ export default function Home() {
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => handleSubViewChange('moai')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    todaySubView === 'moai'
+                      ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-950 shadow-xs font-black'
+                      : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
+                  }`}
+                >
+                  <span>🗿</span>
+                  <span>MOAI活動ログ</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-200 font-mono font-bold">
+                    今週 {moaiWeekCount}
+                  </span>
+                </button>
               </div>
 
               {/* Quick banner if a quest is RUNNING */}
               {activeRunningQuest && (
                 <button
                   type="button"
-                  onClick={() => handleSubViewChange(todaySubView === 'planning' ? 'focus' : 'planning')}
+                  onClick={() => handleSubViewChange(todaySubView === 'focus' ? 'planning' : 'focus')}
                   className="flex items-center justify-between sm:justify-end gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center gap-1.5 truncate">
@@ -3033,7 +3184,7 @@ export default function Home() {
                     <span className="truncate max-w-[220px]">⚡ 実行中: {activeRunningQuest.questName}</span>
                   </div>
                   <span className="shrink-0 text-[11px] underline font-extrabold group-hover:translate-x-0.5 transition-transform">
-                    {todaySubView === 'planning' ? '集中画面へスライド ▶' : '◀ 計画へスライド'}
+                    {todaySubView === 'focus' ? '◀ 計画へスライド' : '集中画面へスライド ▶'}
                   </span>
                 </button>
               )}
@@ -3042,14 +3193,19 @@ export default function Home() {
             {/* SLIDING HORIZONTAL CONTAINER */}
             <div className="relative w-full overflow-hidden">
               <div
-                className="flex w-[200%] transition-transform duration-500 ease-in-out items-start"
+                className="flex w-[300%] transition-transform duration-500 ease-in-out items-start"
                 style={{
-                  transform: todaySubView === 'planning' ? 'translateX(0%)' : 'translateX(-50%)',
+                  transform:
+                    todaySubView === 'planning'
+                      ? 'translateX(0%)'
+                      : todaySubView === 'focus'
+                      ? 'translateX(-33.333333%)'
+                      : 'translateX(-66.666666%)',
                 }}
               >
                 {/* SLIDE 1: TODAY / WEEKLY PLANNING (SHELF 1) */}
                 <div
-                  className={`w-1/2 shrink-0 pr-2 transition-opacity duration-300 ${
+                  className={`w-1/3 shrink-0 pr-2 transition-opacity duration-300 ${
                     todaySubView === 'planning' ? 'opacity-100' : 'opacity-0 pointer-events-none'
                   }`}
                 >
@@ -3203,6 +3359,24 @@ export default function Home() {
                       📅 1週間表示 (7 Days)
                     </button>
                   </div>
+
+                  {/* Quick MOAI Filter Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMoaiBoardFilter(prev => !prev)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs cursor-pointer ${
+                      isMoaiBoardFilter
+                        ? 'bg-amber-500 text-stone-950 border-amber-600 font-black shadow-xs ring-2 ring-amber-500/40'
+                        : 'bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground border-stone-200/60 dark:border-stone-700/60'
+                    }`}
+                    title="MOAI活動のミッションのみ絞り込み表示します"
+                  >
+                    <span>🗿</span>
+                    <span>MOAIのみ</span>
+                    {isMoaiBoardFilter && (
+                      <span className="w-2 h-2 rounded-full bg-stone-950 dark:bg-stone-900 animate-pulse" />
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -3384,7 +3558,7 @@ export default function Home() {
 
                 {/* SLIDE 2: 脳みその画面 (MOAI FOCUS ROOM) */}
                 <div
-                  className={`w-1/2 shrink-0 pl-2 transition-opacity duration-300 ${
+                  className={`w-1/3 shrink-0 px-2 transition-opacity duration-300 ${
                     todaySubView === 'focus' ? 'opacity-100' : 'opacity-0 pointer-events-none'
                   }`}
                 >
@@ -3396,8 +3570,34 @@ export default function Home() {
                     onBackToPlanning={() => handleSubViewChange('planning')}
                   />
                 </div>
+
+                {/* SLIDE 3: 🗿 MOAI活動ログ (MOAI ACTIVITY DASHBOARD) */}
+                <div
+                  className={`w-1/3 shrink-0 pl-2 transition-opacity duration-300 ${
+                    todaySubView === 'moai' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  <MoaiDashboard
+                    activeQuests={activeQuests || []}
+                    history={history || []}
+                    templates={templates || []}
+                    onStatusChange={refreshAll}
+                    onBackToPlanning={() => handleSubViewChange('planning')}
+                    onOpenCreateDialog={() => setIsMoaiCreateOpen(true)}
+                  />
+                </div>
               </div>
             </div>
+
+            {/* Controlled creation dialog for MOAI quests */}
+            <QuestCreateDialog
+              isOpen={isMoaiCreateOpen}
+              onOpenChange={setIsMoaiCreateOpen}
+              onCreated={refreshAll}
+              planningDayOffset={planningDayOffset}
+              defaultType="FreeDirect"
+              defaultIsMoai={true}
+            />
 
             {
               dragState.active && dragState.itemId && (
