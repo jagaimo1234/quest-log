@@ -486,9 +486,9 @@ function DayColumn({
               key={slot.id}
               data-slot-id={slot.id}
               data-slot-date={dateStr}
-              className="rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[26px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
+              className="rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
             >
-              <span className="z-10 font-mono text-[10.5px] sm:text-[11.5px] font-black text-stone-900 dark:text-stone-100 group-hover:text-accent tracking-tight select-none pointer-events-none drop-shadow-xs">
+              <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-neutral-950 tracking-tight select-none pointer-events-none bg-white/90 px-1.5 py-0.5 rounded border border-neutral-200/60 shadow-2xs">
                 {slot.label}
               </span>
               {!isUsed && (
@@ -3299,9 +3299,9 @@ export default function Home() {
                               key={slot.id}
                               data-slot-id={slot.id}
                               data-slot-date={format(targetDate, "yyyy-MM-dd")}
-                              className="rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
+                              className="rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs"
                             >
-                              <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-stone-900 dark:text-stone-100 group-hover:text-accent tracking-tight select-none pointer-events-none drop-shadow-xs">
+                              <span className="z-10 font-mono text-[11.5px] sm:text-[12.5px] font-black text-neutral-950 tracking-tight select-none pointer-events-none bg-white/90 px-2 py-0.5 rounded border border-neutral-200/60 shadow-2xs">
                                 {slot.label}
                               </span>
                               {!isUsed && (
