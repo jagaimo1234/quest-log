@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,43 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  RotateCcw,
+  Volume2,
+  Bell,
+  Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ThinkingMoai, MoaiState } from "./ThinkingMoai";
+
+// Clear, pleasant chime using Web Audio API (no external file needed)
+function playTimerCompleteSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+
+    // Pleasant two-tone chime (E5 -> G#5 -> B5 major triad arpeggio)
+    const notes = [659.25, 830.61, 987.77, 1318.51];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+
+      gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.12);
+      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + idx * 0.12 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.8);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(ctx.currentTime + idx * 0.12);
+      osc.stop(ctx.currentTime + idx * 0.12 + 0.85);
+    });
+  } catch (e) {
+    // Audio might be blocked if no user interaction yet, ignore
+  }
+}
 
 interface ActiveMissionMoaiPanelProps {
   activeQuest: any | null;
@@ -134,9 +168,125 @@ export function ActiveMissionMoaiPanel({
     ? "focusing"
     : "idle";
 
+  // ------------------------------------------------------------------
+  // FOCUS TIMER STATE (集中フォーカスタイマー)
+  // ------------------------------------------------------------------
+  const TIMER_STORAGE_KEY = "quest_log_focus_timer_duration";
+  const [selectedDurationMinutes, setSelectedDurationMinutes] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(TIMER_STORAGE_KEY);
+      if (saved) return Number(saved) || 30;
+    } catch {}
+    return 30;
+  });
+
+  const [timerSecondsLeft, setTimerSecondsLeft] = useState<number>(() => selectedDurationMinutes * 60);
+  const [timerTotalSeconds, setTimerTotalSeconds] = useState<number>(() => selectedDurationMinutes * 60);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const [isCustomInputOpen, setIsCustomInputOpen] = useState<boolean>(false);
+  const [customMinutesInput, setCustomMinutesInput] = useState<string>("");
+  const activeQuestIdRef = useRef<number | null>(activeQuest?.id || null);
+
+  // Automatically start / reset timer when activeQuest changes
+  useEffect(() => {
+    if (activeQuest && activeQuest.id !== activeQuestIdRef.current) {
+      activeQuestIdRef.current = activeQuest.id;
+      // Start countdown automatically with current duration
+      const total = selectedDurationMinutes * 60;
+      setTimerTotalSeconds(total);
+      setTimerSecondsLeft(total);
+      setIsTimerRunning(true);
+    } else if (!activeQuest) {
+      activeQuestIdRef.current = null;
+      setIsTimerRunning(false);
+      const total = selectedDurationMinutes * 60;
+      setTimerTotalSeconds(total);
+      setTimerSecondsLeft(total);
+    }
+  }, [activeQuest?.id, selectedDurationMinutes]);
+
+  // Timer Tick Hook
+  useEffect(() => {
+    if (!isTimerRunning) return;
+
+    const interval = setInterval(() => {
+      setTimerSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsTimerRunning(false);
+          // Play sound and notification
+          playTimerCompleteSound();
+          if (window.navigator?.vibrate) window.navigator.vibrate([100, 80, 100]);
+          toast.success("⏳ 集中タイマーが終了しました！お疲れ様でした🍵✨", {
+            duration: 6000,
+          });
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isTimerRunning]);
+
+  // Set Preset Duration
+  const handleSelectPreset = (minutes: number) => {
+    setSelectedDurationMinutes(minutes);
+    try {
+      localStorage.setItem(TIMER_STORAGE_KEY, String(minutes));
+    } catch {}
+    const total = minutes * 60;
+    setTimerTotalSeconds(total);
+    setTimerSecondsLeft(total);
+    setIsTimerRunning(true); // Auto-start upon selecting preset
+    setIsCustomInputOpen(false);
+    toast.info(`タイマーを ${minutes} 分にセットしました ⏱️`);
+  };
+
+  // Set Custom Duration
+  const handleApplyCustomMinutes = () => {
+    const mins = parseInt(customMinutesInput, 10);
+    if (!mins || mins <= 0 || mins > 300) {
+      toast.error("1〜300分の間で入力してください");
+      return;
+    }
+    handleSelectPreset(mins);
+    setCustomMinutesInput("");
+    setIsCustomInputOpen(false);
+  };
+
+  // Add 5 minutes extension
+  const handleAddFiveMinutes = () => {
+    setTimerSecondsLeft((prev) => prev + 5 * 60);
+    setTimerTotalSeconds((prev) => Math.max(prev, timerSecondsLeft + 5 * 60));
+    setIsTimerRunning(true);
+    toast.success("+5分 延長しました ⚡");
+  };
+
+  // Reset timer
+  const handleResetTimer = () => {
+    const total = selectedDurationMinutes * 60;
+    setTimerTotalSeconds(total);
+    setTimerSecondsLeft(total);
+    setIsTimerRunning(false);
+  };
+
+  // Format time MM:SS
+  const formatTimerDisplay = (secLeft: number) => {
+    const m = Math.floor(secLeft / 60);
+    const s = secLeft % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
+  // Progress percentage (0% = finished, 100% = start)
+  const timerProgress = timerTotalSeconds > 0
+    ? Math.max(0, Math.min(100, (timerSecondsLeft / timerTotalSeconds) * 100))
+    : 0;
+
   // Actions
   const handleComplete = async () => {
     if (!activeQuest) return;
+    setIsTimerRunning(false);
     setTransientState("completed");
     if (window.navigator?.vibrate) window.navigator.vibrate([40, 60, 40]);
 
@@ -158,6 +308,7 @@ export function ActiveMissionMoaiPanel({
 
   const handlePause = async () => {
     if (!activeQuest) return;
+    setIsTimerRunning(false);
     setTransientState("resting");
     if (window.navigator?.vibrate) window.navigator.vibrate(25);
 
@@ -184,6 +335,11 @@ export function ActiveMissionMoaiPanel({
         status: "challenging",
       });
       toast.success("ミッションを開始しました！モアイの脳内にセットされました⚡");
+      // Auto-start timer
+      const total = selectedDurationMinutes * 60;
+      setTimerTotalSeconds(total);
+      setTimerSecondsLeft(total);
+      setIsTimerRunning(true);
       onStatusChange();
     } catch (e) {
       toast.error("開始に失敗しました");
@@ -376,7 +532,9 @@ export function ActiveMissionMoaiPanel({
                       : transientState === "resting"
                       ? "REST 🍵"
                       : activeQuest
-                      ? "いま、やること"
+                      ? (isTimerRunning || timerSecondsLeft > 0)
+                        ? `⏱️ ${formatTimerDisplay(timerSecondsLeft)} 集中`
+                        : "いま、やること"
                       : "待機中"
                   }
                   width={260}
@@ -423,6 +581,166 @@ export function ActiveMissionMoaiPanel({
                           )}
                         </div>
                       )}
+
+                      {/* ---------------------------------------------------- */}
+                      {/* FOCUS TIMER SECTION (優れた集中タイマーUI)            */}
+                      {/* ---------------------------------------------------- */}
+                      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-stone-50/90 to-stone-100/90 dark:from-stone-900/90 dark:to-stone-950/90 border border-stone-200/80 dark:border-stone-700/70 shadow-inner flex flex-col gap-3">
+                        {/* Timer Header & Presets */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-stone-600 dark:text-stone-300 text-xs font-black">
+                            <Timer className="w-3.5 h-3.5 text-amber-500 animate-spin-slow" />
+                            <span>集中タイマー</span>
+                          </div>
+                          
+                          {/* Presets: 15, 30, 60, Custom */}
+                          <div className="flex items-center gap-1 bg-stone-200/70 dark:bg-stone-800/80 p-0.5 rounded-xl text-[10.5px] font-bold">
+                            {[15, 30, 60].map((mins) => {
+                              const isSelected = selectedDurationMinutes === mins && !isCustomInputOpen;
+                              return (
+                                <button
+                                  key={mins}
+                                  type="button"
+                                  onClick={() => handleSelectPreset(mins)}
+                                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-amber-500 text-stone-950 font-black shadow-2xs scale-105"
+                                      : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200"
+                                  }`}
+                                  title={`${mins}分にセットして開始`}
+                                >
+                                  {mins}分
+                                </button>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              onClick={() => setIsCustomInputOpen((prev) => !prev)}
+                              className={`px-1.5 py-0.5 rounded-lg transition-all cursor-pointer ${
+                                isCustomInputOpen || ![15, 30, 60].includes(selectedDurationMinutes)
+                                  ? "bg-amber-500 text-stone-950 font-black shadow-2xs"
+                                  : "text-stone-500 hover:text-stone-800 dark:text-stone-400"
+                              }`}
+                              title="任意のタイマー分数を設定"
+                            >
+                              設定
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Inline Custom Minutes Input */}
+                        {isCustomInputOpen && (
+                          <div className="flex items-center gap-1.5 p-2 bg-white dark:bg-stone-800 rounded-xl border border-amber-500/40 shadow-xs animate-in fade-in-50 duration-200">
+                            <span className="text-[11px] font-bold text-stone-500 pl-1">分数:</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={300}
+                              placeholder="例: 25, 45"
+                              value={customMinutesInput}
+                              onChange={(e) => setCustomMinutesInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleApplyCustomMinutes();
+                                if (e.key === "Escape") setIsCustomInputOpen(false);
+                              }}
+                              className="h-6 text-xs w-20 text-center font-mono font-bold"
+                              autoFocus
+                            />
+                            <span className="text-[11px] text-stone-500 font-bold">分</span>
+                            <Button
+                              size="sm"
+                              onClick={handleApplyCustomMinutes}
+                              className="h-6 px-2 text-[10px] bg-amber-500 hover:bg-amber-600 text-stone-950 font-black rounded-lg ml-auto"
+                            >
+                              適用
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Big Digital Countdown & Controls */}
+                        <div className="flex items-center justify-between gap-3 pt-1">
+                          <div className="flex flex-col">
+                            <div className="flex items-baseline gap-1.5">
+                              <span className={`font-mono text-3xl sm:text-4xl font-black tracking-tight drop-shadow-xs transition-colors ${
+                                timerSecondsLeft === 0
+                                  ? "text-red-500 animate-bounce"
+                                  : timerSecondsLeft < 180
+                                  ? "text-rose-600 dark:text-rose-400"
+                                  : isTimerRunning
+                                  ? "text-stone-900 dark:text-stone-50"
+                                  : "text-stone-400 dark:text-stone-500"
+                              }`}>
+                                {formatTimerDisplay(timerSecondsLeft)}
+                              </span>
+                              {timerSecondsLeft === 0 && (
+                                <span className="text-xs font-black px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                                  FINISH!
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-stone-400 font-bold">
+                              {isTimerRunning ? "集中カウントダウン中 ⚡" : timerSecondsLeft === 0 ? "お疲れ様でした！" : "タイマー一時停止中"}
+                            </span>
+                          </div>
+
+                          {/* Quick Controls: Play/Pause, +5m, Reset */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Button
+                              size="sm"
+                              onClick={() => setIsTimerRunning((prev) => !prev)}
+                              className={`h-9 px-3 rounded-xl font-black text-xs gap-1 shadow-sm transition-all active:scale-95 ${
+                                isTimerRunning
+                                  ? "bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-900 dark:text-amber-200 border border-amber-300/60"
+                                  : "bg-amber-500 hover:bg-amber-600 text-stone-950 font-black"
+                              }`}
+                              title={isTimerRunning ? "一時停止" : "タイマー開始"}
+                            >
+                              {isTimerRunning ? (
+                                <>
+                                  <Pause className="w-3.5 h-3.5 fill-current" />
+                                  <span>停止</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>開始</span>
+                                </>
+                              )}
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleAddFiveMinutes}
+                              className="h-9 px-2 text-[10.5px] font-black rounded-xl border-stone-300 dark:border-stone-700 hover:bg-stone-200/60 dark:hover:bg-stone-800"
+                              title="残り時間を5分延長"
+                            >
+                              +5分
+                            </Button>
+
+                            <button
+                              type="button"
+                              onClick={handleResetTimer}
+                              className="p-2 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-200/50 dark:hover:bg-stone-800 transition-all cursor-pointer"
+                              title="タイマーをリセット"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar Gauge */}
+                        <div className="w-full bg-stone-200/80 dark:bg-stone-800 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-1000 rounded-full ${
+                              timerSecondsLeft < 180
+                                ? "bg-rose-500"
+                                : "bg-gradient-to-r from-amber-500 to-emerald-400"
+                            }`}
+                            style={{ width: `${timerProgress}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     {/* Complete & Pause Buttons */}
@@ -647,6 +965,72 @@ export function ActiveMissionMoaiPanel({
                       )}
                     </div>
                   )}
+                  {/* Focus Timer in Card Mode */}
+                  <div className="mt-3 p-3 rounded-xl bg-stone-50 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-700/60 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-stone-600 dark:text-stone-300">
+                        <Timer className="w-3.5 h-3.5 text-amber-500" />
+                        <span>タイマー:</span>
+                      </div>
+                      <span className={`font-mono text-xl font-black ${
+                        timerSecondsLeft === 0
+                          ? "text-red-500"
+                          : timerSecondsLeft < 180
+                          ? "text-rose-500"
+                          : isTimerRunning
+                          ? "text-stone-900 dark:text-stone-100"
+                          : "text-stone-400"
+                      }`}>
+                        {formatTimerDisplay(timerSecondsLeft)}
+                      </span>
+                      <div className="flex items-center gap-1 bg-stone-200/60 dark:bg-stone-800 rounded-lg p-0.5 text-[10px]">
+                        {[15, 30, 60].map((mins) => (
+                          <button
+                            key={mins}
+                            type="button"
+                            onClick={() => handleSelectPreset(mins)}
+                            className={`px-1.5 py-0.5 rounded font-bold cursor-pointer ${
+                              selectedDurationMinutes === mins
+                                ? "bg-amber-500 text-stone-950"
+                                : "text-stone-600 dark:text-stone-400"
+                            }`}
+                          >
+                            {mins}分
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        onClick={() => setIsTimerRunning((prev) => !prev)}
+                        className={`h-7 px-2.5 rounded-lg text-xs font-black ${
+                          isTimerRunning
+                            ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                            : "bg-amber-500 hover:bg-amber-600 text-stone-950"
+                        }`}
+                      >
+                        {isTimerRunning ? "停止" : "開始"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddFiveMinutes}
+                        className="h-7 px-2 text-[10px] rounded-lg"
+                      >
+                        +5分
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={handleResetTimer}
+                        className="p-1 text-stone-400 hover:text-stone-600"
+                        title="リセット"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0">
