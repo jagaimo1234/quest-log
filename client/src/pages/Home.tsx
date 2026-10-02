@@ -188,6 +188,7 @@ export interface MoaiZoneInfo {
   badgeClass: string;
   slotClass: string;
   headerBorderClass: string;
+  barColorClass: string;
   badgeText?: string;
   badgeSubText?: string;
 }
@@ -196,13 +197,14 @@ export const MOAI_WEEKEND_ZONES: Record<string, MoaiZoneInfo> = {
   morning: {
     id: "morning",
     name: "朝：準備",
-    shortName: "朝：準備 (心と環境を整える)",
+    shortName: "朝：準備",
     emoji: "🌅",
     motto: "よし！1日を始めよう！",
     actionGuidance: "心と環境を整える・起床・軽い運動・部屋掃除・予定確認",
     badgeClass: "bg-amber-500/15 text-amber-900 dark:text-amber-200 border-amber-500/30",
     slotClass: "border-l-4 border-l-amber-400/80 bg-amber-500/[0.02]",
     headerBorderClass: "border-amber-400/50 bg-amber-500/10 text-amber-900 dark:text-amber-200",
+    barColorClass: "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]",
     badgeSubText: "MP上昇中",
   },
   golden: {
@@ -215,54 +217,59 @@ export const MOAI_WEEKEND_ZONES: Record<string, MoaiZoneInfo> = {
     badgeClass: "bg-amber-400/25 text-amber-950 dark:text-amber-100 border-amber-500/50 shadow-xs",
     slotClass: "border-l-4 border-l-amber-500 bg-amber-500/[0.06] shadow-amber-500/5 ring-1 ring-amber-400/30",
     headerBorderClass: "border-amber-500/80 bg-gradient-to-r from-amber-500/20 via-yellow-400/25 to-amber-500/20 text-amber-950 dark:text-amber-100 shadow-xs",
+    barColorClass: "bg-gradient-to-b from-amber-400 via-yellow-400 to-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)] ring-1 ring-amber-300/60",
     badgeText: "高MP 勝負!",
   },
   lunch: {
     id: "lunch",
     name: "昼：休憩",
-    shortName: "昼：休憩 (しっかり食べて午後もやるぞ)",
+    shortName: "昼：休憩",
     emoji: "🍱",
     motto: "うまい…しっかり食べて午後もやるぞ",
     actionGuidance: "昼ごはん・ゆっくり休憩",
     badgeClass: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200 border-emerald-500/30",
     slotClass: "border-l-4 border-l-emerald-500/80 bg-emerald-500/[0.02]",
     headerBorderClass: "border-emerald-500/50 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200",
+    barColorClass: "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]",
     badgeSubText: "回復",
   },
   afternoon: {
     id: "afternoon",
     name: "午後前半",
-    shortName: "午後前半 (まだまだ戦える！)",
+    shortName: "午後前半",
     emoji: "⚡",
     motto: "まだまだ戦える！よし、続きやるぞ！",
     actionGuidance: "モアイの作業の続き・中MPタスク・制作・試作・イベント検討",
     badgeClass: "bg-sky-500/15 text-sky-900 dark:text-sky-200 border-sky-500/30",
     slotClass: "border-l-4 border-l-sky-500/80 bg-sky-500/[0.02]",
     headerBorderClass: "border-sky-500/50 bg-sky-500/10 text-sky-900 dark:text-sky-200",
+    barColorClass: "bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.6)]",
     badgeSubText: "中MP",
   },
   slump: {
     id: "slump",
     name: "だれやすい時間帯",
-    shortName: "だれ注意帯 (軽作業・散歩に切替)",
+    shortName: "だれ注意帯",
     emoji: "☕",
     motto: "だんだん低下…ここがだれやすい。無理せず軽作業へ！",
     actionGuidance: "頭を使わない作業に切替・整理・軽作業・SNS・散歩・コーヒー",
     badgeClass: "bg-rose-500/15 text-rose-900 dark:text-rose-200 border-rose-500/30",
     slotClass: "border-l-4 border-l-rose-400/80 bg-rose-500/[0.03]",
     headerBorderClass: "border-rose-400/60 bg-rose-500/10 text-rose-900 dark:text-rose-200",
+    barColorClass: "bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.6)]",
     badgeText: "だれ注意",
   },
   evening: {
     id: "evening",
     name: "夕方：ひと息",
-    shortName: "夕方：ひと息 (食事・リラックス)",
+    shortName: "夕方：ひと息",
     emoji: "🍳",
     motto: "よし ご飯作ってひと息つこう",
     actionGuidance: "夕食の準備・食事・休憩・リラックス・家事",
     badgeClass: "bg-orange-500/15 text-orange-900 dark:text-orange-200 border-orange-500/30",
     slotClass: "border-l-4 border-l-orange-400/80 bg-orange-500/[0.03]",
     headerBorderClass: "border-orange-400/50 bg-orange-500/10 text-orange-900 dark:text-orange-200",
+    barColorClass: "bg-orange-400 shadow-[0_0_6px_rgba(251,146,60,0.6)]",
     badgeSubText: "ひと息",
   },
   night: {
@@ -275,18 +282,20 @@ export const MOAI_WEEKEND_ZONES: Record<string, MoaiZoneInfo> = {
     badgeClass: "bg-indigo-500/15 text-indigo-900 dark:text-indigo-200 border-indigo-500/30",
     slotClass: "border-l-4 border-l-indigo-500/80 bg-indigo-500/[0.04]",
     headerBorderClass: "border-indigo-500/70 bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-indigo-500/20 text-indigo-950 dark:text-indigo-100 shadow-xs",
+    barColorClass: "bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.6)]",
     badgeText: "考えないぞ!",
   },
   midnight: {
     id: "midnight",
     name: "深夜：回復＆就寝",
-    shortName: "深夜：回復＆就寝 (スマホ終了・寝ろ)",
+    shortName: "深夜：回復＆就寝",
     emoji: "🛁",
     motto: "夜は遊び・回復の時間。それでいい。今日もよくやった…寝ろ！",
     actionGuidance: "23:00 お風呂・23:30 スマホ終了・0:00前に就寝",
     badgeClass: "bg-slate-500/20 text-slate-800 dark:text-slate-200 border-slate-500/40",
     slotClass: "border-l-4 border-l-slate-600/80 bg-slate-900/[0.04]",
     headerBorderClass: "border-slate-500/60 bg-slate-800/10 text-slate-800 dark:text-slate-200",
+    barColorClass: "bg-slate-500 shadow-[0_0_6px_rgba(100,116,139,0.6)]",
     badgeSubText: "回復",
   },
 };
@@ -755,7 +764,7 @@ function DayColumn({
       </div>
 
       {/* Sub-column 2: Timeline Column */}
-      <div className={`flex flex-col gap-2 shrink-0 ${TIME_SLOT_WIDTH} z-10`}>
+      <div className={`flex flex-col gap-2 shrink-0 ${showMoaiRhythm ? 'w-auto min-w-[140px] max-w-[260px]' : TIME_SLOT_WIDTH} z-10`}>
         <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground/70 mb-2 px-1 select-none">
           <span>TIMELINE</span>
           {showMoaiRhythm && (
@@ -785,33 +794,12 @@ function DayColumn({
           });
 
           return (
-            <React.Fragment key={slot.id}>
-              {showMoaiRhythm && isFirstSlotOfZone && (
-                <div
-                  className={`mt-2 mb-0.5 px-1.5 py-0.5 rounded text-[9px] font-black border flex items-center justify-between select-none tracking-tight shadow-2xs ${zone.headerBorderClass}`}
-                  title={zone.actionGuidance}
-                >
-                  <span className="flex items-center gap-1 truncate">
-                    <span>{zone.emoji}</span>
-                    <span className="truncate">{zone.shortName}</span>
-                  </span>
-                  {zone.badgeText ? (
-                    <span className="text-[8px] px-1 py-0.2 rounded bg-stone-900/10 dark:bg-stone-100/10 font-black shrink-0">
-                      {zone.badgeText}
-                    </span>
-                  ) : zone.badgeSubText ? (
-                    <span className="text-[7.5px] opacity-75 shrink-0 font-bold">
-                      {zone.badgeSubText}
-                    </span>
-                  ) : null}
-                </div>
-              )}
-
+            <div key={slot.id} className="flex items-center gap-1.5 w-full group/slot-row relative">
               <div
                 data-slot-id={slot.id}
                 data-slot-date={dateStr}
                 title={showMoaiRhythm ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
-                className={`rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythm ? zone.slotClass : ''}`}
+                className={`w-full rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythm ? zone.slotClass : ''}`}
               >
                 <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
                   {slot.label}
@@ -830,7 +818,35 @@ function DayColumn({
                   </>
                 )}
               </div>
-            </React.Fragment>
+
+              {showMoaiRhythm && (
+                <div
+                  className="flex items-center gap-1.5 shrink-0 select-none"
+                  title={`${zone.name}: ${zone.motto}\n${zone.actionGuidance}`}
+                >
+                  <div
+                    className={`w-1.5 h-6 rounded-full transition-all group-hover/slot-row:scale-x-125 ${zone.barColorClass}`}
+                  />
+                  {isFirstSlotOfZone && (
+                    <div
+                      className={`px-1.5 py-0.5 rounded text-[8.5px] font-black border flex items-center gap-1 whitespace-nowrap shadow-2xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
+                    >
+                      <span>{zone.emoji}</span>
+                      <span>{zone.shortName}</span>
+                      {zone.badgeText ? (
+                        <span className="text-[7.5px] px-1 py-0.1 rounded bg-stone-900/10 dark:bg-stone-100/10 font-black">
+                          {zone.badgeText}
+                        </span>
+                      ) : zone.badgeSubText ? (
+                        <span className="text-[7px] opacity-75 font-bold">
+                          {zone.badgeSubText}
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
@@ -3831,7 +3847,7 @@ export default function Home() {
                       })}
                     </div>
 
-                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
+                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${showMoaiRhythmToday ? 'w-auto min-w-[140px] max-w-[280px]' : TIME_SLOT_WIDTH}`}>
                       <div className="flex flex-col gap-2 w-full pb-10">
                         <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground/70 mb-1 px-1">
                           <span>Log</span>
@@ -3861,33 +3877,12 @@ export default function Home() {
                           });
 
                           return (
-                            <React.Fragment key={slot.id}>
-                              {showMoaiRhythmToday && isFirstSlotOfZone && (
-                                <div
-                                  className={`mt-2.5 mb-1 px-2 py-1 rounded-md text-[10.5px] font-black border flex items-center justify-between select-none tracking-tight shadow-xs transition-all ${zone.headerBorderClass}`}
-                                  title={zone.actionGuidance}
-                                >
-                                  <span className="flex items-center gap-1.5 truncate">
-                                    <span className="text-xs">{zone.emoji}</span>
-                                    <span className="truncate">{zone.shortName}</span>
-                                  </span>
-                                  {zone.badgeText ? (
-                                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500 text-stone-950 font-black shrink-0 animate-pulse shadow-2xs">
-                                      {zone.badgeText}
-                                    </span>
-                                  ) : zone.badgeSubText ? (
-                                    <span className="text-[8px] opacity-75 shrink-0 font-bold">
-                                      {zone.badgeSubText}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              )}
-
+                            <div key={slot.id} className="flex items-center gap-2 w-full group/slot-row relative">
                               <div
                                 data-slot-id={slot.id}
                                 data-slot-date={format(targetDate, "yyyy-MM-dd")}
                                 title={showMoaiRhythmToday ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
-                                className={`rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythmToday ? zone.slotClass : ''}`}
+                                className={`w-28 sm:w-32 shrink-0 rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythmToday ? zone.slotClass : ''}`}
                               >
                                 <span className="z-10 font-mono text-[11.5px] sm:text-[12.5px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
                                   {slot.label}
@@ -3906,7 +3901,35 @@ export default function Home() {
                                   </>
                                 )}
                               </div>
-                            </React.Fragment>
+
+                              {showMoaiRhythmToday && (
+                                <div
+                                  className="flex items-center gap-2 shrink-0 select-none"
+                                  title={`${zone.name}: ${zone.motto}\n${zone.actionGuidance}`}
+                                >
+                                  <div
+                                    className={`w-1.5 h-7 rounded-full transition-all group-hover/slot-row:scale-x-125 ${zone.barColorClass}`}
+                                  />
+                                  {isFirstSlotOfZone && (
+                                    <div
+                                      className={`px-2 py-0.5 rounded-md text-[9.5px] font-black border flex items-center gap-1.5 whitespace-nowrap shadow-xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
+                                    >
+                                      <span>{zone.emoji}</span>
+                                      <span>{zone.shortName}</span>
+                                      {zone.badgeText ? (
+                                        <span className="text-[8px] px-1.5 py-0.2 rounded-full bg-amber-500 text-stone-950 font-black animate-pulse shadow-2xs">
+                                          {zone.badgeText}
+                                        </span>
+                                      ) : zone.badgeSubText ? (
+                                        <span className="text-[7.5px] opacity-75 font-bold">
+                                          {zone.badgeSubText}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
                       </div>
