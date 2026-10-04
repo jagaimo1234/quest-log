@@ -490,6 +490,79 @@ export function RichDocEditor({
   const [isRefining, setIsRefining] = useState(false);
   const refineTextMutation = trpc.spark.refineText.useMutation();
 
+  const callAiDirectly = async (apiKey: string, text: string, mode: string): Promise<string> => {
+    let promptInstruction = "";
+    switch (mode) {
+      case "bullet":
+        promptInstruction = "与えられたテキストを、要点ごとに明快な箇条書き（・や番号付き）に整理してください。";
+        break;
+      case "summarize":
+        promptInstruction = "与えられたテキストの核心と重要なポイントだけを抽出し、短く簡潔に要約してください。";
+        break;
+      case "fix":
+        promptInstruction = "元の文体や内容を保ちながら、誤字脱字を修正し、日本語として自然で読みやすい文章に推敲・清書してください。";
+        break;
+      case "todo":
+        promptInstruction = "与えられた文章から、具体的なタスク・TODO・アクション項目を抽出し、チェックボックスやTODO形式の箇条書きに整理してください。";
+        break;
+      case "organize":
+      default:
+        promptInstruction = "思考の断片や殴り書きメモを、文脈と意図を保ったまま、読みやすく論理的に整理・構造化してください。必要に応じて適度な箇条書きや改行を入れて整えてください。";
+        break;
+    }
+
+    const systemPrompt = `あなたは優秀な思考整理・ライティングのアシスタントです。
+ユーザーが提供したメモや思考の断片テキストを整理します。
+
+【厳格なルール】
+1. 前置き、挨拶、確認の返事（「はい、以下のように整理しました」等）は絶対に含めないでください。
+2. 整理・推敲したテキスト本文のみを直接出力してください。
+3. 原文に含まれる固有名詞、数字、重要な感情や意図を勝手に消したり捏造したりしないでください。`;
+
+    const isGemini = !apiKey.startsWith("sk-");
+    const url = isGemini
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://api.openai.com/v1/chat/completions";
+
+    const models = isGemini
+      ? ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+      : ["gpt-4o-mini"];
+
+    for (const model of models) {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: `【指示】\n${promptInstruction}\n\n【対象テキスト】\n${text}` },
+            ],
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (typeof content === "string" && content.trim()) {
+            return content.trim();
+          }
+        }
+        if (res.status !== 404) {
+          const errText = await res.text();
+          throw new Error(`AIエラー (${res.status}): ${errText}`);
+        }
+      } catch (e: any) {
+        if (!e?.message?.includes("404")) throw e;
+      }
+    }
+    throw new Error("利用可能なモデルが見つかりませんでした");
+  };
+
   const handleAiRefine = async (mode: "organize" | "bullet" | "summarize" | "fix" | "todo" = "organize") => {
     const range = savedSelectionRangeRef.current;
     if (!range) {
@@ -516,16 +589,31 @@ export function RichDocEditor({
 
     const backupHtml = activeEl.innerHTML;
     setIsRefining(true);
-    const apiKey = localStorage.getItem("quest_log_gemini_api_key") || undefined;
+    const apiKey = localStorage.getItem("quest_log_gemini_api_key")?.trim() || undefined;
 
     try {
-      const res = await refineTextMutation.mutateAsync({
-        text: selectedText,
-        mode,
-        apiKey,
-      });
+      let refinedText = "";
 
-      if (!res.refinedText) {
+      // 1. ブラウザから直接Gemini/OpenAIを呼ぶ（最速・VercelのタイムアウトやCold Startの影響なし）
+      if (apiKey) {
+        try {
+          refinedText = await callAiDirectly(apiKey, selectedText, mode);
+        } catch (directErr) {
+          console.warn("Direct AI call failed, falling back to server:", directErr);
+        }
+      }
+
+      // 2. 直接呼び出しが未設定または失敗した場合、サーバーエンドポイントへフォールバック
+      if (!refinedText) {
+        const res = await refineTextMutation.mutateAsync({
+          text: selectedText,
+          mode,
+          apiKey,
+        });
+        refinedText = res.refinedText;
+      }
+
+      if (!refinedText) {
         toast.error("整理結果を取得できませんでした");
         return;
       }
@@ -539,7 +627,7 @@ export function RichDocEditor({
       };
 
       const template = document.createElement("template");
-      template.innerHTML = escapeAndBreak(res.refinedText);
+      template.innerHTML = escapeAndBreak(refinedText);
       const frag = template.content;
 
       range.deleteContents();
