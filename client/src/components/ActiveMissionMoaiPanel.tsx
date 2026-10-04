@@ -20,6 +20,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ThinkingMoai, MoaiState } from "./ThinkingMoai";
+import {
+  MoaiCylinderGauge,
+  MoaiAuraCanvas,
+  YogurtPotionButton,
+  getMpRhythmByHour,
+  getCurrentTimeHour,
+} from "./MoaiMpFlameGauge";
 
 // Clear, pleasant chime using Web Audio API (no external file needed)
 function playTimerCompleteSound() {
@@ -117,6 +124,55 @@ export function ActiveMissionMoaiPanel({
 
   // Mode toggle between moai and card
   const [displayMode, setDisplayMode] = useState<"moai" | "card">("moai");
+
+  // MP Energy state (CODEX flame & rhythm based on current time + potion bonuses)
+  const [baseMp] = useState<number>(() => getMpRhythmByHour(getCurrentTimeHour()));
+  const [mpBonus, setMpBonus] = useState<number>(0);
+  const [currentEnergy, setCurrentEnergy] = useState<number>(() => getMpRhythmByHour(getCurrentTimeHour()));
+  const [recoveryAge, setRecoveryAge] = useState<number>(10);
+  const [isRecovering, setIsRecovering] = useState<boolean>(false);
+
+  // Target energy clamped between 0 and 100
+  const targetEnergy = Math.min(100, Math.max(0, baseMp + mpBonus));
+
+  // Smooth exponential interpolation for energy value + recovery age ticker
+  useEffect(() => {
+    let animId: number;
+    let lastTime = performance.now();
+
+    const loop = (now: number) => {
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      setCurrentEnergy((prev) => {
+        const diff = targetEnergy - prev;
+        if (Math.abs(diff) < 0.05) return targetEnergy;
+        return prev + diff * (1 - Math.exp(-dt * 3.5));
+      });
+
+      setRecoveryAge((prev) => {
+        if (prev < 2.5) return prev + dt;
+        return prev;
+      });
+
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, [targetEnergy]);
+
+  const handleYogurtRecovery = () => {
+    if (currentEnergy >= 100) return;
+    setMpBonus((prev) => Math.min(100 - baseMp, prev + 30));
+    setRecoveryAge(0);
+    setIsRecovering(true);
+    playTimerCompleteSound();
+    toast.success("ヨーグルトでMPが30回復しました！✨🥛");
+    setTimeout(() => {
+      setIsRecovering(false);
+    }, 2400);
+  };
 
   // Transient state for Moai celebrations / rests
   const [transientState, setTransientState] = useState<MoaiState | null>(null);
@@ -635,33 +691,61 @@ export function ActiveMissionMoaiPanel({
                 })}
               </div>
 
-              {/* CENTER: The Thinking Moai (Plenty of breathing clearance) */}
-              <div className="relative shrink-0 z-10 px-4">
-                <ThinkingMoai
-                  state={effectiveMoaiState}
-                  brainText={
-                    transientState === "completed"
-                      ? "ミッション達成！"
-                      : transientState === "resting"
-                      ? "ひと休み中"
-                      : activeQuest
-                      ? activeQuest.questName
-                      : "何からやろう？"
-                  }
-                  brainSubtitle={
-                    transientState === "completed"
-                      ? "CLEAR ✨"
-                      : transientState === "resting"
-                      ? "REST 🍵"
-                      : activeQuest
-                      ? (isTimerRunning || timerSecondsLeft > 0)
-                        ? `⏱️ ${formatTimerDisplay(timerSecondsLeft)} 集中`
-                        : "いま、やること"
-                      : "待機中"
-                  }
-                  width={260}
-                  height={300}
-                />
+              {/* CENTER: The Thinking Moai (with Living Flame Aura & Yogurt Potion) */}
+              <div className="relative shrink-0 z-10 flex flex-col items-center">
+                <div className="relative px-2 flex items-center justify-center">
+                  {/* Living Flame Aura Canvas (CODEX algorithm) Behind Moai */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none -z-10 overflow-visible">
+                    <MoaiAuraCanvas energy={currentEnergy} className="scale-110 sm:scale-125" />
+                  </div>
+
+                  <ThinkingMoai
+                    state={effectiveMoaiState}
+                    brainText={
+                      transientState === "completed"
+                        ? "ミッション達成！"
+                        : transientState === "resting"
+                        ? "ひと休み中"
+                        : activeQuest
+                        ? activeQuest.questName
+                        : "何からやろう？"
+                    }
+                    brainSubtitle={
+                      transientState === "completed"
+                        ? "CLEAR ✨"
+                        : transientState === "resting"
+                        ? "REST 🍵"
+                        : activeQuest
+                        ? (isTimerRunning || timerSecondsLeft > 0)
+                          ? `⏱️ ${formatTimerDisplay(timerSecondsLeft)} 集中`
+                          : "いま、やること"
+                        : "待機中"
+                    }
+                    width={260}
+                    height={300}
+                  />
+                </div>
+
+                {/* YOGURT POTION (足元の回復アイテム) */}
+                <div className="relative -mt-4 z-20">
+                  <YogurtPotionButton
+                    onRecover={handleYogurtRecovery}
+                    isRecovering={isRecovering}
+                    disabled={currentEnergy >= 100}
+                  />
+                </div>
+              </div>
+
+              {/* MP CYLINDER GAUGE (モアイ右脇: ゲーム風縦型エネルギーシリンダー) */}
+              <div className="flex flex-col items-center justify-center shrink-0 z-20">
+                <div className="relative">
+                  <MoaiCylinderGauge energy={currentEnergy} recoveryAge={recoveryAge} />
+                  {isRecovering && (
+                    <div className="absolute top-1/3 left-1/2 -translate-x-1/2 pointer-events-none z-30 font-mono text-base font-black text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.9)] animate-bounce">
+                      +30
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* RIGHT SIDE: Active Mission Card / Controls */}
