@@ -359,12 +359,12 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
     time: 0,
     last: 0,
     energy: energy,
-    particles: Array.from({ length: 60 }, () => ({
+    particles: Array.from({ length: 90 }, () => ({
       x: Math.random() * 2 - 1,
       y: Math.random(),
-      size: 0.8 + Math.random() * 2.2,
+      size: 1.2 + Math.random() * 2.8,
       phase: Math.random() * 6.28,
-      speed: 0.4 + Math.random() * 0.8,
+      speed: 0.35 + Math.random() * 0.85,
     })),
   });
 
@@ -378,14 +378,14 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let w = 380;
-    let h = 340;
+    let w = 640;
+    let h = 460;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      w = rect.width || 380;
-      h = rect.height || 340;
+      w = rect.width || 640;
+      h = rect.height || 460;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -400,54 +400,88 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
 
       ctx.clearRect(0, 0, w, h);
 
-      const e = Math.max(0.1, Math.min(1, st.energy / 100));
+      const e = Math.max(0.15, Math.min(1, st.energy / 100));
       const c = getMpColor(st.energy);
       const cx = w * 0.5;
-      const bottom = h * 0.85;
-      const reachMax = h * (0.45 + e * 0.45);
-      const amp = 30 + e * 35;
+      const bottom = h * 0.82;
+      const reachMax = h * (0.55 + e * 0.42);
 
-      // 1. 広範囲の神秘的なラジアルグロー
-      const glow = ctx.createRadialGradient(cx, bottom - reachMax * 0.4, 10, cx, bottom - reachMax * 0.4, w * 0.45);
-      glow.addColorStop(0, rgba(c, 0.18 + e * 0.14));
-      glow.addColorStop(0.6, rgba(c, 0.06 + e * 0.08));
+      // 1. 足元の黄金オーラリング (地面の光の魔法陣・床面グロー)
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const groundGlow = ctx.createRadialGradient(cx, bottom, 10, cx, bottom, 200);
+      groundGlow.addColorStop(0, rgba(c, 0.45 + e * 0.25));
+      groundGlow.addColorStop(0.5, rgba(c, 0.2 + e * 0.15));
+      groundGlow.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = groundGlow;
+      ctx.beginPath();
+      ctx.ellipse(cx, bottom, 180, 42, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 足元の光の環 (楕円リング)
+      ctx.strokeStyle = rgba(c, 0.7 + e * 0.3);
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = rgba(c, 1);
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.ellipse(cx, bottom - 2, 140, 28, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255, 245, 200, 0.85)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(cx, bottom - 2, 110, 20, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. 広範囲の神秘的なラジアルグロー (モアイの背中全体を照らす光)
+      const glow = ctx.createRadialGradient(cx, bottom - reachMax * 0.45, 20, cx, bottom - reachMax * 0.45, w * 0.42);
+      glow.addColorStop(0, rgba(c, 0.35 + e * 0.25));
+      glow.addColorStop(0.5, rgba(c, 0.15 + e * 0.12));
       glow.addColorStop(1, rgba(c, 0));
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, w, h);
 
       ctx.globalCompositeOperation = "lighter";
 
-      // 2. モアイを包み込むような優美な炎リボン (18本)
-      const ribbons = 18;
+      // 3. モアイを大きく包み込み、左右へダイナミックに立ちのぼる炎リボン (22本)
+      const ribbons = 22;
       for (let j = 0; j < ribbons; j++) {
-        const phase = j * 1.95;
-        // 左右にバランスよく広がる配置
-        const offsetSign = (j % 2 === 0 ? 1 : -1) * (0.3 + (j / ribbons) * 0.7);
-        const base = cx + offsetSign * amp * 1.2 + Math.sin(phase) * 15;
-        const reach = reachMax * (0.7 + Math.sin(phase) * 0.25) + Math.sin(st.time * (1.2 + e) + phase) * 20;
+        const phase = j * 2.15;
+        // モアイの体幅（260px）の外側へしっかり広がる配置 (左右へのオフセット: 70px〜220px)
+        const side = j % 2 === 0 ? 1 : -1;
+        const spreadRatio = 0.45 + (j / ribbons) * 0.75;
+        const baseOffsetX = side * (85 + spreadRatio * 115) + Math.sin(phase) * 22;
+        const base = cx + baseOffsetX;
+
+        const reach = reachMax * (0.75 + Math.sin(phase) * 0.22) + Math.sin(st.time * (1.3 + e) + phase) * 26;
         const tip = bottom - reach;
-        const width = (8 + e * 16) * (1 - j / 26);
+        const width = (10 + e * 18) * (1 - (j / ribbons) * 0.45);
         const pts: [number, number, number][] = [];
 
-        for (let i = 0; i <= 32; i++) {
-          const u = i / 32;
+        for (let i = 0; i <= 36; i++) {
+          const u = i / 36;
           const y = bottom - u * reach;
+          // 外側へうねりながら上部で頭上に巻き上がるS字波形
+          const outwardPull = Math.sin(u * Math.PI) * side * (30 + e * 45);
           const wave =
-            Math.sin(u * 7 - st.time * (1.4 + e * 2.2) + phase) * (1.5 + u * 16) +
-            Math.sin(u * 14 - st.time * 1.8 + phase) * u * 8;
-          const x = base + wave * (0.5 + e * 0.7);
-          const taper = Math.pow(Math.sin(Math.PI * (0.05 + u * 0.95)), 0.65) * (1 - u * 0.5);
+            Math.sin(u * 6 - st.time * (1.6 + e * 2.4) + phase) * (3 + u * 24) +
+            Math.sin(u * 12 - st.time * 2.0 + phase) * u * 12;
+          const x = base + outwardPull + wave * (0.6 + e * 0.7);
+          const taper = Math.pow(Math.sin(Math.PI * (0.04 + u * 0.96)), 0.65) * (1 - u * 0.45);
           pts.push([x, y, width * taper]);
         }
 
+        const isHighlight = j % 3 === 0;
         const g = ctx.createLinearGradient(0, bottom, 0, tip);
-        g.addColorStop(0, rgba(c, 0));
-        g.addColorStop(0.2, rgba(c, 0.07 + e * 0.06));
-        g.addColorStop(0.65, rgba(c, 0.14 + e * 0.1));
+        g.addColorStop(0, rgba(c, 0.05));
+        g.addColorStop(0.2, isHighlight ? "rgba(255, 245, 190, 0.65)" : rgba(c, 0.35 + e * 0.3));
+        g.addColorStop(0.65, isHighlight ? "rgba(255, 235, 150, 0.55)" : rgba(c, 0.45 + e * 0.35));
         g.addColorStop(1, rgba(c, 0));
+
         ctx.fillStyle = g;
-        ctx.shadowColor = rgba(c, 0.75);
-        ctx.shadowBlur = 14 + e * 12;
+        ctx.shadowColor = isHighlight ? "#fff5b8" : rgba(c, 0.95);
+        ctx.shadowBlur = 18 + e * 16;
 
         ctx.beginPath();
         pts.forEach((p, idx) => (idx ? ctx.lineTo(p[0] - p[2], p[1]) : ctx.moveTo(p[0] - p[2], p[1])));
@@ -457,31 +491,31 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
         ctx.closePath();
         ctx.fill();
 
-        // 光の糸
-        if (j % 2 === 0) {
-          ctx.beginPath();
-          pts.forEach((p, idx) => (idx ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
-          ctx.strokeStyle = rgba(c, 0.18 + e * 0.15);
-          ctx.lineWidth = 1.0;
-          ctx.stroke();
-        }
+        // 鮮やかな光の芯 (Thread)
+        ctx.beginPath();
+        pts.forEach((p, idx) => (idx ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+        ctx.strokeStyle = isHighlight ? "rgba(255, 255, 230, 0.85)" : rgba(c, 0.55 + e * 0.35);
+        ctx.lineWidth = isHighlight ? 1.8 : 1.2;
+        ctx.stroke();
       }
 
-      // 3. モアイ周囲を舞う金・エメラルドの発光粒子
-      ctx.shadowBlur = 8;
+      // 4. モアイ周囲を舞う金・エメラルドの発光粒子 (大きく華やかに)
+      ctx.shadowBlur = 10;
       for (let i = 0; i < st.particles.length; i++) {
         const p = st.particles[i];
-        p.y = (p.y + dt * (0.05 + e * 0.15) * p.speed) % 1;
-        if (i > 12 + e * 48) continue;
+        p.y = (p.y + dt * (0.06 + e * 0.18) * p.speed) % 1;
+        if (i > 20 + e * 68) continue;
         const life = p.y;
-        const spread = 20 + life * (w * 0.38);
-        const px = cx + p.x * spread + Math.sin(st.time * 1.3 + p.phase + life * 5) * life * 18;
-        const py = bottom - life * reachMax * 1.1;
+        // モアイの左右へ広く散布
+        const spread = 40 + life * (w * 0.44);
+        const px = cx + p.x * spread + Math.sin(st.time * 1.4 + p.phase + life * 5) * life * 24;
+        const py = bottom - life * reachMax * 1.08;
 
-        ctx.globalAlpha = Math.sin(life * Math.PI) * (0.3 + e * 0.6);
-        ctx.fillStyle = i % 3 === 0 ? "#fffbe6" : rgba(c, 0.9);
+        ctx.globalAlpha = Math.sin(life * Math.PI) * (0.4 + e * 0.6);
+        ctx.fillStyle = i % 3 === 0 ? "#ffffff" : i % 2 === 0 ? "#fff2a8" : rgba(c, 1);
+        ctx.shadowColor = i % 2 === 0 ? "#ffe885" : rgba(c, 1);
         ctx.beginPath();
-        ctx.arc(px, py, p.size * (0.6 + e * 0.6), 0, Math.PI * 2);
+        ctx.arc(px, py, p.size * (0.7 + e * 0.8), 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -499,7 +533,7 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
     <canvas
       ref={canvasRef}
       className={`pointer-events-none ${className}`}
-      style={{ width: "380px", height: "340px" }}
+      style={{ width: "640px", height: "460px" }}
     />
   );
 }
