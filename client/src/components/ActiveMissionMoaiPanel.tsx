@@ -168,9 +168,12 @@ export function ActiveMissionMoaiPanel({
     ? "focusing"
     : "idle";
 
+  const updateQuest = trpc.quest.update.useMutation();
+
   // ------------------------------------------------------------------
-  // FOCUS TIMER STATE (集中フォーカスタイマー)
+  // FOCUS TIMER STATE (サーバー同期型集中フォーカスタイマー)
   // ------------------------------------------------------------------
+  // DBの activeQuest (timerDuration, timerStartedAt, timerSecondsLeft) を真実のソースとして同期
   const TIMER_STORAGE_KEY = "quest_log_focus_timer_duration";
   const [selectedDurationMinutes, setSelectedDurationMinutes] = useState<number>(() => {
     try {
@@ -180,34 +183,57 @@ export function ActiveMissionMoaiPanel({
     return 30;
   });
 
-  const [timerSecondsLeft, setTimerSecondsLeft] = useState<number>(() => selectedDurationMinutes * 60);
-  const [timerTotalSeconds, setTimerTotalSeconds] = useState<number>(() => selectedDurationMinutes * 60);
+  const [timerSecondsLeft, setTimerSecondsLeft] = useState<number>(30 * 60);
+  const [timerTotalSeconds, setTimerTotalSeconds] = useState<number>(30 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [isCustomInputOpen, setIsCustomInputOpen] = useState<boolean>(false);
   const [customMinutesInput, setCustomMinutesInput] = useState<string>("");
-  const activeQuestIdRef = useRef<number | null>(activeQuest?.id || null);
 
-  // Automatically start / reset timer when activeQuest changes
+  // activeQuest のDB状態から現在残り秒数と動作状態をリアルタイム計算して同期
   useEffect(() => {
-    if (activeQuest && activeQuest.id !== activeQuestIdRef.current) {
-      activeQuestIdRef.current = activeQuest.id;
-      // Start countdown automatically with current duration
-      const total = selectedDurationMinutes * 60;
-      setTimerTotalSeconds(total);
-      setTimerSecondsLeft(total);
-      setIsTimerRunning(true);
-    } else if (!activeQuest) {
-      activeQuestIdRef.current = null;
+    if (!activeQuest) {
       setIsTimerRunning(false);
       const total = selectedDurationMinutes * 60;
       setTimerTotalSeconds(total);
       setTimerSecondsLeft(total);
+      return;
     }
-  }, [activeQuest?.id, selectedDurationMinutes]);
 
-  // Timer Tick Hook
+    const durationMins = activeQuest.timerDuration || selectedDurationMinutes;
+    setSelectedDurationMinutes(durationMins);
+    const totalSecs = durationMins * 60;
+    setTimerTotalSeconds(totalSecs);
+
+    if (activeQuest.timerStartedAt) {
+      // 進行中：開始時刻からの経過時間をミリ秒単位で計算
+      const startedTime = new Date(activeQuest.timerStartedAt).getTime();
+      const now = Date.now();
+      const elapsedSeconds = Math.floor(Math.max(0, now - startedTime) / 1000);
+      const remaining = Math.max(0, totalSecs - elapsedSeconds);
+      setTimerSecondsLeft(remaining);
+      setIsTimerRunning(remaining > 0);
+    } else if (activeQuest.timerSecondsLeft !== undefined && activeQuest.timerSecondsLeft !== null) {
+      // 一時停止中
+      setTimerSecondsLeft(activeQuest.timerSecondsLeft);
+      setIsTimerRunning(false);
+    } else {
+      // まだタイマー未設定または新規開始：自動開始
+      const now = new Date();
+      setTimerSecondsLeft(totalSecs);
+      setIsTimerRunning(true);
+      // DBに開始時刻を保存（他端末・リロードでも同一基準）
+      updateQuest.mutate({
+        questId: activeQuest.id,
+        timerDuration: durationMins,
+        timerStartedAt: now,
+        timerSecondsLeft: null,
+      });
+    }
+  }, [activeQuest?.id, activeQuest?.timerStartedAt, activeQuest?.timerSecondsLeft, activeQuest?.timerDuration]);
+
+  // ローカル側での1秒刻みカウントダウン＆0秒判定
   useEffect(() => {
-    if (!isTimerRunning) return;
+    if (!isTimerRunning || !activeQuest) return;
 
     const interval = setInterval(() => {
       setTimerSecondsLeft((prev) => {
@@ -220,6 +246,14 @@ export function ActiveMissionMoaiPanel({
           toast.success("⏳ 集中タイマーが終了しました！お疲れ様でした🍵✨", {
             duration: 6000,
           });
+          // DBに残り0秒として一時停止保存
+          if (activeQuest) {
+            updateQuest.mutate({
+              questId: activeQuest.id,
+              timerStartedAt: null,
+              timerSecondsLeft: 0,
+            });
+          }
           return 0;
         }
         return prev - 1;
@@ -227,23 +261,35 @@ export function ActiveMissionMoaiPanel({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isTimerRunning]);
+  }, [isTimerRunning, activeQuest?.id]);
 
-  // Set Preset Duration
+  // Set Preset Duration (DB同期)
   const handleSelectPreset = (minutes: number) => {
     setSelectedDurationMinutes(minutes);
     try {
       localStorage.setItem(TIMER_STORAGE_KEY, String(minutes));
     } catch {}
+
     const total = minutes * 60;
     setTimerTotalSeconds(total);
     setTimerSecondsLeft(total);
-    setIsTimerRunning(true); // Auto-start upon selecting preset
+    setIsTimerRunning(true);
     setIsCustomInputOpen(false);
+
+    if (activeQuest) {
+      updateQuest.mutate({
+        questId: activeQuest.id,
+        timerDuration: minutes,
+        timerStartedAt: new Date(),
+        timerSecondsLeft: null,
+      }, {
+        onSuccess: () => onStatusChange()
+      });
+    }
     toast.info(`タイマーを ${minutes} 分にセットしました ⏱️`);
   };
 
-  // Set Custom Duration
+  // Set Custom Duration (DB同期)
   const handleApplyCustomMinutes = () => {
     const mins = parseInt(customMinutesInput, 10);
     if (!mins || mins <= 0 || mins > 300) {
@@ -255,20 +301,78 @@ export function ActiveMissionMoaiPanel({
     setIsCustomInputOpen(false);
   };
 
-  // Add 5 minutes extension
+  // 一時停止 / 再開の切り替え (DB同期)
+  const handleToggleTimerRunning = () => {
+    if (!activeQuest) return;
+
+    if (isTimerRunning) {
+      // 一時停止する
+      setIsTimerRunning(false);
+      updateQuest.mutate({
+        questId: activeQuest.id,
+        timerStartedAt: null,
+        timerSecondsLeft: timerSecondsLeft,
+      }, {
+        onSuccess: () => onStatusChange()
+      });
+    } else {
+      // 再開する：現在残っている timerSecondsLeft 分を今から逆算
+      const now = Date.now();
+      // startedAt を (現在 - (トータル - 残り)) と見なして再設定
+      const artificialStartTime = new Date(now - (timerTotalSeconds - timerSecondsLeft) * 1000);
+      setIsTimerRunning(true);
+      updateQuest.mutate({
+        questId: activeQuest.id,
+        timerStartedAt: artificialStartTime,
+        timerSecondsLeft: null,
+      }, {
+        onSuccess: () => onStatusChange()
+      });
+    }
+  };
+
+  // Add 5 minutes extension (DB同期)
   const handleAddFiveMinutes = () => {
-    setTimerSecondsLeft((prev) => prev + 5 * 60);
-    setTimerTotalSeconds((prev) => Math.max(prev, timerSecondsLeft + 5 * 60));
+    const newSecondsLeft = timerSecondsLeft + 5 * 60;
+    const newTotal = Math.max(timerTotalSeconds, newSecondsLeft);
+    setTimerSecondsLeft(newSecondsLeft);
+    setTimerTotalSeconds(newTotal);
     setIsTimerRunning(true);
+
+    if (activeQuest) {
+      const now = Date.now();
+      const artificialStartTime = new Date(now - (newTotal - newSecondsLeft) * 1000);
+      const newDurationMins = Math.ceil(newTotal / 60);
+      setSelectedDurationMinutes(newDurationMins);
+      updateQuest.mutate({
+        questId: activeQuest.id,
+        timerDuration: newDurationMins,
+        timerStartedAt: artificialStartTime,
+        timerSecondsLeft: null,
+      }, {
+        onSuccess: () => onStatusChange()
+      });
+    }
     toast.success("+5分 延長しました ⚡");
   };
 
-  // Reset timer
+  // Reset timer (DB同期)
   const handleResetTimer = () => {
     const total = selectedDurationMinutes * 60;
     setTimerTotalSeconds(total);
     setTimerSecondsLeft(total);
     setIsTimerRunning(false);
+
+    if (activeQuest) {
+      updateQuest.mutate({
+        questId: activeQuest.id,
+        timerDuration: selectedDurationMinutes,
+        timerStartedAt: null,
+        timerSecondsLeft: total,
+      }, {
+        onSuccess: () => onStatusChange()
+      });
+    }
   };
 
   // Format time MM:SS
@@ -295,6 +399,12 @@ export function ActiveMissionMoaiPanel({
         questId: activeQuest.id,
         status: "cleared",
       });
+      // タイマーリセット
+      await updateQuest.mutateAsync({
+        questId: activeQuest.id,
+        timerStartedAt: null,
+        timerSecondsLeft: null,
+      });
       toast.success(`「${activeQuest.questName}」を完了しました！🎉✨`);
       setTimeout(() => {
         setTransientState(null);
@@ -317,6 +427,12 @@ export function ActiveMissionMoaiPanel({
         questId: activeQuest.id,
         status: "accepted",
       });
+      // 一時中断時はタイマー状態を保持
+      await updateQuest.mutateAsync({
+        questId: activeQuest.id,
+        timerStartedAt: null,
+        timerSecondsLeft: timerSecondsLeft,
+      });
       toast.info("ミッションを一時中断しました（ひと休み 🍵）");
       setTimeout(() => {
         setTransientState(null);
@@ -334,12 +450,18 @@ export function ActiveMissionMoaiPanel({
         questId,
         status: "challenging",
       });
-      toast.success("ミッションを開始しました！モアイの脳内にセットされました⚡");
-      // Auto-start timer
+      // 集中タイマーをDB基準で即時発動
       const total = selectedDurationMinutes * 60;
       setTimerTotalSeconds(total);
       setTimerSecondsLeft(total);
       setIsTimerRunning(true);
+      await updateQuest.mutateAsync({
+        questId,
+        timerDuration: selectedDurationMinutes,
+        timerStartedAt: new Date(),
+        timerSecondsLeft: null,
+      });
+      toast.success("ミッションを開始しました！モアイの脳内にセットされました⚡");
       onStatusChange();
     } catch (e) {
       toast.error("開始に失敗しました");
@@ -687,7 +809,7 @@ export function ActiveMissionMoaiPanel({
                           <div className="flex items-center gap-1.5 shrink-0">
                             <Button
                               size="sm"
-                              onClick={() => setIsTimerRunning((prev) => !prev)}
+                              onClick={handleToggleTimerRunning}
                               className={`h-9 px-3 rounded-xl font-black text-xs gap-1 shadow-sm transition-all active:scale-95 ${
                                 isTimerRunning
                                   ? "bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-900 dark:text-amber-200 border border-amber-300/60"
@@ -1004,7 +1126,7 @@ export function ActiveMissionMoaiPanel({
                     <div className="flex items-center gap-1.5">
                       <Button
                         size="sm"
-                        onClick={() => setIsTimerRunning((prev) => !prev)}
+                        onClick={handleToggleTimerRunning}
                         className={`h-7 px-2.5 rounded-lg text-xs font-black ${
                           isTimerRunning
                             ? "bg-amber-100 text-amber-900 hover:bg-amber-200"

@@ -84,6 +84,14 @@ export const quests = sqliteTable("quests", {
   // MOAI活動フラグ（0=通常, 1=MOAI活動）
   isMoai: integer("isMoai").default(0).notNull(),
 
+  // 集中タイマー用（画面遷移・リロード・複数端末間でのリアルタイム同期）
+  // timerDuration: 設定分数（分単位, 例: 15, 30, 60）
+  // timerStartedAt: カウントダウン開始タイムスタンプ（ミリ秒/秒）。進行中の場合のみ設定
+  // timerSecondsLeft: 一時停止時の残り秒数
+  timerDuration: integer("timerDuration"),
+  timerStartedAt: integer("timerStartedAt", { mode: "timestamp" }),
+  timerSecondsLeft: integer("timerSecondsLeft"),
+
   // タイムスタンプ
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),

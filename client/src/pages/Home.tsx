@@ -2242,7 +2242,11 @@ export default function Home() {
   const [isLunchCounterOpen, setIsLunchCounterOpen] = useState(false);
   const [planningDayOffset, setPlanningDayOffset] = useState(0); // 0=today, 1=tomorrow
 
-  const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, {
+    enabled: isAuthenticated,
+    // 他端末でのタイマー開始・停止やステータス変更を自動同期
+    refetchInterval: 10000,
+  });
 
 
   const { data: templates, refetch: refetchTemplates } = trpc.template.list.useQuery(undefined, { enabled: isAuthenticated });

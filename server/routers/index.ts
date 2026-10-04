@@ -540,6 +540,9 @@ export const appRouter = router({
         note: z.string().optional().nullable(),
         isAdhoc: z.boolean().optional(),
         isMoai: z.boolean().optional(),
+        timerDuration: z.number().optional().nullable(),
+        timerStartedAt: z.date().optional().nullable(),
+        timerSecondsLeft: z.number().optional().nullable(),
       }))
       .mutation(async ({ ctx, input }: { ctx: TrpcContext; input: any }) => {
         return updateQuest(input.questId, ctx.user!.id, input);

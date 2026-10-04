@@ -105,6 +105,21 @@ export async function ensureQuestColumns() {
   } catch (err) {
     // Column might already exist
   }
+  try {
+    await _client.execute(`ALTER TABLE quests ADD COLUMN timerDuration INTEGER;`);
+  } catch (err) {
+    // Column might already exist
+  }
+  try {
+    await _client.execute(`ALTER TABLE quests ADD COLUMN timerStartedAt INTEGER;`);
+  } catch (err) {
+    // Column might already exist
+  }
+  try {
+    await _client.execute(`ALTER TABLE quests ADD COLUMN timerSecondsLeft INTEGER;`);
+  } catch (err) {
+    // Column might already exist
+  }
   _questColumnsEnsured = true;
 }
 
@@ -602,6 +617,9 @@ export async function updateQuest(
     note?: string | null;
     isAdhoc?: boolean | number;
     isMoai?: boolean | number;
+    timerDuration?: number | null;
+    timerStartedAt?: Date | null;
+    timerSecondsLeft?: number | null;
   }
 ): Promise<Quest> {
   const db = await getDb();
@@ -621,6 +639,9 @@ export async function updateQuest(
   if (input.note !== undefined) updateData.note = input.note;
   if (input.isAdhoc !== undefined) updateData.isAdhoc = input.isAdhoc ? 1 : 0;
   if (input.isMoai !== undefined) updateData.isMoai = input.isMoai ? 1 : 0;
+  if (input.timerDuration !== undefined) updateData.timerDuration = input.timerDuration;
+  if (input.timerStartedAt !== undefined) updateData.timerStartedAt = input.timerStartedAt;
+  if (input.timerSecondsLeft !== undefined) updateData.timerSecondsLeft = input.timerSecondsLeft;
 
   await db.update(quests)
     .set(updateData)
