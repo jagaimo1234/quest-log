@@ -886,9 +886,9 @@ export function RichDocEditor({
     setIsUploading(true);
     try {
       const dataUrl = await compressImage(fileOrBlob, {
-        maxWidth: 1200,
-        maxHeight: 1200,
-        quality: 0.75,
+        maxWidth: 900,
+        maxHeight: 900,
+        quality: 0.7,
       });
 
       const currentEl = editableRefs.current[targetBlockIndex];
@@ -898,25 +898,36 @@ export function RichDocEditor({
       let textAfter = "";
 
       const sel = window.getSelection();
+      let splitSuccess = false;
+
       if (currentEl && sel && sel.rangeCount > 0 && currentEl.contains(sel.anchorNode)) {
-        const range = sel.getRangeAt(0);
+        try {
+          const range = sel.getRangeAt(0);
 
-        const preRange = range.cloneRange();
-        preRange.selectNodeContents(currentEl);
-        preRange.setEnd(range.startContainer, range.startOffset);
-        const beforeDiv = document.createElement("div");
-        beforeDiv.appendChild(preRange.cloneContents());
-        textBefore = beforeDiv.innerHTML.replace(/\n+$/, "");
+          const preRange = range.cloneRange();
+          preRange.selectNodeContents(currentEl);
+          preRange.setEnd(range.startContainer, range.startOffset);
+          const beforeDiv = document.createElement("div");
+          beforeDiv.appendChild(preRange.cloneContents());
+          textBefore = beforeDiv.innerHTML.replace(/\n+$/, "");
 
-        const postRange = range.cloneRange();
-        postRange.selectNodeContents(currentEl);
-        postRange.setStart(range.endContainer, range.endOffset);
-        const afterDiv = document.createElement("div");
-        afterDiv.appendChild(postRange.cloneContents());
-        textAfter = afterDiv.innerHTML.replace(/^\n+/, "");
-      } else if (targetBlock && targetBlock.type === "text") {
-        textBefore = currentEl?.innerHTML || targetBlock.text;
-        textAfter = "";
+          const postRange = range.cloneRange();
+          postRange.selectNodeContents(currentEl);
+          postRange.setStart(range.endContainer, range.endOffset);
+          const afterDiv = document.createElement("div");
+          afterDiv.appendChild(postRange.cloneContents());
+          textAfter = afterDiv.innerHTML.replace(/^\n+/, "");
+          splitSuccess = true;
+        } catch (splitErr) {
+          console.warn("DOM selection split failed, falling back to append:", splitErr);
+        }
+      }
+
+      if (!splitSuccess) {
+        if (targetBlock && targetBlock.type === "text") {
+          textBefore = currentEl?.innerHTML || targetBlock.text || "";
+          textAfter = "";
+        }
       }
 
       const newImageBlock: DocBlock = {
@@ -926,12 +937,13 @@ export function RichDocEditor({
       };
 
       const newNextTextBlock: DocBlock = {
-        id: `txt-${Date.now()}`,
+        id: `txt-${Date.now() + 1}`,
         type: "text",
         text: textAfter,
       };
 
       const updatedBlocks: DocBlock[] = [];
+      let inserted = false;
       for (let i = 0; i < blocks.length; i++) {
         if (i === targetBlockIndex) {
           if (textBefore.trim() !== "" || i === 0) {
@@ -939,9 +951,15 @@ export function RichDocEditor({
           }
           updatedBlocks.push(newImageBlock);
           updatedBlocks.push(newNextTextBlock);
+          inserted = true;
         } else {
           updatedBlocks.push(blocks[i]);
         }
+      }
+
+      if (!inserted) {
+        updatedBlocks.push(newImageBlock);
+        updatedBlocks.push(newNextTextBlock);
       }
 
       commitBlocks(updatedBlocks);

@@ -14,16 +14,37 @@ export async function compressImage(
   fileOrBlob: File | Blob,
   options: CompressionOptions = {}
 ): Promise<string> {
-  const { maxWidth = 1200, maxHeight = 1200, quality = 0.75 } = options;
+  const { maxWidth = 900, maxHeight = 900, quality = 0.7 } = options;
 
   return new Promise((resolve, reject) => {
+    if (!fileOrBlob || !(fileOrBlob instanceof Blob)) {
+      reject(new Error("有効な画像ファイルではありません"));
+      return;
+    }
+
     const img = new Image();
-    const objectUrl = URL.createObjectURL(fileOrBlob);
+    let objectUrl = "";
+    try {
+      objectUrl = URL.createObjectURL(fileOrBlob);
+    } catch {
+      // Fallback to FileReader if createObjectURL fails
+      const reader = new FileReader();
+      reader.onload = () => {
+        img.src = reader.result as string;
+      };
+      reader.onerror = () => reject(new Error("ファイルの読み込みに失敗しました"));
+      reader.readAsDataURL(fileOrBlob);
+      return;
+    }
 
     img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
 
       let { width, height } = img;
+      if (!width || !height) {
+        width = 400;
+        height = 400;
+      }
 
       // Calculate scaled dimensions while preserving aspect ratio
       if (width > maxWidth || height > maxHeight) {
@@ -37,8 +58,8 @@ export async function compressImage(
       }
 
       const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
@@ -56,16 +77,52 @@ export async function compressImage(
         if (!dataUrl.startsWith("data:image/webp")) {
           dataUrl = canvas.toDataURL("image/jpeg", quality);
         }
-      } catch (err) {
-        dataUrl = canvas.toDataURL("image/jpeg", quality);
+      } catch {
+        try {
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+        } catch {
+          dataUrl = canvas.toDataURL();
+        }
       }
 
       resolve(dataUrl);
     };
 
-    img.onerror = (err) => {
-      URL.revokeObjectURL(objectUrl);
-      reject(err);
+    img.onerror = () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      // Fallback via FileReader
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fallbackImg = new Image();
+        fallbackImg.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            let { width, height } = fallbackImg;
+            if (width > maxWidth || height > maxHeight) {
+              if (width / height > maxWidth / maxHeight) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              } else {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height);
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(fallbackImg, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/jpeg", quality));
+              return;
+            }
+          } catch {}
+          resolve(reader.result as string);
+        };
+        fallbackImg.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
+        fallbackImg.src = reader.result as string;
+      };
+      reader.onerror = () => reject(new Error("ファイルの読み込みに失敗しました"));
+      reader.readAsDataURL(fileOrBlob);
     };
 
     img.src = objectUrl;

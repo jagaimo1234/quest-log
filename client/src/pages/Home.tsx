@@ -4869,40 +4869,39 @@ function BulletinBoard() {
   const [monthContent, setMonthContent] = useState("");
   const [weekContent, setWeekContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
+
   const isDirtyRef = useRef(false);
+  const contentRefVal = useRef("");
+  const diaryRefVal = useRef("");
+  const monthRefVal = useRef("");
+  const weekRefVal = useRef("");
 
-  // Sync board data on load or date switch, giving priority to any newer local draft
+  // Sync board data on load or date switch without resurrecting deleted text
   useEffect(() => {
-    const serverContent = board?.content || "";
-    const serverDiary = (board as any)?.diary || "";
-    const localDraftKey = `diary_draft_${selectedDate}`;
-    let localDraft = "";
-    try {
-      localDraft = localStorage.getItem(localDraftKey) || "";
-    } catch {}
-
-    if (!isDirtyRef.current) {
+    if (board !== undefined && !isDirtyRef.current) {
+      const serverContent = board?.content || "";
+      const serverDiary = (board as any)?.diary || "";
       setContent(serverContent);
-      if (serverDiary) {
-        setDiary(serverDiary);
-        try {
-          localStorage.removeItem(localDraftKey);
-        } catch {}
-      } else if (localDraft) {
-        setDiary(localDraft);
-        triggerSave(serverContent, localDraft);
-      } else {
-        setDiary("");
-      }
+      setDiary(serverDiary);
+      contentRefVal.current = serverContent;
+      diaryRefVal.current = serverDiary;
+      try {
+        localStorage.removeItem(`diary_draft_${selectedDate}`);
+      } catch {}
     }
   }, [board?.content, (board as any)?.diary, selectedDate]);
 
   useEffect(() => {
-    setMonthContent(monthBoard?.content || "");
+    const val = monthBoard?.content || "";
+    setMonthContent(val);
+    monthRefVal.current = val;
   }, [monthBoard?.content, selectedMonthStr]);
 
   useEffect(() => {
-    setWeekContent(weekBoard?.content || "");
+    const val = weekBoard?.content || "";
+    setWeekContent(val);
+    weekRefVal.current = val;
   }, [weekBoard?.content, selectedWeekStr]);
 
   const contentTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -4919,18 +4918,19 @@ function BulletinBoard() {
   const weekAttachRef = useRef<ImageAttachmentAreaRef>(null);
   const dayAttachRef = useRef<ImageAttachmentAreaRef>(null);
 
-  // Safety net: Save draft to localStorage before page unloads or reloads
+  // Auto-flush or persist if user abruptly closes or reloads the tab
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (diary && isDirtyRef.current) {
+      if (isDirtyRef.current) {
+        // Immediate synchronous attempt to trigger save or keep in localStorage
         try {
-          localStorage.setItem(`diary_draft_${selectedDate}`, diary);
+          localStorage.setItem(`diary_draft_${selectedDate}`, diaryRefVal.current);
         } catch {}
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [diary, selectedDate]);
+  }, [selectedDate]);
 
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -4952,11 +4952,12 @@ function BulletinBoard() {
         onSuccess: () => {
           setIsSaving(false);
           isDirtyRef.current = false;
+          setLastSavedTime(new Date());
           try {
             localStorage.removeItem(`diary_draft_${selectedDate}`);
           } catch {}
         },
-        onError: (err) => {
+        onError: () => {
           setIsSaving(false);
           toast.error("サーバーへの保存に失敗しました。ローカルに保持しています。");
         },
@@ -4967,51 +4968,59 @@ function BulletinBoard() {
   const triggerSaveMonth = (newContent: string) => {
     setIsSaving(true);
     saveBoard.mutate({ content: newContent, diary: "", date: selectedMonthStr }, {
-      onSettled: () => setIsSaving(false)
+      onSettled: () => {
+        setIsSaving(false);
+        setLastSavedTime(new Date());
+      }
     });
   };
 
   const triggerSaveWeek = (newContent: string) => {
     setIsSaving(true);
     saveBoard.mutate({ content: newContent, diary: "", date: selectedWeekStr }, {
-      onSettled: () => setIsSaving(false)
+      onSettled: () => {
+        setIsSaving(false);
+        setLastSavedTime(new Date());
+      }
     });
   };
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setContent(val);
+    contentRefVal.current = val;
+    isDirtyRef.current = true;
     autoResize(e.target);
     if (contentTimeout.current) clearTimeout(contentTimeout.current);
-    contentTimeout.current = setTimeout(() => triggerSave(val, diary), 1000);
+    contentTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
   };
 
   const handleDiaryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setDiary(val);
+    diaryRefVal.current = val;
     isDirtyRef.current = true;
-    try {
-      localStorage.setItem(`diary_draft_${selectedDate}`, val);
-    } catch {}
     autoResize(e.target);
     if (diaryTimeout.current) clearTimeout(diaryTimeout.current);
-    diaryTimeout.current = setTimeout(() => triggerSave(content, val), 1000);
+    diaryTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
   };
 
   const handleMonthChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setMonthContent(val);
+    monthRefVal.current = val;
     autoResize(e.target);
     if (monthTimeout.current) clearTimeout(monthTimeout.current);
-    monthTimeout.current = setTimeout(() => triggerSaveMonth(val), 1000);
+    monthTimeout.current = setTimeout(() => triggerSaveMonth(monthRefVal.current), 400);
   };
 
   const handleWeekChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setWeekContent(val);
+    weekRefVal.current = val;
     autoResize(e.target);
     if (weekTimeout.current) clearTimeout(weekTimeout.current);
-    weekTimeout.current = setTimeout(() => triggerSaveWeek(val), 1000);
+    weekTimeout.current = setTimeout(() => triggerSaveWeek(weekRefVal.current), 400);
   };
 
   const handleReset = async () => {
@@ -5062,7 +5071,15 @@ function BulletinBoard() {
         <h2 className="text-sm font-bold flex items-center gap-1.5 text-stone-700">
           <span className="text-lg text-rose-500">📌</span>
           掲示板 (Notice Board) <span className="ml-1 text-base">{displaySelectedDateStr}</span>
-          {isSaving && <span className="text-[10px] text-stone-400 ml-2 italic">Saving...</span>}
+          {isSaving ? (
+            <span className="text-[11px] text-amber-600 ml-2 font-mono flex items-center gap-1">
+              <span className="animate-spin inline-block">⏳</span> 保存中...
+            </span>
+          ) : lastSavedTime ? (
+            <span className="text-[10px] text-emerald-600 ml-2 font-mono flex items-center gap-0.5">
+              <span>✓</span> 保存完了
+            </span>
+          ) : null}
         </h2>
         <Button
           variant="outline"
