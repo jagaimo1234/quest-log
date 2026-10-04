@@ -5071,13 +5071,11 @@ function BulletinBoard() {
     contentTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
   };
 
-  const handleDiaryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+  const handleDiaryChange = (val: string) => {
     setDiary(val);
     diaryRefVal.current = val;
     isDirtyRef.current = true;
     saveLocalDraft(contentRefVal.current, val);
-    autoResize(e.target);
     if (diaryTimeout.current) clearTimeout(diaryTimeout.current);
     diaryTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
   };

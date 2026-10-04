@@ -5,7 +5,7 @@ import { SparkReportDialog } from "./SparkReportDialog";
 
 interface BonfireDiaryProps {
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onChange: (value: string) => void;
   date?: string;
   selectedDateStr?: string;
   isSaving?: boolean;
@@ -479,19 +479,22 @@ export function BonfireDiary({
     };
   }, [isBonfireMode]);
 
-  // Handle typing reaction
-  const triggerTypingPulse = () => {
-    typingPulseRef.current = Math.min(1.0, typingPulseRef.current + 0.4);
-    if (canvasRef.current) {
-      spawnWordSpark();
-    }
-    triggerHeatRipple();
-    playSoftPopSound();
-  };
+  const lastPulseTimeRef = useRef(0);
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e);
-    triggerTypingPulse();
+  // Handle typing reaction (throttled to avoid stuttering during fast Japanese IME typing)
+  const triggerTypingPulse = () => {
+    const now = Date.now();
+    if (now - lastPulseTimeRef.current < 120) return; // limit to ~8 updates/sec max
+    lastPulseTimeRef.current = now;
+
+    typingPulseRef.current = Math.min(1.0, typingPulseRef.current + 0.35);
+    if (isBonfireMode && canvasRef.current) {
+      spawnWordSpark();
+      triggerHeatRipple();
+    }
+    if (isSoundOn) {
+      playSoftPopSound();
+    }
   };
 
   const spawnWordSpark = () => {
@@ -745,11 +748,7 @@ export function BonfireDiary({
         <RichDocEditor
           value={value}
           onChange={(newVal) => {
-            const fakeEvent = { target: { value: newVal } } as any;
-            onChange(fakeEvent);
-            const pure = extractPlainText(newVal);
-            setCharCount(pure.length);
-            updateMetrics(pure.length);
+            onChange(newVal);
             triggerTypingPulse();
           }}
           onKeystroke={triggerTypingPulse}
@@ -907,11 +906,7 @@ export function BonfireDiary({
         <RichDocEditor
           value={value}
           onChange={(newVal) => {
-            const fakeEvent = { target: { value: newVal } } as any;
-            onChange(fakeEvent);
-            const pure = extractPlainText(newVal);
-            setCharCount(pure.length);
-            updateMetrics(pure.length);
+            onChange(newVal);
             triggerTypingPulse();
           }}
           onKeystroke={triggerTypingPulse}
