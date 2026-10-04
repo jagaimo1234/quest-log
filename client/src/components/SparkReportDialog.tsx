@@ -63,14 +63,19 @@ export function SparkReportDialog({
     },
   });
 
-  const handleGenerate = (force: boolean = false) => {
-    analyzeMutation.mutate({ targetDate, periodType: "daily", force });
+  const handleGenerate = (force: boolean = false, overrideKey?: string) => {
+    const key = overrideKey !== undefined ? overrideKey : (localStorage.getItem("quest_log_gemini_api_key") || apiKeyInput.trim() || undefined);
+    analyzeMutation.mutate({ targetDate, periodType: "daily", force, apiKey: key });
   };
 
   const handleSaveApiKey = () => {
-    localStorage.setItem("quest_log_gemini_api_key", apiKeyInput.trim());
+    const key = apiKeyInput.trim();
+    localStorage.setItem("quest_log_gemini_api_key", key);
     toast.success("APIキーをブラウザに保存しました");
     setShowSettings(false);
+    if (key) {
+      handleGenerate(true, key);
+    }
   };
 
   const handleCopyMarkdown = () => {

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { compressImage } from "../lib/imageCompression";
-import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw, HelpCircle, Lightbulb, Eye, EyeOff, CheckSquare } from "lucide-react";
+import { Camera, Trash2, ZoomIn, Download, X, Loader2, Highlighter, Palette, RotateCcw, HelpCircle, Lightbulb, Eye, EyeOff, CheckSquare, Sparkles, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { applyFormatToRange } from "../lib/richTextFormatting";
 import { trpc } from "../lib/trpc";
@@ -485,6 +485,88 @@ export function RichDocEditor({
       sourceUrl: window.location.pathname + window.location.search,
       sourceType: "editor",
     });
+  };
+
+  const [isRefining, setIsRefining] = useState(false);
+  const refineTextMutation = trpc.spark.refineText.useMutation();
+
+  const handleAiRefine = async (mode: "organize" | "bullet" | "summarize" | "fix" | "todo" = "organize") => {
+    const range = savedSelectionRangeRef.current;
+    if (!range) {
+      toast.info("整理したいテキストをドラッグして選択してください");
+      return;
+    }
+    const selectedText = range.toString().trim();
+    if (!selectedText) {
+      toast.info("整理したいテキストをドラッグして選択してください");
+      return;
+    }
+
+    let activeIdx = activeBlockIndexRef.current;
+    editableRefs.current.forEach((el, idx) => {
+      if (el && el.contains(range.commonAncestorContainer)) {
+        activeIdx = idx;
+      }
+    });
+    const activeEl = editableRefs.current[activeIdx];
+    if (!activeEl) {
+      toast.info("エディタ内のテキストを選択してください");
+      return;
+    }
+
+    const backupHtml = activeEl.innerHTML;
+    setIsRefining(true);
+    const apiKey = localStorage.getItem("quest_log_gemini_api_key") || undefined;
+
+    try {
+      const res = await refineTextMutation.mutateAsync({
+        text: selectedText,
+        mode,
+        apiKey,
+      });
+
+      if (!res.refinedText) {
+        toast.error("整理結果を取得できませんでした");
+        return;
+      }
+
+      const escapeAndBreak = (str: string) => {
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br/>");
+      };
+
+      const template = document.createElement("template");
+      template.innerHTML = escapeAndBreak(res.refinedText);
+      const frag = template.content;
+
+      range.deleteContents();
+      range.insertNode(frag);
+
+      const newHtml = activeEl.innerHTML;
+      const newBlocks = blocks.map((b, i) => (i === activeIdx ? { ...b, text: newHtml } : b));
+      commitBlocks(newBlocks);
+      setFloatingToolbar((prev) => ({ ...prev, show: false }));
+
+      toast.success("✨ AIで文章を整理しました！", {
+        action: {
+          label: "元に戻す",
+          onClick: () => {
+            const restored = blocks.map((b, i) => (i === activeIdx ? { ...b, text: backupHtml } : b));
+            commitBlocks(restored);
+            if (activeEl) activeEl.innerHTML = backupHtml;
+            toast.info("整理前の状態に戻しました");
+          },
+        },
+      });
+    } catch (err: any) {
+      console.error("AI refine error:", err);
+      toast.error(err?.message || "AIによる整理に失敗しました。APIキーを確認してください。");
+    } finally {
+      setIsRefining(false);
+    }
   };
 
   // Target inspector for hover/tap rule bubble
@@ -1090,6 +1172,107 @@ export function RichDocEditor({
               <span>済</span>
             </button>
 
+            {/* AI Refine button group */}
+            <div className="w-px h-4 bg-stone-700/80 mx-0.5" />
+            <div className="flex items-center rounded-md border border-purple-500/50 bg-purple-950/40 shadow-xs">
+              <button
+                type="button"
+                disabled={isRefining}
+                onMouseEnter={() =>
+                  setActivePalettePreview({
+                    id: "ai-refine",
+                    label: "AI整理",
+                    ruleTitle: "✨ AI整理 (ChatGPT/Gemini)",
+                    ruleDesc: "選択した文章を箇条書きや綺麗な構造に自動整理",
+                    hex: "#a855f7",
+                  })
+                }
+                onMouseLeave={() => setActivePalettePreview(null)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleAiRefine("organize")}
+                title="選択したテキストをAIで整理・構造化"
+                className="px-1.5 py-0.5 text-purple-200 hover:text-white hover:bg-purple-600/30 transition cursor-pointer text-[10px] font-bold flex items-center gap-1"
+              >
+                {isRefining ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-purple-300" />
+                ) : (
+                  <Sparkles className="w-3 h-3 text-purple-400 fill-purple-400/30" />
+                )}
+                <span>{isRefining ? "整理中..." : "整理"}</span>
+              </button>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isRefining}
+                    onMouseDown={(e) => e.preventDefault()}
+                    className="px-1 py-0.5 text-purple-300 hover:text-white hover:bg-purple-600/40 border-l border-purple-500/50 transition cursor-pointer"
+                    title="整理モードを選択"
+                  >
+                    <ChevronDown className="w-2.5 h-2.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top"
+                  align="end"
+                  sideOffset={6}
+                  className="w-48 p-1.5 bg-stone-900 border border-purple-800/60 text-stone-200 text-xs shadow-2xl rounded-xl z-[9999]"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  <div className="space-y-0.5">
+                    <div className="px-2 py-1 text-[10px] font-bold text-purple-400 uppercase tracking-wider border-b border-stone-800">
+                      AI整理モード
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAiRefine("organize")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                    >
+                      <span>✨</span>
+                      <div>
+                        <div className="font-bold text-[11px]">箇条書き・構造化</div>
+                        <div className="text-[9px] text-stone-400">標準の整理（おすすめ）</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAiRefine("fix")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                    >
+                      <span>📝</span>
+                      <div>
+                        <div className="font-bold text-[11px]">自然な文章に清書</div>
+                        <div className="text-[9px] text-stone-400">誤字脱字や接続詞を整える</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAiRefine("summarize")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                    >
+                      <span>✂️</span>
+                      <div>
+                        <div className="font-bold text-[11px]">要点だけ要約</div>
+                        <div className="text-[9px] text-stone-400">短くポイントを絞る</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAiRefine("todo")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                    >
+                      <span>☑️</span>
+                      <div>
+                        <div className="font-bold text-[11px]">TODO・タスク抽出</div>
+                        <div className="text-[9px] text-stone-400">やることリストに変換</div>
+                      </div>
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
             {/* Add to Awareness */}
             <div className="w-px h-4 bg-stone-700/80 mx-0.5" />
             <button
@@ -1393,6 +1576,103 @@ export function RichDocEditor({
               <CheckSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>☑️ 済</span>
             </button>
+
+            {/* AI Refine button in static toolbar */}
+            <div className="flex items-center rounded-md border border-purple-500/40 bg-purple-950/20 shadow-2xs">
+              <button
+                type="button"
+                disabled={isRefining}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  const range = savedSelectionRangeRef.current;
+                  if (!range || !range.toString().trim()) {
+                    toast.info("整理したいテキストをドラッグして選択してください");
+                    return;
+                  }
+                  handleAiRefine("organize");
+                }}
+                className={`flex items-center gap-1 px-2 py-1 text-purple-600 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white hover:bg-purple-500/20 text-[11px] font-semibold transition-all cursor-pointer`}
+                title="選択したテキストをAIで整理する（ChatGPT/Gemini）"
+              >
+                {isRefining ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-purple-400 fill-purple-400/20" />
+                )}
+                <span>{isRefining ? "整理中..." : "✨ 整理"}</span>
+              </button>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isRefining}
+                    onMouseDown={(e) => e.preventDefault()}
+                    className="px-1 py-1 text-purple-600 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white hover:bg-purple-500/20 border-l border-purple-500/40 transition cursor-pointer"
+                    title="整理モードを選択"
+                  >
+                    <ChevronDown className="w-2.5 h-2.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="start"
+                  sideOffset={6}
+                  className="w-48 p-1.5 bg-stone-900 border border-purple-800/60 text-stone-200 text-xs shadow-2xl rounded-xl z-[9999]"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  <div className="space-y-0.5">
+                    <div className="px-2 py-1 text-[10px] font-bold text-purple-400 uppercase tracking-wider border-b border-stone-800">
+                      AI整理モード
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAiRefine("organize")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                    >
+                      <span>✨</span>
+                      <div>
+                        <div className="font-bold text-[11px]">箇条書き・構造化</div>
+                        <div className="text-[9px] text-stone-400">標準の整理（おすすめ）</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAiRefine("fix")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                    >
+                      <span>📝</span>
+                      <div>
+                        <div className="font-bold text-[11px]">自然な文章に清書</div>
+                        <div className="text-[9px] text-stone-400">誤字脱字や接続詞を整える</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAiRefine("summarize")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                    >
+                      <span>✂️</span>
+                      <div>
+                        <div className="font-bold text-[11px]">要点だけ要約</div>
+                        <div className="text-[9px] text-stone-400">短くポイントを絞る</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAiRefine("todo")}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                    >
+                      <span>☑️</span>
+                      <div>
+                        <div className="font-bold text-[11px]">TODO・タスク抽出</div>
+                        <div className="text-[9px] text-stone-400">やることリストに変換</div>
+                      </div>
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

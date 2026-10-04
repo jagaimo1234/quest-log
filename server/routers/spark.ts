@@ -89,6 +89,7 @@ export const sparkRouter = router({
         targetDate: z.string(),
         periodType: z.enum(["daily", "weekly"]).optional().default("daily"),
         force: z.boolean().optional().default(false),
+        apiKey: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -199,6 +200,7 @@ ${bulletinText || "（メモの記入なし）"}
 }`;
 
         const llmResult = await invokeLLM({
+          apiKey: input.apiKey,
           messages: [
             {
               role: "system",
@@ -351,6 +353,72 @@ ${kaizenSuggestions}
           .returning();
 
         return inserted;
+      }
+    }),
+
+  refineText: protectedProcedure
+    .input(
+      z.object({
+        text: z.string().min(1, "テキストを入力してください"),
+        mode: z.enum(["organize", "bullet", "summarize", "fix", "todo"]).optional().default("organize"),
+        customInstruction: z.string().optional(),
+        apiKey: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      let promptInstruction = "";
+      switch (input.mode) {
+        case "bullet":
+          promptInstruction = "与えられたテキストを、要点ごとに明快な箇条書き（・や番号付き）に整理してください。";
+          break;
+        case "summarize":
+          promptInstruction = "与えられたテキストの核心と重要なポイントだけを抽出し、短く簡潔に要約してください。";
+          break;
+        case "fix":
+          promptInstruction = "元の文体や内容を保ちながら、誤字脱字を修正し、日本語として自然で読みやすい文章に推敲・清書してください。";
+          break;
+        case "todo":
+          promptInstruction = "与えられた文章から、具体的なタスク・TODO・アクション項目を抽出し、チェックボックスやTODO形式の箇条書きに整理してください。";
+          break;
+        case "organize":
+        default:
+          promptInstruction = "思考の断片や殴り書きメモを、文脈と意図を保ったまま、読みやすく論理的に整理・構造化してください。必要に応じて適度な箇条書きや改行を入れて整えてください。";
+          break;
+      }
+
+      if (input.customInstruction?.trim()) {
+        promptInstruction += `\n追加指示: ${input.customInstruction.trim()}`;
+      }
+
+      const systemPrompt = `あなたは優秀な思考整理・ライティングのアシスタントです。
+ユーザーが提供したメモや思考の断片テキストを整理します。
+
+【厳格なルール】
+1. 前置き、挨拶、確認の返事（「はい、以下のように整理しました」等）は絶対に含めないでください。
+2. 整理・推敲したテキスト本文のみを直接出力してください。
+3. 原文に含まれる固有名詞、数字、重要な感情や意図を勝手に消したり捏造したりしないでください。`;
+
+      try {
+        const result = await invokeLLM({
+          apiKey: input.apiKey,
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: `【指示】\n${promptInstruction}\n\n【対象テキスト】\n${input.text}`,
+            },
+          ],
+        });
+
+        const refined =
+          typeof result.choices[0]?.message?.content === "string"
+            ? result.choices[0].message.content.trim()
+            : "";
+
+        return { refinedText: refined || input.text };
+      } catch (err: any) {
+        console.error("Failed to refine text via LLM:", err);
+        throw new Error(err?.message || "AIによるテキスト整理に失敗しました。APIキーを確認してください。");
       }
     }),
 });

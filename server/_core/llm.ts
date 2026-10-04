@@ -56,6 +56,7 @@ export type ToolChoice =
   | ToolChoiceExplicit;
 
 export type InvokeParams = {
+  apiKey?: string;
   messages: Message[];
   tools?: Tool[];
   toolChoice?: ToolChoice;
@@ -209,7 +210,23 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const getApiKeyAndUrl = () => {
+const getApiKeyAndUrl = (customApiKey?: string) => {
+  const trimmed = customApiKey?.trim();
+  if (trimmed) {
+    if (trimmed.startsWith("sk-")) {
+      return {
+        apiKey: trimmed,
+        url: "https://api.openai.com/v1/chat/completions",
+        defaultModel: "gpt-4o-mini",
+      };
+    }
+    return {
+      apiKey: trimmed,
+      url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      defaultModel: "gemini-2.0-flash",
+    };
+  }
+
   if (ENV.forgeApiKey && ENV.forgeApiKey.trim().length > 0) {
     const url =
       ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
@@ -223,7 +240,7 @@ const getApiKeyAndUrl = () => {
     return {
       apiKey: geminiKey,
       url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      defaultModel: "gemini-1.5-flash",
+      defaultModel: "gemini-2.0-flash",
     };
   }
 
@@ -291,7 +308,7 @@ const normalizeResponseFormat = ({
 };
 
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
-  const config = getApiKeyAndUrl();
+  const config = getApiKeyAndUrl(params.apiKey);
   if (!config) {
     throw new Error(
       "AI API key is not configured. Please set GEMINI_API_KEY or OPENAI_API_KEY in .env"
