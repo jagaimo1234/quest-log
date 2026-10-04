@@ -4871,13 +4871,42 @@ function BulletinBoard() {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
 
+  // Unsaved Draft Recovery Banner State (案A)
+  const [pendingDraft, setPendingDraft] = useState<{
+    content?: string;
+    diary?: string;
+    savedAt: string;
+  } | null>(null);
+
   const isDirtyRef = useRef(false);
   const contentRefVal = useRef("");
   const diaryRefVal = useRef("");
   const monthRefVal = useRef("");
   const weekRefVal = useRef("");
 
-  // Sync board data on load or date switch without resurrecting deleted text
+  const draftKey = `bulletin_draft_v2_${selectedDate}`;
+
+  // Helper to save draft to localStorage
+  const saveLocalDraft = (c: string, d: string) => {
+    try {
+      const data = {
+        content: c,
+        diary: d,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(draftKey, JSON.stringify(data));
+    } catch {}
+  };
+
+  // Helper to clear draft from localStorage
+  const clearLocalDraft = () => {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {}
+    setPendingDraft(null);
+  };
+
+  // Sync board data on load or date switch and check for unsaved drafts (案A)
   useEffect(() => {
     if (board !== undefined && !isDirtyRef.current) {
       const serverContent = board?.content || "";
@@ -4886,11 +4915,60 @@ function BulletinBoard() {
       setDiary(serverDiary);
       contentRefVal.current = serverContent;
       diaryRefVal.current = serverDiary;
+
+      // Check if there is an unsaved draft in localStorage
       try {
-        localStorage.removeItem(`diary_draft_${selectedDate}`);
-      } catch {}
+        const rawDraft = localStorage.getItem(draftKey);
+        if (rawDraft) {
+          const parsed = JSON.parse(rawDraft);
+          const draftContent = parsed.content ?? "";
+          const draftDiary = parsed.diary ?? "";
+          // Only prompt if the draft actually differs from the server
+          if (
+            (draftContent !== serverContent || draftDiary !== serverDiary) &&
+            (draftContent.trim() !== "" || draftDiary.trim() !== "")
+          ) {
+            setPendingDraft({
+              content: draftContent,
+              diary: draftDiary,
+              savedAt: parsed.savedAt
+                ? new Date(parsed.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : "前回",
+            });
+          } else {
+            // Draft is identical or empty, clean it up silently
+            localStorage.removeItem(draftKey);
+            setPendingDraft(null);
+          }
+        } else {
+          setPendingDraft(null);
+        }
+      } catch {
+        setPendingDraft(null);
+      }
     }
   }, [board?.content, (board as any)?.diary, selectedDate]);
+
+  // Restore Draft action (ユーザーが「下書きを復元」を押した時)
+  const handleRestoreDraft = () => {
+    if (!pendingDraft) return;
+    const restoredContent = pendingDraft.content ?? contentRefVal.current;
+    const restoredDiary = pendingDraft.diary ?? diaryRefVal.current;
+    setContent(restoredContent);
+    setDiary(restoredDiary);
+    contentRefVal.current = restoredContent;
+    diaryRefVal.current = restoredDiary;
+    isDirtyRef.current = true;
+    setPendingDraft(null);
+    toast.success("下書きを復元しました。保存中...");
+    triggerSave(restoredContent, restoredDiary);
+  };
+
+  // Discard Draft action (ユーザーが「破棄」を押した時)
+  const handleDiscardDraft = () => {
+    clearLocalDraft();
+    toast.info("下書きを破棄し、保存済みの内容を表示しています");
+  };
 
   useEffect(() => {
     const val = monthBoard?.content || "";
@@ -4922,10 +5000,7 @@ function BulletinBoard() {
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (isDirtyRef.current) {
-        // Immediate synchronous attempt to trigger save or keep in localStorage
-        try {
-          localStorage.setItem(`diary_draft_${selectedDate}`, diaryRefVal.current);
-        } catch {}
+        saveLocalDraft(contentRefVal.current, diaryRefVal.current);
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -4953,13 +5028,13 @@ function BulletinBoard() {
           setIsSaving(false);
           isDirtyRef.current = false;
           setLastSavedTime(new Date());
-          try {
-            localStorage.removeItem(`diary_draft_${selectedDate}`);
-          } catch {}
+          clearLocalDraft();
         },
         onError: () => {
           setIsSaving(false);
-          toast.error("サーバーへの保存に失敗しました。ローカルに保持しています。");
+          // If server save fails, preserve draft locally so user never loses work!
+          saveLocalDraft(newContent, newDiary);
+          toast.error("サーバーへの保存に失敗しました。ローカル下書きに保持しています。");
         },
       }
     );
@@ -4990,6 +5065,7 @@ function BulletinBoard() {
     setContent(val);
     contentRefVal.current = val;
     isDirtyRef.current = true;
+    saveLocalDraft(val, diaryRefVal.current);
     autoResize(e.target);
     if (contentTimeout.current) clearTimeout(contentTimeout.current);
     contentTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
@@ -5000,6 +5076,7 @@ function BulletinBoard() {
     setDiary(val);
     diaryRefVal.current = val;
     isDirtyRef.current = true;
+    saveLocalDraft(contentRefVal.current, val);
     autoResize(e.target);
     if (diaryTimeout.current) clearTimeout(diaryTimeout.current);
     diaryTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
@@ -5091,6 +5168,35 @@ function BulletinBoard() {
         </Button>
       </div>
 
+      {/* Unsaved Draft Recovery Banner (案A) */}
+      {pendingDraft && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex items-center gap-2 text-amber-900 font-medium">
+            <span className="text-base">⚠️</span>
+            <span>
+              前回（{pendingDraft.savedAt}）の<strong>未保存の下書き（一時保存データ）</strong>が見つかりました。復元しますか？
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={handleRestoreDraft}
+              className="h-7 px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-xs cursor-pointer"
+            >
+              下書きを復元する
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDiscardDraft}
+              className="h-7 px-3 text-xs border-amber-300 text-amber-800 hover:bg-amber-100 hover:text-amber-900 cursor-pointer"
+            >
+              破棄
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Text areas stacked */}
       <div className="flex flex-col divide-y divide-stone-200">
         <div className="p-3 flex flex-col gap-1 bg-stone-50/50">
@@ -5099,8 +5205,9 @@ function BulletinBoard() {
             value={monthContent}
             onChange={(val) => {
               setMonthContent(val);
+              monthRefVal.current = val;
               if (monthTimeout.current) clearTimeout(monthTimeout.current);
-              monthTimeout.current = setTimeout(() => triggerSaveMonth(val), 1000);
+              monthTimeout.current = setTimeout(() => triggerSaveMonth(monthRefVal.current), 400);
             }}
             placeholder="今月の目標、領収書のメモ、忘れたくないこと..."
             textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
@@ -5114,8 +5221,9 @@ function BulletinBoard() {
             value={weekContent}
             onChange={(val) => {
               setWeekContent(val);
+              weekRefVal.current = val;
               if (weekTimeout.current) clearTimeout(weekTimeout.current);
-              weekTimeout.current = setTimeout(() => triggerSaveWeek(val), 1000);
+              weekTimeout.current = setTimeout(() => triggerSaveWeek(weekRefVal.current), 400);
             }}
             placeholder="今週の予定、メモ..."
             textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
@@ -5129,8 +5237,11 @@ function BulletinBoard() {
             value={content}
             onChange={(val) => {
               setContent(val);
+              contentRefVal.current = val;
+              isDirtyRef.current = true;
+              saveLocalDraft(val, diaryRefVal.current);
               if (contentTimeout.current) clearTimeout(contentTimeout.current);
-              contentTimeout.current = setTimeout(() => triggerSave(val, diary), 1000);
+              contentTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
             }}
             placeholder="今日の自由に書き込めるメモ..."
             textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
