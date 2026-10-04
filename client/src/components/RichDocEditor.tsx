@@ -563,7 +563,10 @@ export function RichDocEditor({
     throw new Error("利用可能なモデルが見つかりませんでした");
   };
 
-  const handleAiRefine = async (mode: "organize" | "bullet" | "summarize" | "fix" | "todo" = "organize") => {
+  const handleAiRefine = async (
+    mode: "organize" | "bullet" | "summarize" | "fix" | "todo" = "organize",
+    replaceOriginal: boolean = false
+  ) => {
     const range = savedSelectionRangeRef.current;
     if (!range) {
       toast.info("整理したいテキストをドラッグして選択してください");
@@ -627,28 +630,40 @@ export function RichDocEditor({
       };
 
       const template = document.createElement("template");
-      template.innerHTML = escapeAndBreak(refinedText);
-      const frag = template.content;
 
-      range.deleteContents();
-      range.insertNode(frag);
+      if (replaceOriginal) {
+        // 直接上書き置換
+        template.innerHTML = escapeAndBreak(refinedText);
+        range.deleteContents();
+        range.insertNode(template.content);
+      } else {
+        // 変更前の文を残し、そのすぐ下に空行を挟んで整理後の文を挿入（前後比較用）
+        template.innerHTML = `<br/><br/>${escapeAndBreak(refinedText)}`;
+        range.collapse(false);
+        range.insertNode(template.content);
+      }
 
       const newHtml = activeEl.innerHTML;
       const newBlocks = blocks.map((b, i) => (i === activeIdx ? { ...b, text: newHtml } : b));
       commitBlocks(newBlocks);
       setFloatingToolbar((prev) => ({ ...prev, show: false }));
 
-      toast.success("✨ AIで文章を整理しました！", {
-        action: {
-          label: "元に戻す",
-          onClick: () => {
-            const restored = blocks.map((b, i) => (i === activeIdx ? { ...b, text: backupHtml } : b));
-            commitBlocks(restored);
-            if (activeEl) activeEl.innerHTML = backupHtml;
-            toast.info("整理前の状態に戻しました");
+      toast.success(
+        replaceOriginal
+          ? "✨ 選択した文章をAIで整理して置き換えました！"
+          : "✨ 変更前の文の下に整理結果を挿入しました！（前後を比較できます）",
+        {
+          action: {
+            label: "元に戻す",
+            onClick: () => {
+              const restored = blocks.map((b, i) => (i === activeIdx ? { ...b, text: backupHtml } : b));
+              commitBlocks(restored);
+              if (activeEl) activeEl.innerHTML = backupHtml;
+              toast.info("整理前の状態に戻しました");
+            },
           },
-        },
-      });
+        }
+      );
     } catch (err: any) {
       console.error("AI refine error:", err);
       toast.error(err?.message || "AIによる整理に失敗しました。APIキーを確認してください。");
@@ -1310,52 +1325,65 @@ export function RichDocEditor({
                 >
                   <div className="space-y-0.5">
                     <div className="px-2 py-1 text-[10px] font-bold text-purple-400 uppercase tracking-wider border-b border-stone-800">
-                      AI整理モード
+                      AI整理（下に挿入して比較）
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleAiRefine("organize")}
+                      onClick={() => handleAiRefine("organize", false)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
                     >
                       <span>✨</span>
                       <div>
                         <div className="font-bold text-[11px]">箇条書き・構造化</div>
-                        <div className="text-[9px] text-stone-400">標準の整理（おすすめ）</div>
+                        <div className="text-[9px] text-stone-400">下に挿入して前後比較（おすすめ）</div>
                       </div>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAiRefine("fix")}
+                      onClick={() => handleAiRefine("fix", false)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
                     >
                       <span>📝</span>
                       <div>
                         <div className="font-bold text-[11px]">自然な文章に清書</div>
-                        <div className="text-[9px] text-stone-400">誤字脱字や接続詞を整える</div>
+                        <div className="text-[9px] text-stone-400">誤字脱字を直し下に挿入</div>
                       </div>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAiRefine("summarize")}
+                      onClick={() => handleAiRefine("summarize", false)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
                     >
                       <span>✂️</span>
                       <div>
                         <div className="font-bold text-[11px]">要点だけ要約</div>
-                        <div className="text-[9px] text-stone-400">短くポイントを絞る</div>
+                        <div className="text-[9px] text-stone-400">短くまとめて下に挿入</div>
                       </div>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAiRefine("todo")}
+                      onClick={() => handleAiRefine("todo", false)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
                     >
                       <span>☑️</span>
                       <div>
                         <div className="font-bold text-[11px]">TODO・タスク抽出</div>
-                        <div className="text-[9px] text-stone-400">やることリストに変換</div>
+                        <div className="text-[9px] text-stone-400">やることリストにして下に挿入</div>
                       </div>
                     </button>
+                    <div className="border-t border-stone-800 my-1 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleAiRefine("organize", true)}
+                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-stone-800 text-stone-300 hover:text-white flex items-center gap-2 transition"
+                      >
+                        <span>🔄</span>
+                        <div>
+                          <div className="font-bold text-[11px]">元の文章を直接置換</div>
+                          <div className="text-[9px] text-stone-400">上書きして置き換える</div>
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
@@ -1711,52 +1739,65 @@ export function RichDocEditor({
                 >
                   <div className="space-y-0.5">
                     <div className="px-2 py-1 text-[10px] font-bold text-purple-400 uppercase tracking-wider border-b border-stone-800">
-                      AI整理モード
+                      AI整理（下に挿入して比較）
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleAiRefine("organize")}
+                      onClick={() => handleAiRefine("organize", false)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
                     >
                       <span>✨</span>
                       <div>
                         <div className="font-bold text-[11px]">箇条書き・構造化</div>
-                        <div className="text-[9px] text-stone-400">標準の整理（おすすめ）</div>
+                        <div className="text-[9px] text-stone-400">下に挿入して前後比較（おすすめ）</div>
                       </div>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAiRefine("fix")}
+                      onClick={() => handleAiRefine("fix", false)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
                     >
                       <span>📝</span>
                       <div>
                         <div className="font-bold text-[11px]">自然な文章に清書</div>
-                        <div className="text-[9px] text-stone-400">誤字脱字や接続詞を整える</div>
+                        <div className="text-[9px] text-stone-400">誤字脱字を直し下に挿入</div>
                       </div>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAiRefine("summarize")}
+                      onClick={() => handleAiRefine("summarize", false)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
                     >
                       <span>✂️</span>
                       <div>
                         <div className="font-bold text-[11px]">要点だけ要約</div>
-                        <div className="text-[9px] text-stone-400">短くポイントを絞る</div>
+                        <div className="text-[9px] text-stone-400">短くまとめて下に挿入</div>
                       </div>
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAiRefine("todo")}
+                      onClick={() => handleAiRefine("todo", false)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
                     >
                       <span>☑️</span>
                       <div>
                         <div className="font-bold text-[11px]">TODO・タスク抽出</div>
-                        <div className="text-[9px] text-stone-400">やることリストに変換</div>
+                        <div className="text-[9px] text-stone-400">やることリストにして下に挿入</div>
                       </div>
                     </button>
+                    <div className="border-t border-stone-800 my-1 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleAiRefine("organize", true)}
+                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-stone-800 text-stone-300 hover:text-white flex items-center gap-2 transition"
+                      >
+                        <span>🔄</span>
+                        <div>
+                          <div className="font-bold text-[11px]">元の文章を直接置換</div>
+                          <div className="text-[9px] text-stone-400">上書きして置き換える</div>
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
