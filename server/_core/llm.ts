@@ -218,12 +218,14 @@ const getApiKeyAndUrl = (customApiKey?: string) => {
         apiKey: trimmed,
         url: "https://api.openai.com/v1/chat/completions",
         defaultModel: "gpt-4o-mini",
+        candidateModels: ["gpt-4o-mini"],
       };
     }
     return {
       apiKey: trimmed,
       url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      defaultModel: "gemini-2.0-flash",
+      defaultModel: "gemini-3.8-flash",
+      candidateModels: ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"],
     };
   }
 
@@ -232,7 +234,7 @@ const getApiKeyAndUrl = (customApiKey?: string) => {
       ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
         ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
         : "https://forge.manus.im/v1/chat/completions";
-    return { apiKey: ENV.forgeApiKey, url, defaultModel: "gemini-2.5-flash" };
+    return { apiKey: ENV.forgeApiKey, url, defaultModel: "gemini-2.5-flash", candidateModels: ["gemini-2.5-flash"] };
   }
 
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -240,7 +242,8 @@ const getApiKeyAndUrl = (customApiKey?: string) => {
     return {
       apiKey: geminiKey,
       url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      defaultModel: "gemini-2.0-flash",
+      defaultModel: "gemini-3.8-flash",
+      candidateModels: ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"],
     };
   }
 
@@ -250,6 +253,7 @@ const getApiKeyAndUrl = (customApiKey?: string) => {
       apiKey: openaiKey,
       url: "https://api.openai.com/v1/chat/completions",
       defaultModel: "gpt-4o-mini",
+      candidateModels: ["gpt-4o-mini"],
     };
   }
 
@@ -356,21 +360,33 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(config.url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  const candidateModels = config.candidateModels || [config.defaultModel];
+  let lastErrorText = "";
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
-    );
+  for (const model of candidateModels) {
+    payload.model = model;
+    const response = await fetch(config.url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      return (await response.json()) as InvokeResult;
+    }
+
+    lastErrorText = await response.text();
+    // If not a 404 (model not found), fail fast (e.g. invalid auth key, rate limit, quota exceeded)
+    if (response.status !== 404) {
+      throw new Error(
+        `LLM invoke failed: ${response.status} ${response.statusText} – ${lastErrorText}`
+      );
+    }
+    console.warn(`Model ${model} returned 404, falling back to next candidate...`);
   }
 
-  return (await response.json()) as InvokeResult;
+  throw new Error(`LLM invoke failed (models not found): ${lastErrorText}`);
 }
