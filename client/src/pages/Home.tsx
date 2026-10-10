@@ -3460,6 +3460,8 @@ export default function Home() {
           <div className="flex gap-4">
             {(progression?.currentStreak ?? 0) > 0 && <div className="flex items-center gap-1 text-orange-500 font-bold"><Flame className="fill-orange-500 w-5 h-5" /> {progression?.currentStreak}</div>}
             <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/rhythm"} className="text-amber-500 dark:text-amber-400 font-semibold"><Activity className="w-4 h-4 mr-1 text-amber-500" /> 生活リズム</Button>
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/history"}><History className="w-4 h-4 mr-1" /> 履歴</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
               <Button variant="ghost" size="sm" onClick={() => window.location.href = "/awareness"} className="text-amber-600 dark:text-amber-400 font-semibold"><Lightbulb className="w-4 h-4 mr-1 fill-amber-500/20" /> 意識を育てる</Button>

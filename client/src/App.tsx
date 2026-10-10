@@ -7,6 +7,7 @@ import Templates from "@/pages/Templates";
 import Projects from "@/pages/Projects";
 import AdminDbConfig from "@/pages/AdminDbConfig";
 import Awareness from "@/pages/Awareness";
+import LifeRhythm from "@/pages/LifeRhythm";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -16,6 +17,7 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/rhythm"} component={LifeRhythm} />
       <Route path={"/history"} component={History} />
       <Route path={"/templates"} component={Templates} />
       <Route path={"/projects"} component={Projects} />

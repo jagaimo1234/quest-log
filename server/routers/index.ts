@@ -52,6 +52,7 @@ import { insightFeedbackRouter } from "./insightFeedback.js";
 import { attachmentRouter } from "./attachment.js";
 import { sparkRouter } from "./spark.js";
 import { awarenessRouter } from "./awareness.js";
+import { rhythmRouter } from "./rhythm.js";
 
 export const appRouter = router({
   system: systemRouter,
@@ -63,6 +64,7 @@ export const appRouter = router({
   attachment: attachmentRouter,
   spark: sparkRouter,
   awareness: awarenessRouter,
+  rhythm: rhythmRouter,
   book: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();

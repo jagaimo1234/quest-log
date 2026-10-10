@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
-import { Loader2, BookOpen, CheckCircle2, Pause, XCircle, AlertTriangle, ArrowLeft, Swords } from "lucide-react";
+import { Loader2, BookOpen, CheckCircle2, Pause, XCircle, AlertTriangle, ArrowLeft, Swords, Activity } from "lucide-react";
 
 /**
  * 履歴ページ
@@ -160,7 +160,7 @@ export default function History() {
     <div className="min-h-screen texture-overlay">
       {/* ヘッダー */}
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container py-4">
+        <div className="container py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
               onClick={() => window.location.href = "/"}
@@ -180,6 +180,15 @@ export default function History() {
               </div>
             </div>
           </div>
+          <Button
+            onClick={() => window.location.href = "/rhythm"}
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+          >
+            <Activity className="w-3.5 h-3.5" />
+            生活リズム分析
+          </Button>
         </div>
       </header>
       
