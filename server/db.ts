@@ -170,11 +170,16 @@ export async function ensureAwarenessTables() {
         sourceTitle TEXT,
         sourceId TEXT,
         memo TEXT DEFAULT '',
+        category TEXT NOT NULL DEFAULT 'daily',
         isPinned INTEGER NOT NULL DEFAULT 0,
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL
       );
     `);
+    // Ensure category column exists in existing databases
+    try {
+      await _client.execute(`ALTER TABLE awareness_visuals ADD COLUMN category TEXT NOT NULL DEFAULT 'daily';`);
+    } catch {}
     await _client.execute(`
       CREATE TABLE IF NOT EXISTS awareness_practices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

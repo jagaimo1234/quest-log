@@ -534,6 +534,7 @@ export const awarenessVisuals = sqliteTable("awareness_visuals", {
   sourceTitle: text("sourceTitle"),              // 出典元タイトル（例: '日間掲示板 2026-09-23'）
   sourceId: text("sourceId"),                    // 出典元ID / 日付など
   memo: text("memo").default(""),                // 気づき・行動指針メモ
+  category: text("category", { enum: ["daily", "moai"] }).default("daily").notNull(), // 'daily' (日常・意識) | 'moai' (MOAI活動)
   isPinned: integer("isPinned", { mode: "boolean" }).default(false).notNull(), // ピン留め（常時フォーカス）
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),

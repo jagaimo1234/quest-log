@@ -433,6 +433,7 @@ export const awarenessRouter = router({
         sourceTitle: z.string().optional(),
         sourceId: z.string().optional(),
         memo: z.string().optional(),
+        category: z.enum(["daily", "moai"]).optional(),
         isPinned: z.boolean().optional(),
       })
     )
@@ -452,6 +453,7 @@ export const awarenessRouter = router({
           sourceTitle: input.sourceTitle || "",
           sourceId: input.sourceId || "",
           memo: input.memo || "",
+          category: input.category || "daily",
           isPinned: input.isPinned ? true : false,
           createdAt: now,
           updatedAt: now,
@@ -467,6 +469,7 @@ export const awarenessRouter = router({
         id: z.number(),
         title: z.string().optional(),
         memo: z.string().optional(),
+        category: z.enum(["daily", "moai"]).optional(),
         isPinned: z.boolean().optional(),
       })
     )
@@ -480,6 +483,7 @@ export const awarenessRouter = router({
       };
       if (input.title !== undefined) updateData.title = input.title;
       if (input.memo !== undefined) updateData.memo = input.memo;
+      if (input.category !== undefined) updateData.category = input.category;
       if (input.isPinned !== undefined) updateData.isPinned = input.isPinned;
 
       await db

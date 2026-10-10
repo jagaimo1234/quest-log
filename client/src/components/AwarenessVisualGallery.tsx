@@ -38,8 +38,13 @@ export function AwarenessVisualGallery() {
   const [editingVisual, setEditingVisual] = useState<any | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editMemo, setEditMemo] = useState("");
+  const [editCategory, setEditCategory] = useState<"daily" | "moai">("daily");
+
+  // Category filter state: 'all' | 'daily' | 'moai'
+  const [activeCategory, setActiveCategory] = useState<"all" | "daily" | "moai">("all");
 
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState<"daily" | "moai">("daily");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,6 +88,7 @@ export function AwarenessVisualGallery() {
     setEditingVisual(visual);
     setEditTitle(visual.title || "");
     setEditMemo(visual.memo || "");
+    setEditCategory((visual.category as "daily" | "moai") || "daily");
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -92,6 +98,7 @@ export function AwarenessVisualGallery() {
       id: editingVisual.id,
       title: editTitle,
       memo: editMemo,
+      category: editCategory,
     });
   };
 
@@ -102,15 +109,16 @@ export function AwarenessVisualGallery() {
   };
 
   // Direct upload logic
-  const processAndUpload = async (fileOrBlob: File | Blob, title?: string) => {
+  const processAndUpload = async (fileOrBlob: File | Blob, title?: string, cat: "daily" | "moai" = uploadCategory) => {
     setIsUploading(true);
     try {
       const dataUrl = await compressImage(fileOrBlob, { maxWidth: 1400, maxHeight: 1400, quality: 0.8 });
       await saveVisualMutation.mutateAsync({
         dataUrl,
         title: title || "",
+        category: cat,
         sourceType: "direct",
-        sourceTitle: "直接登録",
+        sourceTitle: cat === "moai" ? "MOAI活動 (直接登録)" : "直接登録",
       });
     } catch (err) {
       console.error(err);
@@ -142,14 +150,28 @@ export function AwarenessVisualGallery() {
         if (blob) {
           e.preventDefault();
           e.stopPropagation();
-          await processAndUpload(blob, `図解-${format(new Date(), "yyyyMMdd-HHmm")}`);
+          const targetCat = activeCategory === "moai" ? "moai" : "daily";
+          const prefix = targetCat === "moai" ? "MOAI図解" : "図解";
+          await processAndUpload(blob, `${prefix}-${format(new Date(), "yyyyMMdd-HHmm")}`, targetCat);
         }
       }
     }
   };
 
-  const pinnedVisuals = visuals.filter((v: any) => v.isPinned);
-  const otherVisuals = visuals.filter((v: any) => !v.isPinned);
+  // Filtered visuals based on selected category tab
+  const filteredVisuals = visuals.filter((v: any) => {
+    if (activeCategory === "all") return true;
+    const cat = v.category || "daily";
+    return cat === activeCategory;
+  });
+
+  const pinnedVisuals = filteredVisuals.filter((v: any) => v.isPinned);
+  const otherVisuals = filteredVisuals.filter((v: any) => !v.isPinned);
+
+  // Category counts
+  const totalCount = visuals.length;
+  const dailyCount = visuals.filter((v: any) => (v.category || "daily") === "daily").length;
+  const moaiCount = visuals.filter((v: any) => v.category === "moai").length;
 
   // Close lightbox on Escape
   useEffect(() => {
@@ -206,28 +228,108 @@ export function AwarenessVisualGallery() {
             </span>
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            ChatGPTやGemini等で作った習慣・気づきのインフォビジュアルを形骸化させずにストック
+            日常の気づき・思考整理や、MOAI活動のインフォグラフィックをタイル状にストック
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Target category selector for upload */}
+          <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setUploadCategory("daily")}
+              className={`px-2 py-1 rounded-md font-medium transition cursor-pointer flex items-center gap-1 ${
+                uploadCategory === "daily"
+                  ? "bg-background text-foreground shadow-2xs font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>🌱</span>
+              <span>日常</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadCategory("moai")}
+              className={`px-2 py-1 rounded-md font-medium transition cursor-pointer flex items-center gap-1 ${
+                uploadCategory === "moai"
+                  ? "bg-purple-600 text-white shadow-2xs font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>🗿</span>
+              <span>MOAI</span>
+            </button>
+          </div>
+
           <Button
             size="sm"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold gap-1.5 shadow-xs cursor-pointer text-xs"
+            className={`font-bold gap-1.5 shadow-xs cursor-pointer text-xs ${
+              uploadCategory === "moai"
+                ? "bg-purple-600 hover:bg-purple-700 text-white"
+                : "bg-amber-500 hover:bg-amber-600 text-stone-950"
+            }`}
           >
             {isUploading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Plus className="w-3.5 h-3.5" />
             )}
-            <span>図解画像を追加</span>
+            <span>{uploadCategory === "moai" ? "🗿 MOAI画像を追加" : "🌱 日常画像を追加"}</span>
           </Button>
-          <span className="text-[11px] text-muted-foreground hidden md:inline font-mono">
+          <span className="text-[11px] text-muted-foreground hidden lg:inline font-mono">
             (Ctrl+Vで貼り付け可)
           </span>
         </div>
+      </div>
+
+      {/* Category Filter Tabs */}
+      <div className="flex items-center gap-2 border-b border-border/60 pb-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setActiveCategory("all")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+            activeCategory === "all"
+              ? "bg-stone-800 text-white dark:bg-stone-200 dark:text-stone-900 shadow-xs"
+              : "bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span>すべて</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 dark:bg-black/20 font-mono">
+            {totalCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveCategory("daily")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+            activeCategory === "daily"
+              ? "bg-amber-500 text-stone-950 shadow-xs"
+              : "bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span>🌱 日常・意識</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10 font-mono">
+            {dailyCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveCategory("moai")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+            activeCategory === "moai"
+              ? "bg-purple-600 text-white shadow-xs"
+              : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/20"
+          }`}
+        >
+          <span>🗿 MOAI活動</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
+            {moaiCount}
+          </span>
+        </button>
       </div>
 
       {isLoading ? (
@@ -289,7 +391,7 @@ export function AwarenessVisualGallery() {
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(pinnedVisuals.length > 0 ? otherVisuals : visuals).map((visual: any) => (
+              {otherVisuals.map((visual: any) => (
                 <VisualCard
                   key={visual.id}
                   visual={visual}
@@ -332,8 +434,17 @@ export function AwarenessVisualGallery() {
             {/* Lightbox footer caption & actions */}
             <div className="mt-3 w-full flex flex-col sm:flex-row items-center justify-between gap-3 text-white px-2">
               <div className="text-left max-w-md">
-                <div className="font-bold text-sm text-stone-100 flex items-center gap-2">
+                <div className="font-bold text-sm text-stone-100 flex items-center gap-2 flex-wrap">
                   {lightboxVisual.title || "（タイトル未設定）"}
+                  {lightboxVisual.category === "moai" ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-600/80 text-white font-bold border border-purple-400/40 flex items-center gap-1">
+                      <span>🗿</span> MOAI活動
+                    </span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <span>🌱</span> 日常・意識
+                    </span>
+                  )}
                   {lightboxVisual.isPinned && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                       ピン留め中
@@ -407,11 +518,42 @@ export function AwarenessVisualGallery() {
                 インフォビジュアルの編集
               </DialogTitle>
               <DialogDescription className="text-xs">
-                図解のタイトルや、常に意識しておきたい気づき・行動指針メモを編集できます。
+                図解の区分（日常/MOAI）やタイトル、常に意識しておきたい気づき・行動指針メモを編集できます。
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-3">
+              {/* Category selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">カテゴリー区分</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditCategory("daily")}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                      editCategory === "daily"
+                        ? "bg-amber-500/15 border-amber-500 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30"
+                        : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span>🌱</span>
+                    <span>日常・意識</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditCategory("moai")}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+                      editCategory === "moai"
+                        ? "bg-purple-600/15 border-purple-500 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500/30 font-black"
+                        : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span>🗿</span>
+                    <span>MOAI活動</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">タイトル・合言葉</label>
                 <Input
@@ -516,9 +658,20 @@ function VisualCard({
           </button>
         </div>
 
-        {/* Source badge on top-left */}
-        <div className="absolute top-2 left-2">
-          <span className="text-[10px] px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-stone-200 border border-white/10 font-medium">
+        {/* Badges on top-left: MOAI Badge + Source */}
+        <div className="absolute top-2 left-2 flex items-center gap-1 flex-wrap">
+          {visual.category === "moai" ? (
+            <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-600/90 backdrop-blur-sm text-white font-bold border border-purple-400/50 shadow-xs flex items-center gap-1">
+              <span>🗿</span>
+              <span>MOAI</span>
+            </span>
+          ) : (
+            <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/80 backdrop-blur-sm text-stone-950 font-bold border border-amber-300/50 shadow-xs flex items-center gap-1">
+              <span>🌱</span>
+              <span>日常</span>
+            </span>
+          )}
+          <span className="text-[9.5px] px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-stone-300 border border-white/10 font-medium">
             {visual.sourceTitle || "直接登録"}
           </span>
         </div>
@@ -527,7 +680,11 @@ function VisualCard({
       {/* Content area */}
       <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2">
         <div>
-          <h3 className="text-xs sm:text-sm font-bold text-foreground line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+          <h3 className={`text-xs sm:text-sm font-bold line-clamp-1 transition-colors ${
+            visual.category === "moai"
+              ? "text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400"
+              : "text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400"
+          }`}>
             {visual.title || "（タイトル未設定）"}
           </h3>
 
