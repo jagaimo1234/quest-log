@@ -16,6 +16,7 @@ import { ImageAttachmentArea, ImageAttachmentAreaRef } from "@/components/ImageA
 import { RichDocEditor } from "@/components/RichDocEditor";
 import { ActiveMissionMoaiPanel } from "@/components/ActiveMissionMoaiPanel";
 import { MoaiDashboard } from "@/components/MoaiDashboard";
+import { MovieStockDialog } from "@/components/MovieStockDialog";
 
 const QUEST_TYPE_LABELS: Record<string, string> = {
   Daily: "D",
@@ -1125,6 +1126,7 @@ function TodayItem({
   const [note, setNote] = useState(quest.note || "");
   const [bookTitle, setBookTitle] = useState("");
   const [movieTitle, setMovieTitle] = useState("");
+  const [isMovieStockSubOpen, setIsMovieStockSubOpen] = useState(false);
 
   useEffect(() => {
     setNote(quest.note || "");
@@ -1462,62 +1464,142 @@ function TodayItem({
                     </div>
                   );
                 })()}
-                <div className="text-[10px] text-fuchsia-400 mb-0.5">または新規登録:</div>
-                <Input
-                  placeholder="本のタイトルを入力..."
-                  value={bookTitle}
-                  onChange={(e) => setBookTitle(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRecordBook(); } }}
-                />
-                <Button onClick={handleRecordBook} disabled={createBook.isPending || !bookTitle.trim()} className="w-full bg-fuchsia-500 hover:bg-fuchsia-600">
-                  {createBook.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  本を登録する
-                </Button>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleRecordBook();
+                  }}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="space-y-1.5"
+                >
+                  <div className="text-[10px] text-fuchsia-600 dark:text-fuchsia-400 font-bold">または新規登録:</div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      autoComplete="off"
+                      enterKeyHint="done"
+                      placeholder="本のタイトルを入力..."
+                      value={bookTitle}
+                      onChange={(e) => setBookTitle(e.target.value)}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => (e.target as HTMLInputElement).focus()}
+                      style={{ touchAction: "manipulation" }}
+                      className="h-9 text-xs sm:text-sm bg-white dark:bg-stone-900"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={createBook.isPending || !bookTitle.trim()}
+                      className="h-9 px-3 bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-bold text-xs shrink-0"
+                    >
+                      {createBook.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                      登録
+                    </Button>
+                  </div>
+                </form>
               </div>
             )}
             {isMovieMission && (
               <div className="space-y-2 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 rounded-lg">
-                <Label className="text-rose-700 dark:text-rose-300 font-bold flex items-center gap-1">
-                  🎬 レコーディング映画
-                </Label>
-                <div className="text-[10px] text-rose-600/80 mb-2">これから観る映画を登録して、Daily Insightの下の映画列に追加します。</div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-rose-700 dark:text-rose-300 font-bold flex items-center gap-1">
+                    🎬 レコーディング映画
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMovieStockSubOpen(true);
+                    }}
+                    className="text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/60 hover:bg-rose-200 px-2 py-0.5 rounded-full border border-rose-200 transition-colors flex items-center gap-1"
+                  >
+                    <span>🍿 ストック管理</span>
+                  </button>
+                </div>
+                <div className="text-[10px] text-rose-600/80">これから観る映画を登録・選択して、記録します。</div>
+
                 {/* Uncompleted movie list */}
                 {(() => {
                   const unfinished = movieList?.filter((m: any) => m.status !== 'completed') || [];
                   if (unfinished.length === 0) return null;
                   return (
                     <div className="mb-2">
-                      <div className="text-[10px] text-rose-500 font-bold mb-1">未完了の映画から選択:</div>
-                      <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto custom-scrollbar">
+                      <div className="text-[10px] text-rose-500 font-bold mb-1">ストック中の映画から選択:</div>
+                      <div className="flex flex-wrap gap-1.5 max-h-[130px] overflow-y-auto custom-scrollbar">
                         {unfinished.map((m: any) => (
                           <button
                             key={m.id}
-                            onClick={async () => {
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
                               await updateQuest.mutateAsync({ questId: quest.id, note: `🎬 ${m.title}` });
                               toast.success(`『${m.title}』を記録しました`);
                               setIsMenuOpen(false);
                               onStatusChange();
                             }}
-                            className="text-[11px] px-2.5 py-1.5 rounded-md bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 transition-colors text-left truncate max-w-full"
+                            className="text-[11px] px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 hover:bg-rose-100 dark:hover:bg-rose-950 text-rose-800 dark:text-rose-200 border border-rose-200/80 shadow-2xs transition-all text-left truncate max-w-full font-bold flex items-center gap-1 active:scale-95"
                           >
-                            🎥 {m.title}
+                            <span>🎥</span>
+                            <span className="truncate">{m.title}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                   );
                 })()}
-                <div className="text-[10px] text-rose-400 mb-0.5">または新規登録:</div>
-                <Input
-                  placeholder="映画のタイトルを入力..."
-                  value={movieTitle}
-                  onChange={(e) => setMovieTitle(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRecordMovie(); } }}
-                />
-                <Button onClick={handleRecordMovie} disabled={createMovie.isPending || !movieTitle.trim()} className="w-full bg-rose-500 hover:bg-rose-600">
-                  {createMovie.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  映画を登録する
-                </Button>
+
+                {/* Mobile-Friendly Quick Add Input Form */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleRecordMovie();
+                  }}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="space-y-1.5"
+                >
+                  <div className="text-[10px] text-rose-500 dark:text-rose-400 font-bold">または新規登録してセット:</div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      autoComplete="off"
+                      enterKeyHint="done"
+                      placeholder="映画のタイトルを入力..."
+                      value={movieTitle}
+                      onChange={(e) => setMovieTitle(e.target.value)}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => (e.target as HTMLInputElement).focus()}
+                      style={{ touchAction: "manipulation" }}
+                      className="h-9 text-xs sm:text-sm bg-white dark:bg-stone-900"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={createMovie.isPending || !movieTitle.trim()}
+                      className="h-9 px-3 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shrink-0"
+                    >
+                      {createMovie.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                      登録
+                    </Button>
+                  </div>
+                </form>
+
+                {/* Sub Dialog for Movie Stock from TodayItem */}
+                {isMovieStockSubOpen && (
+                  <MovieStockDialog
+                    isOpen={isMovieStockSubOpen}
+                    onOpenChange={setIsMovieStockSubOpen}
+                    onSelectForActiveMission={async (title) => {
+                      await updateQuest.mutateAsync({ questId: quest.id, note: `🎬 ${title}` });
+                      toast.success(`『${title}』を記録しました`);
+                      setIsMenuOpen(false);
+                      onStatusChange();
+                    }}
+                  />
+                )}
               </div>
             )}
             <div className="space-y-2">
@@ -3332,6 +3414,24 @@ export default function Home() {
     refreshAll();
   };
 
+  const [isMovieStockOpen, setIsMovieStockOpen] = useState(false);
+  const stockMovieCount = useMemo(() => movies?.filter((m: any) => m.status !== 'completed').length || 0, [movies]);
+
+  const handleAddMovieToTodayMission = async (movieTitle: string) => {
+    const movieTemplate = templates?.find(t => t.questType === "Relax" && t.questName?.includes("映画"));
+    await createQuest.mutateAsync({
+      questName: movieTemplate ? movieTemplate.questName : "映画鑑賞",
+      questType: "Relax" as any,
+      difficulty: "1",
+      templateId: movieTemplate?.id,
+      status: "accepted",
+      startDate: getPlanningStartDate(),
+      note: `🎬 ${movieTitle}`,
+    } as any);
+    toast.success(`『${movieTitle}』をTODAYプランに追加しました`);
+    refreshAll();
+  };
+
   const [editingRelaxTemplate, setEditingRelaxTemplate] = useState<any>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const { data: historyItems } = trpc.quest.getQuestHistory.useQuery({ type: "Free", limit: 20 });
@@ -4226,8 +4326,27 @@ export default function Home() {
                   </h2>
                   <span className="text-[10px] text-muted-foreground bg-emerald-50 px-1.5 rounded-sm">Recover</span>
                 </div>
-                <div className="text-emerald-400">
-                  {isRelaxOpen ? "▼" : "▶"}
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMovieStockOpen(true);
+                    }}
+                    className="h-6 px-2 text-[10px] font-bold text-rose-600 bg-rose-50/90 hover:bg-rose-100 hover:text-rose-700 rounded border border-rose-200/80 flex items-center gap-1 shadow-2xs"
+                  >
+                    <span>🎬</span>
+                    <span>映画ストック</span>
+                    {stockMovieCount > 0 && (
+                      <span className="bg-rose-500 text-white rounded-full px-1.5 py-0 text-[9px] font-bold">
+                        {stockMovieCount}
+                      </span>
+                    )}
+                  </Button>
+                  <div className="text-emerald-400">
+                    {isRelaxOpen ? "▼" : "▶"}
+                  </div>
                 </div>
               </div>
 
@@ -4235,29 +4354,51 @@ export default function Home() {
                 <div className="animate-in slide-in-from-top-2 fade-in duration-200">
                   {relaxTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No relax missions.</div> : (
                     <div className="grid grid-cols-2 gap-2">
-                      {relaxTemplates.map(t => (
-                        <div
-                          key={t.id}
-                          onClick={() => handleReceiveRelax(t)}
-                          className="cursor-pointer group relative flex items-center gap-2 p-2 rounded-lg border border-emerald-200 bg-white hover:scale-[1.02] hover:shadow-sm transition-all shadow-sm"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors shrink-0">
-                            <Plus className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-bold text-emerald-900 truncate">{t.questName}</div>
-                            <div className="text-[9px] text-emerald-500">Recovery</div>
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="w-6 h-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100/50 text-emerald-400"
-                            onClick={(e) => { e.stopPropagation(); setEditingRelaxTemplate(t); }}
+                      {relaxTemplates.map(t => {
+                        const isMovie = t.questName?.includes("映画");
+                        return (
+                          <div
+                            key={t.id}
+                            onClick={() => handleReceiveRelax(t)}
+                            className="cursor-pointer group relative flex flex-col justify-between p-2 rounded-lg border border-emerald-200 bg-white hover:scale-[1.02] hover:shadow-sm transition-all shadow-sm min-h-[58px]"
                           >
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors shrink-0">
+                                <Plus className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-bold text-emerald-900 truncate">{t.questName}</div>
+                                <div className="text-[9px] text-emerald-500">Recovery</div>
+                              </div>
+                            </div>
+
+                            {/* If movie template, show quick stock button */}
+                            {isMovie && (
+                              <div className="mt-1.5 pt-1.5 border-t border-emerald-100/70 flex items-center justify-between">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsMovieStockOpen(true);
+                                  }}
+                                  className="text-[10px] text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 hover:underline py-0.5"
+                                >
+                                  <span>🎬 観たい映画ストック ({stockMovieCount})</span>
+                                </button>
+                              </div>
+                            )}
+
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="w-6 h-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100/50 text-emerald-400"
+                              onClick={(e) => { e.stopPropagation(); setEditingRelaxTemplate(t); }}
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -4660,6 +4801,20 @@ export default function Home() {
                     🎬 WATCHING
                   </h2>
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsMovieStockOpen(true)}
+                  className="h-7 text-xs font-bold text-rose-600 border-rose-200/90 hover:bg-rose-50 flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>映画をストック</span>
+                  {stockMovieCount > 0 && (
+                    <span className="ml-1 bg-rose-500 text-white rounded-full px-1.5 py-0 text-[10px] font-bold">
+                      {stockMovieCount}
+                    </span>
+                  )}
+                </Button>
               </div>
 
               {!movies?.length ? <div className="text-xs text-muted-foreground px-1 italic">No watching records.</div> : (
@@ -4808,6 +4963,13 @@ export default function Home() {
             onUpdated={refreshAll}
           />
         )}
+
+        {/* Movie Stock Management Dialog */}
+        <MovieStockDialog
+          isOpen={isMovieStockOpen}
+          onOpenChange={setIsMovieStockOpen}
+          onAddToTodayMission={handleAddMovieToTodayMission}
+        />
 
         {/* Review Media Dialog */}
         <Dialog open={!!reviewMedia} onOpenChange={(open) => !open && setReviewMedia(null)}>
