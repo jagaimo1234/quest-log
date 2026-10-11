@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef } from "react";
 
 // ============================================================================
-// CODEX MP FLAME & ENERGY CORE LOGIC
+// CODEX MP FLAME & ENERGY CORE LOGIC (HIGH PERFORMANCE VERSION)
 // ============================================================================
 
 export const MP_STOPS: [number, [number, number, number]][] = [
@@ -67,45 +67,63 @@ export function getCurrentTimeHour(): number {
 }
 
 // ============================================================================
-// 1. 縦型シリンダーゲージ (CODEX炎アルゴリズム移植)
+// 1. 縦型シリンダーゲージ (GPU最適化・React再レンダリング不要版)
 // ============================================================================
 
 interface CylinderGaugeProps {
-  energy: number;
-  recoveryAge: number;
+  targetEnergy: number;
+  recoveryTrigger?: number; // インクリメントされると回復演出を発火
   className?: string;
 }
 
-export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: CylinderGaugeProps) {
+export function MoaiCylinderGauge({
+  targetEnergy,
+  recoveryTrigger = 0,
+  className = "",
+}: CylinderGaugeProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const valueLabelRef = useRef<HTMLSpanElement | null>(null);
   const animRef = useRef<number>(0);
+  const prevTriggerRef = useRef<number>(recoveryTrigger);
+
   const stateRef = useRef({
     time: 0,
     last: 0,
-    energy: energy,
-    particles: Array.from({ length: 75 }, () => ({
+    energy: targetEnergy,
+    target: targetEnergy,
+    recoveryAge: 10,
+    particles: Array.from({ length: 32 }, () => ({
       x: Math.random() * 2 - 1,
       y: Math.random(),
-      size: 0.6 + Math.random() * 1.6,
+      size: 0.6 + Math.random() * 1.4,
       phase: Math.random() * 6.28,
-      speed: 0.5 + Math.random(),
+      speed: 0.5 + Math.random() * 0.8,
     })),
   });
 
-  // 最新プロップスを更新
+  // 目標値更新
   useEffect(() => {
-    stateRef.current.energy = energy;
-  }, [energy]);
+    stateRef.current.target = targetEnergy;
+  }, [targetEnergy]);
+
+  // 回復トリガー検知
+  useEffect(() => {
+    if (recoveryTrigger !== prevTriggerRef.current) {
+      prevTriggerRef.current = recoveryTrigger;
+      stateRef.current.recoveryAge = 0;
+    }
+  }, [recoveryTrigger]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
     let w = 84;
     let h = 260;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // dpr は最大1.5に抑えてGPUピクセル負荷を抑制
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -117,11 +135,42 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
     };
     resize();
 
+    let isVisible = !document.hidden;
+    const onVisibility = () => {
+      isVisible = !document.hidden;
+      if (isVisible) stateRef.current.last = performance.now();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    let lastLabelUpdate = 0;
+
     const render = (now: number) => {
+      if (!isVisible) {
+        animRef.current = requestAnimationFrame(render);
+        return;
+      }
+
       const st = stateRef.current;
       const dt = st.last ? Math.min((now - st.last) / 1000, 0.05) : 0;
       st.last = now;
       st.time += dt;
+
+      // 内部でのスムーズなエネルギー補間 (Reactステートを使わない)
+      st.energy += (st.target - st.energy) * (1 - Math.exp(-dt * 4));
+      if (st.recoveryAge < 2.5) {
+        st.recoveryAge += dt;
+      }
+
+      // 数値ラベルのDOM直接更新 (60msごとに更新してブラウザ負荷をゼロに)
+      if (now - lastLabelUpdate > 60 && valueLabelRef.current) {
+        lastLabelUpdate = now;
+        const rounded = Math.round(st.energy);
+        if (valueLabelRef.current.textContent !== String(rounded)) {
+          valueLabelRef.current.textContent = String(rounded);
+          const cLabel = getMpColor(st.energy);
+          valueLabelRef.current.style.color = rgba(cLabel, 1);
+        }
+      }
 
       ctx.clearRect(0, 0, w, h);
 
@@ -131,43 +180,41 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
       const top = h * 0.12;
       const bottom = h * 0.88;
       const len = bottom - top;
-      const amp = 8 + e * 12;
+      const amp = 6 + e * 10;
 
-      // 1. ガラスシリンダーの背景と目盛り
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      // 1. ガラスシリンダーの目盛り
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
       ctx.lineWidth = 1;
       for (let i = 0; i <= 10; i++) {
         const y = top + (i * len) / 10;
         ctx.beginPath();
-        ctx.moveTo(cx - 26, y);
-        ctx.lineTo(cx - 26 + (i % 5 === 0 ? 8 : 4), y);
+        ctx.moveTo(cx - 24, y);
+        ctx.lineTo(cx - 24 + (i % 5 === 0 ? 8 : 4), y);
         ctx.stroke();
       }
 
       // シリンダー内部クリッピング (角丸カプセル型)
       ctx.save();
       ctx.beginPath();
-      ctx.roundRect(cx - 20, top, 40, len, 20);
+      ctx.roundRect(cx - 19, top, 38, len, 19);
       ctx.clip();
 
       // シリンダー内側のほのかな暗がり
       ctx.fillStyle = "rgba(10, 12, 18, 0.65)";
       ctx.fill();
 
-      // リカバリー演出 (CODEX准拠の光粒子とリング)
-      if (recoveryAge < 2.4) {
-        const r = recoveryAge / 2.4;
+      // リカバリー演出 (光粒子とリング)
+      if (st.recoveryAge < 2.4) {
+        const r = st.recoveryAge / 2.4;
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
-        for (let i = 0; i < 28; i++) {
-          const u = Math.min(1, Math.max(0, (r - i * 0.008) * 1.65));
+        for (let i = 0; i < 18; i++) {
+          const u = Math.min(1, Math.max(0, (r - i * 0.01) * 1.65));
           const a = i * 2.399 + u * 3;
-          const rad = (1 - u) * (35 + (i % 5) * 8);
-          const y = bottom - len * 0.45 + Math.sin(a) * rad * 0.65 + (1 - u) * 60;
+          const rad = (1 - u) * (30 + (i % 5) * 6);
+          const y = bottom - len * 0.45 + Math.sin(a) * rad * 0.65 + (1 - u) * 50;
           ctx.globalAlpha = Math.sin(u * Math.PI);
           ctx.fillStyle = i % 3 ? "#9dffcf" : "#f6e5ff";
-          ctx.shadowColor = "#8fffd2";
-          ctx.shadowBlur = 10;
           ctx.beginPath();
           ctx.arc(cx + Math.cos(a) * rad, y, 1.2 + u * 1.4, 0, Math.PI * 2);
           ctx.fill();
@@ -175,38 +222,36 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
         ctx.globalAlpha = Math.sin(r * Math.PI) * 0.7;
         ctx.strokeStyle = "#b7ffe4";
         ctx.lineWidth = 2;
-        ctx.shadowBlur = 16;
-        ctx.shadowColor = "#8dffd0";
         ctx.beginPath();
-        ctx.ellipse(cx, bottom - len * r, 20 + Math.sin(r * Math.PI) * 8, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, bottom - len * r, 18 + Math.sin(r * Math.PI) * 8, 4, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
 
-      // 2. 背景のラジアル発光
+      // 2. 背景のラジアル発光 (shadowBlurを使わない高速グロー)
       const glow = ctx.createRadialGradient(cx, bottom - len * 0.4, 0, cx, bottom - len * 0.4, len * 0.65);
-      glow.addColorStop(0, rgba(c, 0.16 + e * 0.12));
+      glow.addColorStop(0, rgba(c, 0.2 + e * 0.15));
       glow.addColorStop(1, rgba(c, 0));
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, w, h);
 
-      // 3. 炎のリボン (加算合成)
+      // 3. 炎のリボン (加算合成・shadowBlur完全不使用で超高速)
       ctx.globalCompositeOperation = "lighter";
-      const ribbonCount = 14;
+      const ribbonCount = 10;
       for (let j = 0; j < ribbonCount; j++) {
         const phase = j * 2.399;
-        const base = cx + Math.sin(phase) * amp * 0.42;
+        const base = cx + Math.sin(phase) * amp * 0.4;
         const reach = len * (0.28 + e * 0.68) + Math.sin(st.time * (1 + e) + phase) * len * 0.03;
         const tip = bottom - reach;
-        const width = (3.5 + e * 7.5) * (1 - j / 22);
+        const width = (3.5 + e * 6.5) * (1 - j / 16);
         const pts: [number, number, number][] = [];
 
-        for (let i = 0; i <= 36; i++) {
-          const u = i / 36;
+        for (let i = 0; i <= 24; i++) {
+          const u = i / 24;
           const y = bottom - u * reach;
           const wave =
-            Math.sin(u * 9 - st.time * (1.6 + e * 2.6) + phase) * (0.6 + u * 5) +
-            Math.sin(u * 18 - st.time * 2.0 + phase) * u * 2.2;
+            Math.sin(u * 8 - st.time * (1.6 + e * 2.4) + phase) * (0.5 + u * 4) +
+            Math.sin(u * 16 - st.time * 2.0 + phase) * u * 2;
           const x = base + wave * (0.35 + e * 0.65);
           const taper = Math.pow(Math.sin(Math.PI * (0.04 + u * 0.96)), 0.75) * (1 - u * 0.55);
           pts.push([x, y, width * taper]);
@@ -214,12 +259,10 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
 
         const g = ctx.createLinearGradient(0, bottom, 0, tip);
         g.addColorStop(0, rgba(c, 0.02));
-        g.addColorStop(0.18, rgba(c, 0.18 + e * 0.12));
-        g.addColorStop(0.65, rgba(c, 0.28 + e * 0.15));
+        g.addColorStop(0.2, rgba(c, 0.22 + e * 0.18));
+        g.addColorStop(0.7, rgba(c, 0.35 + e * 0.22));
         g.addColorStop(1, rgba(c, 0));
         ctx.fillStyle = g;
-        ctx.shadowColor = rgba(c, 0.85);
-        ctx.shadowBlur = 10 + e * 9;
 
         ctx.beginPath();
         pts.forEach((p, idx) => (idx ? ctx.lineTo(p[0] - p[2], p[1]) : ctx.moveTo(p[0] - p[2], p[1])));
@@ -229,28 +272,27 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
         ctx.closePath();
         ctx.fill();
 
-        // 繊細な光の糸 (Luminous threads)
-        if (j % 3 === 0) {
+        // コアの光の糸 (白金ハイライト)
+        if (j % 2 === 0) {
           ctx.beginPath();
           pts.forEach((p, idx) => (idx ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
-          ctx.strokeStyle = rgba(c, 0.25 + e * 0.2);
-          ctx.lineWidth = 0.75;
+          ctx.strokeStyle = j % 4 === 0 ? "rgba(255, 250, 220, 0.6)" : rgba(c, 0.4);
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
       }
 
-      // 4. 上昇する発光粒子 (Particles)
-      ctx.shadowBlur = 5;
+      // 4. 上昇する発光粒子
       for (let i = 0; i < st.particles.length; i++) {
         const p = st.particles[i];
-        p.y = (p.y + dt * (0.08 + e * 0.24) * p.speed) % 1;
-        if (i > 15 + e * 55) continue;
+        p.y = (p.y + dt * (0.08 + e * 0.22) * p.speed) % 1;
+        if (i > 8 + e * 24) continue;
         const life = p.y;
-        const spread = 5 + life * (10 + e * 14);
-        const px = cx + p.x * spread + Math.sin(st.time * 1.5 + p.phase + life * 6) * life * 6;
+        const spread = 4 + life * (8 + e * 12);
+        const px = cx + p.x * spread + Math.sin(st.time * 1.5 + p.phase + life * 6) * life * 5;
         const py = bottom - life * len * (0.45 + e * 0.55);
 
-        ctx.globalAlpha = Math.sin(life * Math.PI) * (0.35 + e * 0.6);
+        ctx.globalAlpha = Math.sin(life * Math.PI) * (0.4 + e * 0.55);
         ctx.fillStyle = i % 4 === 0 ? "#fff9e6" : rgba(c, 1);
         ctx.beginPath();
         ctx.arc(px, py, p.size * (0.5 + e * 0.5), 0, Math.PI * 2);
@@ -261,29 +303,27 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
 
       // 5. 底部コア発光
       ctx.save();
-      const baseGlow = ctx.createRadialGradient(cx, bottom, 0, cx, bottom, 28);
-      baseGlow.addColorStop(0, rgba(c, 0.45));
+      const baseGlow = ctx.createRadialGradient(cx, bottom, 0, cx, bottom, 24);
+      baseGlow.addColorStop(0, rgba(c, 0.5));
       baseGlow.addColorStop(1, rgba(c, 0));
       ctx.fillStyle = baseGlow;
-      ctx.fillRect(cx - 30, bottom - 30, 60, 45);
+      ctx.fillRect(cx - 25, bottom - 25, 50, 40);
       ctx.restore();
 
       // 6. クリスタルシリンダーのハイライト＆ガラス反射
       ctx.save();
-      // ガラス外枠
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(cx - 20, top, 40, len, 20);
+      ctx.roundRect(cx - 19, top, 38, len, 19);
       ctx.stroke();
 
-      // ガラスの縦のハイライト反射 (左側)
-      const glassGleam = ctx.createLinearGradient(cx - 18, 0, cx - 12, 0);
-      glassGleam.addColorStop(0, "rgba(255,255,255,0.4)");
+      const glassGleam = ctx.createLinearGradient(cx - 17, 0, cx - 12, 0);
+      glassGleam.addColorStop(0, "rgba(255,255,255,0.35)");
       glassGleam.addColorStop(1, "rgba(255,255,255,0.02)");
       ctx.fillStyle = glassGleam;
       ctx.beginPath();
-      ctx.roundRect(cx - 18, top + 6, 6, len - 12, 3);
+      ctx.roundRect(cx - 17, top + 6, 5, len - 12, 2.5);
       ctx.fill();
       ctx.restore();
 
@@ -294,24 +334,26 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
 
     return () => {
       cancelAnimationFrame(animRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [recoveryAge]);
+  }, []);
 
-  const currentColor = getMpColor(energy);
+  const initialColor = getMpColor(targetEnergy);
 
   return (
     <div className={`relative flex flex-col items-center select-none ${className}`}>
-      {/* MP Readout Label */}
+      {/* MP Readout Label (DOM直接更新によりReactレンダリングゼロ) */}
       <div className="text-center mb-1.5">
         <div className="text-[10px] font-extrabold tracking-widest text-stone-400 dark:text-stone-500">
           MP
         </div>
         <div className="flex items-baseline justify-center gap-0.5">
           <span
+            ref={valueLabelRef}
             className="font-mono text-2xl font-black transition-colors duration-300 drop-shadow-sm"
-            style={{ color: rgba(currentColor, 1) }}
+            style={{ color: rgba(initialColor, 1) }}
           >
-            {Math.round(energy)}
+            {Math.round(targetEnergy)}
           </span>
           <span className="text-[11px] font-bold text-stone-400 dark:text-stone-500">
             / 100
@@ -321,7 +363,7 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
 
       {/* Luxury Golden Cylinder Frame Container */}
       <div className="relative w-24 h-64 flex items-center justify-center">
-        {/* Metal Top Cap (Gold / Brass accent) */}
+        {/* Metal Top Cap */}
         <div className="absolute top-0 z-20 w-14 h-4 rounded-full bg-gradient-to-r from-amber-600 via-amber-300 to-amber-700 shadow-md border border-amber-400/80 flex items-center justify-center">
           <div className="w-8 h-1.5 rounded-full bg-gradient-to-r from-amber-200 to-yellow-100 opacity-80" />
         </div>
@@ -333,7 +375,7 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
           style={{ width: "96px", height: "256px" }}
         />
 
-        {/* Metal Bottom Base (Gold / Brass accent) */}
+        {/* Metal Bottom Base */}
         <div className="absolute bottom-0 z-20 w-16 h-5 rounded-b-xl rounded-t-sm bg-gradient-to-r from-amber-700 via-amber-400 to-amber-800 shadow-lg border border-amber-500/80 flex flex-col items-center justify-center">
           <div className="w-10 h-1 rounded-full bg-gradient-to-r from-amber-200 to-yellow-100 opacity-90 mb-0.5" />
           <div className="w-6 h-1 rounded-full bg-amber-950/40" />
@@ -344,43 +386,46 @@ export function MoaiCylinderGauge({ energy, recoveryAge, className = "" }: Cylin
 }
 
 // ============================================================================
-// 2. モアイ背面の炎オーラ (CODEXアルゴリズムを広範囲に展開)
+// 2. モアイ背面の炎オーラ (GPU軽量化・shadowBlur完全撤廃版)
 // ============================================================================
 
 interface MoaiAuraCanvasProps {
-  energy: number;
+  targetEnergy: number;
   className?: string;
 }
 
-export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) {
+export function MoaiAuraCanvas({ targetEnergy, className = "" }: MoaiAuraCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animRef = useRef<number>(0);
+
   const stateRef = useRef({
     time: 0,
     last: 0,
-    energy: energy,
-    particles: Array.from({ length: 90 }, () => ({
+    energy: targetEnergy,
+    target: targetEnergy,
+    particles: Array.from({ length: 42 }, () => ({
       x: Math.random() * 2 - 1,
       y: Math.random(),
-      size: 1.2 + Math.random() * 2.8,
+      size: 1.2 + Math.random() * 2.4,
       phase: Math.random() * 6.28,
-      speed: 0.35 + Math.random() * 0.85,
+      speed: 0.35 + Math.random() * 0.75,
     })),
   });
 
   useEffect(() => {
-    stateRef.current.energy = energy;
-  }, [energy]);
+    stateRef.current.target = targetEnergy;
+  }, [targetEnergy]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
     let w = 640;
     let h = 460;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // dpr を 1.25 に抑えて GPU ピクセル負荷を劇的に削減
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -392,11 +437,26 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
     };
     resize();
 
+    let isVisible = !document.hidden;
+    const onVisibility = () => {
+      isVisible = !document.hidden;
+      if (isVisible) stateRef.current.last = performance.now();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     const render = (now: number) => {
+      if (!isVisible) {
+        animRef.current = requestAnimationFrame(render);
+        return;
+      }
+
       const st = stateRef.current;
       const dt = st.last ? Math.min((now - st.last) / 1000, 0.05) : 0;
       st.last = now;
       st.time += dt;
+
+      // 内部でのスムーズなエネルギー補間 (Reactステート再レンダリング不要)
+      st.energy += (st.target - st.energy) * (1 - Math.exp(-dt * 3.5));
 
       ctx.clearRect(0, 0, w, h);
 
@@ -406,23 +466,21 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
       const bottom = h * 0.82;
       const reachMax = h * (0.55 + e * 0.42);
 
-      // 1. 足元の黄金オーラリング (地面の光の魔法陣・床面グロー)
+      // 1. 足元の黄金オーラリング (地面の光の魔法陣・shadowBlur不使用)
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      const groundGlow = ctx.createRadialGradient(cx, bottom, 10, cx, bottom, 200);
-      groundGlow.addColorStop(0, rgba(c, 0.45 + e * 0.25));
-      groundGlow.addColorStop(0.5, rgba(c, 0.2 + e * 0.15));
+      const groundGlow = ctx.createRadialGradient(cx, bottom, 10, cx, bottom, 190);
+      groundGlow.addColorStop(0, rgba(c, 0.4 + e * 0.2));
+      groundGlow.addColorStop(0.5, rgba(c, 0.15 + e * 0.1));
       groundGlow.addColorStop(1, rgba(c, 0));
       ctx.fillStyle = groundGlow;
       ctx.beginPath();
       ctx.ellipse(cx, bottom, 180, 42, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // 足元の光の環 (楕円リング)
-      ctx.strokeStyle = rgba(c, 0.7 + e * 0.3);
+      // 足元の光の環
+      ctx.strokeStyle = rgba(c, 0.75 + e * 0.25);
       ctx.lineWidth = 2.5;
-      ctx.shadowColor = rgba(c, 1);
-      ctx.shadowBlur = 18;
       ctx.beginPath();
       ctx.ellipse(cx, bottom - 2, 140, 28, 0, 0, Math.PI * 2);
       ctx.stroke();
@@ -434,39 +492,37 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
       ctx.stroke();
       ctx.restore();
 
-      // 2. 広範囲の神秘的なラジアルグロー (モアイの背中全体を照らす光)
+      // 2. 広範囲のラジアルグロー
       const glow = ctx.createRadialGradient(cx, bottom - reachMax * 0.45, 20, cx, bottom - reachMax * 0.45, w * 0.42);
-      glow.addColorStop(0, rgba(c, 0.35 + e * 0.25));
-      glow.addColorStop(0.5, rgba(c, 0.15 + e * 0.12));
+      glow.addColorStop(0, rgba(c, 0.35 + e * 0.22));
+      glow.addColorStop(0.5, rgba(c, 0.12 + e * 0.08));
       glow.addColorStop(1, rgba(c, 0));
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, w, h);
 
       ctx.globalCompositeOperation = "lighter";
 
-      // 3. モアイを大きく包み込み、左右へダイナミックに立ちのぼる炎リボン (22本)
-      const ribbons = 22;
+      // 3. モアイを包み込むダイナミック炎リボン (14本に最適化・shadowBlur不使用)
+      const ribbons = 14;
       for (let j = 0; j < ribbons; j++) {
-        const phase = j * 2.15;
-        // モアイの体幅（260px）の外側へしっかり広がる配置 (左右へのオフセット: 70px〜220px)
+        const phase = j * 2.2;
         const side = j % 2 === 0 ? 1 : -1;
         const spreadRatio = 0.45 + (j / ribbons) * 0.75;
-        const baseOffsetX = side * (85 + spreadRatio * 115) + Math.sin(phase) * 22;
+        const baseOffsetX = side * (85 + spreadRatio * 110) + Math.sin(phase) * 20;
         const base = cx + baseOffsetX;
 
-        const reach = reachMax * (0.75 + Math.sin(phase) * 0.22) + Math.sin(st.time * (1.3 + e) + phase) * 26;
+        const reach = reachMax * (0.75 + Math.sin(phase) * 0.22) + Math.sin(st.time * (1.3 + e) + phase) * 24;
         const tip = bottom - reach;
-        const width = (10 + e * 18) * (1 - (j / ribbons) * 0.45);
+        const width = (10 + e * 16) * (1 - (j / ribbons) * 0.45);
         const pts: [number, number, number][] = [];
 
-        for (let i = 0; i <= 36; i++) {
-          const u = i / 36;
+        for (let i = 0; i <= 24; i++) {
+          const u = i / 24;
           const y = bottom - u * reach;
-          // 外側へうねりながら上部で頭上に巻き上がるS字波形
-          const outwardPull = Math.sin(u * Math.PI) * side * (30 + e * 45);
+          const outwardPull = Math.sin(u * Math.PI) * side * (30 + e * 42);
           const wave =
-            Math.sin(u * 6 - st.time * (1.6 + e * 2.4) + phase) * (3 + u * 24) +
-            Math.sin(u * 12 - st.time * 2.0 + phase) * u * 12;
+            Math.sin(u * 6 - st.time * (1.6 + e * 2.4) + phase) * (3 + u * 20) +
+            Math.sin(u * 12 - st.time * 2.0 + phase) * u * 10;
           const x = base + outwardPull + wave * (0.6 + e * 0.7);
           const taper = Math.pow(Math.sin(Math.PI * (0.04 + u * 0.96)), 0.65) * (1 - u * 0.45);
           pts.push([x, y, width * taper]);
@@ -475,14 +531,11 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
         const isHighlight = j % 3 === 0;
         const g = ctx.createLinearGradient(0, bottom, 0, tip);
         g.addColorStop(0, rgba(c, 0.05));
-        g.addColorStop(0.2, isHighlight ? "rgba(255, 245, 190, 0.65)" : rgba(c, 0.35 + e * 0.3));
-        g.addColorStop(0.65, isHighlight ? "rgba(255, 235, 150, 0.55)" : rgba(c, 0.45 + e * 0.35));
+        g.addColorStop(0.25, isHighlight ? "rgba(255, 245, 190, 0.65)" : rgba(c, 0.35 + e * 0.3));
+        g.addColorStop(0.7, isHighlight ? "rgba(255, 235, 150, 0.55)" : rgba(c, 0.45 + e * 0.35));
         g.addColorStop(1, rgba(c, 0));
 
         ctx.fillStyle = g;
-        ctx.shadowColor = isHighlight ? "#fff5b8" : rgba(c, 0.95);
-        ctx.shadowBlur = 18 + e * 16;
-
         ctx.beginPath();
         pts.forEach((p, idx) => (idx ? ctx.lineTo(p[0] - p[2], p[1]) : ctx.moveTo(p[0] - p[2], p[1])));
         for (let idx = pts.length - 1; idx >= 0; idx--) {
@@ -494,28 +547,25 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
         // 鮮やかな光の芯 (Thread)
         ctx.beginPath();
         pts.forEach((p, idx) => (idx ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
-        ctx.strokeStyle = isHighlight ? "rgba(255, 255, 230, 0.85)" : rgba(c, 0.55 + e * 0.35);
-        ctx.lineWidth = isHighlight ? 1.8 : 1.2;
+        ctx.strokeStyle = isHighlight ? "rgba(255, 255, 230, 0.9)" : rgba(c, 0.6 + e * 0.35);
+        ctx.lineWidth = isHighlight ? 2 : 1.2;
         ctx.stroke();
       }
 
-      // 4. モアイ周囲を舞う金・エメラルドの発光粒子 (大きく華やかに)
-      ctx.shadowBlur = 10;
+      // 4. モアイ周囲を舞う発光粒子 (42個に最適化)
       for (let i = 0; i < st.particles.length; i++) {
         const p = st.particles[i];
-        p.y = (p.y + dt * (0.06 + e * 0.18) * p.speed) % 1;
-        if (i > 20 + e * 68) continue;
+        p.y = (p.y + dt * (0.06 + e * 0.16) * p.speed) % 1;
+        if (i > 15 + e * 26) continue;
         const life = p.y;
-        // モアイの左右へ広く散布
-        const spread = 40 + life * (w * 0.44);
-        const px = cx + p.x * spread + Math.sin(st.time * 1.4 + p.phase + life * 5) * life * 24;
-        const py = bottom - life * reachMax * 1.08;
+        const spread = 35 + life * (w * 0.42);
+        const px = cx + p.x * spread + Math.sin(st.time * 1.4 + p.phase + life * 5) * life * 20;
+        const py = bottom - life * reachMax * 1.05;
 
-        ctx.globalAlpha = Math.sin(life * Math.PI) * (0.4 + e * 0.6);
+        ctx.globalAlpha = Math.sin(life * Math.PI) * (0.45 + e * 0.55);
         ctx.fillStyle = i % 3 === 0 ? "#ffffff" : i % 2 === 0 ? "#fff2a8" : rgba(c, 1);
-        ctx.shadowColor = i % 2 === 0 ? "#ffe885" : rgba(c, 1);
         ctx.beginPath();
-        ctx.arc(px, py, p.size * (0.7 + e * 0.8), 0, Math.PI * 2);
+        ctx.arc(px, py, p.size * (0.7 + e * 0.7), 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -526,6 +576,7 @@ export function MoaiAuraCanvas({ energy, className = "" }: MoaiAuraCanvasProps) 
 
     return () => {
       cancelAnimationFrame(animRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
@@ -569,16 +620,13 @@ export function YogurtPotionButton({
 
         {/* Yogurt Cup Icon Graphics */}
         <div className="relative w-11 h-11 flex items-center justify-center mb-1">
-          {/* Cup graphic using SVG for crisp, charming fantasy look */}
           <svg viewBox="0 0 48 48" className="w-10 h-10 drop-shadow-md">
-            {/* Cup Body */}
             <path
               d="M10 16 L14 42 C14 44 34 44 34 42 L38 16 Z"
               fill="url(#cupGrad)"
               stroke="#e2e8f0"
               strokeWidth="1.2"
             />
-            {/* Yogurt Surface / Cream */}
             <ellipse cx="24" cy="16" rx="14" ry="4" fill="#ffffff" />
             <path
               d="M17 15 Q24 11 31 15"
@@ -586,7 +634,6 @@ export function YogurtPotionButton({
               strokeWidth="1.2"
               fill="none"
             />
-            {/* Cute Cow / Clover Stamp */}
             <circle cx="24" cy="28" r="6" fill="#3b82f6" opacity="0.85" />
             <text
               x="24"
@@ -598,14 +645,12 @@ export function YogurtPotionButton({
             >
               🐄
             </text>
-            {/* Spoon sticking out */}
             <path
               d="M28 14 L34 5"
               stroke="#94a3b8"
               strokeWidth="2.5"
               strokeLinecap="round"
             />
-            {/* Gradient definition */}
             <defs>
               <linearGradient id="cupGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#f8fafc" />
@@ -615,13 +660,11 @@ export function YogurtPotionButton({
             </defs>
           </svg>
 
-          {/* Sparkle badge */}
           <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-400 text-stone-950 font-black text-[9px] flex items-center justify-center shadow-xs animate-pulse">
             +
           </div>
         </div>
 
-        {/* Text Label */}
         <span className="text-[11px] font-black text-amber-300 drop-shadow-xs tracking-tight">
           ヨーグルト
         </span>
@@ -630,7 +673,6 @@ export function YogurtPotionButton({
         </span>
       </button>
 
-      {/* Recovering Floating Flight Trail */}
       {isRecovering && (
         <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1 font-mono text-sm font-black text-emerald-300 animate-bounce drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] pointer-events-none whitespace-nowrap z-30">
           <span>✨ +30 CHARGED!</span>
