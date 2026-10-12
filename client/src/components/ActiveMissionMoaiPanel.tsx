@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ThinkingMoai, MoaiState } from "./ThinkingMoai";
+import { KaraokeMoai3D } from "./KaraokeMoai3D";
 import {
   MoaiCylinderGauge,
   MoaiAuraCanvas,
@@ -122,8 +123,8 @@ export function ActiveMissionMoaiPanel({
 }: ActiveMissionMoaiPanelProps) {
   const updateStatus = trpc.quest.updateStatus.useMutation();
 
-  // Mode toggle between moai and card
-  const [displayMode, setDisplayMode] = useState<"moai" | "card">("moai");
+  // Mode toggle between moai (2D), 3d-moai, and card
+  const [displayMode, setDisplayMode] = useState<"moai" | "3d-moai" | "card">("moai");
 
   // MP Energy state (CODEX flame & rhythm based on current time + potion bonuses)
   const [baseMp] = useState<number>(() => getMpRhythmByHour(getCurrentTimeHour()));
@@ -587,6 +588,17 @@ export function ActiveMissionMoaiPanel({
             </button>
             <button
               type="button"
+              onClick={() => setDisplayMode("3d-moai")}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                displayMode === "3d-moai"
+                  ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-xs font-black"
+                  : "text-purple-600 dark:text-purple-400 hover:text-purple-900 font-bold"
+              }`}
+            >
+              <span>🕺 3Dカラオケモアイ</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setDisplayMode("card")}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 displayMode === "card"
@@ -602,7 +614,7 @@ export function ActiveMissionMoaiPanel({
 
       {/* Main Focus Area */}
       <div className="p-4 sm:p-8">
-        {displayMode === "moai" ? (
+        {displayMode !== "card" ? (
           /* ========================================================= */
           /* MODE 1: BEAUTIFUL MOAI & FLOATING BALLOONS FOCUS ROOM     */
           /* ========================================================= */
@@ -671,31 +683,49 @@ export function ActiveMissionMoaiPanel({
                     <MoaiAuraCanvas targetEnergy={targetEnergy} className="scale-110 sm:scale-125" />
                   </div>
 
-                  <ThinkingMoai
-                    state={effectiveMoaiState}
-                    brainText={
-                      transientState === "completed"
-                        ? "ミッション達成！"
-                        : transientState === "resting"
-                        ? "ひと休み中"
-                        : activeQuest
-                        ? activeQuest.questName
-                        : "何からやろう？"
-                    }
-                    brainSubtitle={
-                      transientState === "completed"
-                        ? "CLEAR ✨"
-                        : transientState === "resting"
-                        ? "REST 🍵"
-                        : activeQuest
-                        ? (isTimerRunning || timerSecondsLeft > 0)
-                          ? `⏱️ ${formatTimerDisplay(timerSecondsLeft)} 集中`
-                          : "いま、やること"
-                        : "待機中"
-                    }
-                    width={260}
-                    height={300}
-                  />
+                  {displayMode === "3d-moai" ? (
+                    <div className="flex flex-col items-center">
+                      <KaraokeMoai3D
+                        isDancing={effectiveMoaiState === "focusing" || isTimerRunning}
+                        width={300}
+                        height={340}
+                        className="scale-105"
+                      />
+                      {activeQuest && (
+                        <div className="mt-2 text-center max-w-[280px]">
+                          <span className="text-xs font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/80 px-2.5 py-1 rounded-full border border-purple-300/60 shadow-2xs">
+                            🎤 踊りながら進行中: {activeQuest.questName}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <ThinkingMoai
+                      state={effectiveMoaiState}
+                      brainText={
+                        transientState === "completed"
+                          ? "ミッション達成！"
+                          : transientState === "resting"
+                          ? "ひと休み中"
+                          : activeQuest
+                          ? activeQuest.questName
+                          : "何からやろう？"
+                      }
+                      brainSubtitle={
+                        transientState === "completed"
+                          ? "CLEAR ✨"
+                          : transientState === "resting"
+                          ? "REST 🍵"
+                          : activeQuest
+                          ? (isTimerRunning || timerSecondsLeft > 0)
+                            ? `⏱️ ${formatTimerDisplay(timerSecondsLeft)} 集中`
+                            : "いま、やること"
+                          : "待機中"
+                      }
+                      width={260}
+                      height={300}
+                    />
+                  )}
                 </div>
 
                 {/* YOGURT POTION (足元の回復アイテム) */}
