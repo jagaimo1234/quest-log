@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { Loader2, Music, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export type DanceMood = "rat" | "dance" | "idle";
 
@@ -131,26 +131,19 @@ function applyIdleMotion(actor: MoaiActor, seconds: number) {
 export function KaraokeMoai3D({
   mood = "rat",
   isDancing = true,
-  width = "100%",
-  height = 360,
+  width = 280,
+  height = 300,
   className = "",
 }: KaraokeMoai3DProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeMood, setActiveMood] = useState<DanceMood>(mood);
-
-  useEffect(() => {
-    if (mood) {
-      setActiveMood(mood);
-    }
-  }, [mood]);
 
   // Ref to hold the current mood for the animation loop without restarting effect
-  const activeMoodRef = useRef<DanceMood>(activeMood);
+  const moodRef = useRef<DanceMood>(mood);
   useEffect(() => {
-    activeMoodRef.current = activeMood;
-  }, [activeMood]);
+    moodRef.current = mood;
+  }, [mood]);
 
   const isDancingRef = useRef<boolean>(isDancing);
   useEffect(() => {
@@ -168,10 +161,10 @@ export function KaraokeMoai3D({
     const scene = new THREE.Scene();
 
     const rect = container.getBoundingClientRect();
-    const w = rect.width || 300;
-    const h = rect.height || 360;
+    const w = rect.width || (typeof width === "number" ? width : 280);
+    const h = rect.height || (typeof height === "number" ? height : 300);
 
-    const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
     camera.position.set(0, 1.25, 2.7);
 
     try {
@@ -183,7 +176,7 @@ export function KaraokeMoai3D({
       renderer.toneMappingExposure = 1.15;
       container.appendChild(renderer.domElement);
     } catch (e: any) {
-      setError("WebGL initialization failed: " + e.message);
+      setError("WebGL初期化エラー: " + e.message);
       setLoading(false);
       return;
     }
@@ -191,13 +184,13 @@ export function KaraokeMoai3D({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.target.set(0, 0.82, 0);
+    controls.target.set(0, 0.8, 0);
     controls.maxDistance = 5;
     controls.minDistance = 1.2;
     controls.enablePan = false;
 
-    // 2. Lighting setup (Atmospheric karaoke stage)
-    const ambientLight = new THREE.AmbientLight(0xfff0ea, 1.2);
+    // 2. Lighting setup (Atmospheric stage lighting)
+    const ambientLight = new THREE.AmbientLight(0xfff5ea, 1.3);
     scene.add(ambientLight);
 
     const dirLight = new THREE.DirectionalLight(0xffebcc, 1.8);
@@ -205,20 +198,20 @@ export function KaraokeMoai3D({
     scene.add(dirLight);
 
     // Neon pink & cyan rim lights
-    const rimLightPink = new THREE.PointLight(0xff3399, 2.5, 8);
+    const rimLightPink = new THREE.PointLight(0xff3399, 2.2, 8);
     rimLightPink.position.set(-2, 2.5, -1);
     scene.add(rimLightPink);
 
-    const rimLightCyan = new THREE.PointLight(0x00e5ff, 2.0, 8);
+    const rimLightCyan = new THREE.PointLight(0x00e5ff, 1.8, 8);
     rimLightCyan.position.set(2, 2.0, -1);
     scene.add(rimLightCyan);
 
-    // Floor shadow disk
-    const shadowGeo = new THREE.CircleGeometry(0.75, 32);
+    // Subtle floor shadow disk
+    const shadowGeo = new THREE.CircleGeometry(0.7, 32);
     const shadowMat = new THREE.MeshBasicMaterial({
       color: 0x000000,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.12,
     });
     const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
     shadowMesh.rotation.x = -Math.PI / 2;
@@ -269,7 +262,7 @@ export function KaraokeMoai3D({
         // Fit & Center model
         const bb = new THREE.Box3().setFromObject(root);
         const sz = bb.getSize(new THREE.Vector3());
-        const scale = 1.72 / Math.max(sz.y, 0.001);
+        const scale = 1.68 / Math.max(sz.y, 0.001);
         root.scale.setScalar(scale);
 
         const box2 = new THREE.Box3().setFromObject(root);
@@ -311,8 +304,8 @@ export function KaraokeMoai3D({
       const elapsed = clock.getElapsedTime();
 
       // Stage lights pulse
-      rimLightPink.intensity = 2.0 + Math.sin(elapsed * 4.0) * 1.0;
-      rimLightCyan.intensity = 1.8 + Math.cos(elapsed * 4.0) * 0.9;
+      rimLightPink.intensity = 1.8 + Math.sin(elapsed * 4.0) * 0.8;
+      rimLightCyan.intensity = 1.6 + Math.cos(elapsed * 4.0) * 0.7;
 
       if (actor) {
         // ALWAYS reset to rest pose quaternion first before multiplying transforms
@@ -325,7 +318,7 @@ export function KaraokeMoai3D({
         actor.root.position.y = actor.y;
         actor.root.rotation.y = 0;
 
-        const currentMood = activeMoodRef.current;
+        const currentMood = moodRef.current;
         const dancing = isDancingRef.current;
 
         if (!dancing || currentMood === "idle") {
@@ -372,76 +365,27 @@ export function KaraokeMoai3D({
 
   return (
     <div
-      className={`relative select-none flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-gradient-to-b from-[#1b0c23] via-[#241231] to-[#120718] border border-purple-500/30 shadow-inner ${className}`}
+      className={`relative select-none flex flex-col items-center justify-center ${className}`}
       style={{ width, height }}
     >
-      {/* 3D Canvas Mount Point */}
+      {/* 3D Canvas Mount Point (Transparent background, no border/box) */}
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
       {/* Loading Overlay */}
       {loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/80 backdrop-blur-sm z-20 text-stone-200">
-          <Loader2 className="w-7 h-7 animate-spin text-purple-400 mb-2" />
-          <span className="text-xs font-bold font-mono">カラオケモアイを召喚中...</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/40 backdrop-blur-sm z-20 text-stone-200 rounded-3xl">
+          <Loader2 className="w-6 h-6 animate-spin text-purple-400 mb-1.5" />
+          <span className="text-[11px] font-bold font-mono">3Dモアイ召喚中...</span>
         </div>
       )}
 
       {/* Error Message */}
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/90 p-4 text-center z-20">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/80 p-4 text-center z-20 rounded-3xl">
           <span className="text-xs text-rose-400 font-bold mb-1">3Dモデル読み込みエラー</span>
           <span className="text-[10px] text-stone-400">{error}</span>
         </div>
       )}
-
-      {/* Stage Badge */}
-      <div className="absolute top-2.5 left-3 flex items-center gap-1.5 z-10 pointer-events-none">
-        <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200 font-black border border-purple-400/40 backdrop-blur-md flex items-center gap-1 shadow-2xs">
-          <Music className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
-          <span>KARAOKE MOAI 3D</span>
-        </span>
-      </div>
-
-      {/* Motion Selector Pill */}
-      <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10 bg-stone-900/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-purple-500/40 shadow-lg">
-        <button
-          type="button"
-          onClick={() => setActiveMood("rat")}
-          className={`px-2.5 py-0.5 text-[11px] font-black rounded-full transition-all cursor-pointer flex items-center gap-1 ${
-            activeMood === "rat"
-              ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-xs scale-105"
-              : "text-stone-300 hover:text-white"
-          }`}
-        >
-          <span>🐭 Rat Dance</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveMood("dance")}
-          className={`px-2.5 py-0.5 text-[11px] font-black rounded-full transition-all cursor-pointer flex items-center gap-1 ${
-            activeMood === "dance"
-              ? "bg-gradient-to-r from-amber-500 to-pink-500 text-white shadow-xs scale-105"
-              : "text-stone-300 hover:text-white"
-          }`}
-        >
-          <span>🕺 ディスコ</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveMood("idle")}
-          className={`px-2.5 py-0.5 text-[11px] font-black rounded-full transition-all cursor-pointer flex items-center gap-1 ${
-            activeMood === "idle"
-              ? "bg-purple-600 text-white shadow-xs scale-105"
-              : "text-stone-300 hover:text-white"
-          }`}
-        >
-          <span>🍵 待機</span>
-        </button>
-      </div>
-
-      <div className="absolute top-2.5 right-3 text-[9px] text-purple-300/80 font-mono pointer-events-none bg-stone-950/40 px-2 py-0.5 rounded-full border border-purple-500/20">
-        ドラッグで回転
-      </div>
     </div>
   );
 }

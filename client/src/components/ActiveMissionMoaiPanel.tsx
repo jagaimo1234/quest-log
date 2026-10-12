@@ -17,10 +17,11 @@ import {
   Volume2,
   Bell,
   Timer,
+  Music,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ThinkingMoai, MoaiState } from "./ThinkingMoai";
-import { KaraokeMoai3D } from "./KaraokeMoai3D";
+import { KaraokeMoai3D, DanceMood } from "./KaraokeMoai3D";
 import {
   MoaiCylinderGauge,
   MoaiAuraCanvas,
@@ -125,6 +126,7 @@ export function ActiveMissionMoaiPanel({
 
   // Mode toggle between moai (2D), 3d-moai, and card
   const [displayMode, setDisplayMode] = useState<"moai" | "3d-moai" | "card">("moai");
+  const [danceMood, setDanceMood] = useState<DanceMood>("rat");
 
   // MP Energy state (CODEX flame & rhythm based on current time + potion bonuses)
   const [baseMp] = useState<number>(() => getMpRhythmByHour(getCurrentTimeHour()));
@@ -685,20 +687,53 @@ export function ActiveMissionMoaiPanel({
 
                   {displayMode === "3d-moai" ? (
                     <div className="flex flex-col items-center">
-                      <KaraokeMoai3D
-                        mood={transientState === "resting" ? "idle" : "rat"}
-                        isDancing={true}
-                        width={300}
-                        height={340}
-                        className="scale-105"
-                      />
-                      <div className="mt-2 text-center max-w-[280px]">
-                        <span className="text-xs font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/80 px-2.5 py-1 rounded-full border border-purple-300/60 shadow-2xs">
-                          {activeQuest
-                            ? `🎤 踊りながら進行中: ${activeQuest.questName}`
-                            : `🐭 RAT DANCE 待機中`}
+                      {/* Dance Motion Selector (Above 3D model, never overlapping) */}
+                      <div className="mb-2 flex items-center gap-1.5 bg-stone-900/80 dark:bg-stone-800/90 backdrop-blur-md px-3 py-1 rounded-full border border-purple-500/30 shadow-md z-30">
+                        <span className="text-[11px] font-bold text-purple-300 mr-0.5 flex items-center gap-1">
+                          <Music className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
+                          <span className="hidden sm:inline">ダンス:</span>
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => setDanceMood("rat")}
+                          className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                            danceMood === "rat"
+                              ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-xs scale-105"
+                              : "text-stone-300 hover:text-white"
+                          }`}
+                        >
+                          🐭 Rat Dance
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDanceMood("dance")}
+                          className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                            danceMood === "dance"
+                              ? "bg-gradient-to-r from-amber-500 to-pink-500 text-white shadow-xs scale-105"
+                              : "text-stone-300 hover:text-white"
+                          }`}
+                        >
+                          🕺 ディスコ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDanceMood("idle")}
+                          className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                            danceMood === "idle"
+                              ? "bg-purple-600 text-white shadow-xs scale-105"
+                              : "text-stone-300 hover:text-white"
+                          }`}
+                        >
+                          🍵 待機
+                        </button>
                       </div>
+
+                      <KaraokeMoai3D
+                        mood={danceMood}
+                        isDancing={true}
+                        width={280}
+                        height={300}
+                      />
                     </div>
                   ) : (
                     <ThinkingMoai
