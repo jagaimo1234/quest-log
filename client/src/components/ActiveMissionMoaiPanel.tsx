@@ -686,18 +686,19 @@ export function ActiveMissionMoaiPanel({
                   {displayMode === "3d-moai" ? (
                     <div className="flex flex-col items-center">
                       <KaraokeMoai3D
-                        isDancing={effectiveMoaiState === "focusing" || isTimerRunning}
+                        mood={transientState === "resting" ? "idle" : "rat"}
+                        isDancing={true}
                         width={300}
                         height={340}
                         className="scale-105"
                       />
-                      {activeQuest && (
-                        <div className="mt-2 text-center max-w-[280px]">
-                          <span className="text-xs font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/80 px-2.5 py-1 rounded-full border border-purple-300/60 shadow-2xs">
-                            🎤 踊りながら進行中: {activeQuest.questName}
-                          </span>
-                        </div>
-                      )}
+                      <div className="mt-2 text-center max-w-[280px]">
+                        <span className="text-xs font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950/80 px-2.5 py-1 rounded-full border border-purple-300/60 shadow-2xs">
+                          {activeQuest
+                            ? `🎤 踊りながら進行中: ${activeQuest.questName}`
+                            : `🐭 RAT DANCE 待機中`}
+                        </span>
+                      </div>
                     </div>
                   ) : (
                     <ThinkingMoai
