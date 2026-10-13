@@ -4,7 +4,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Loader2 } from "lucide-react";
 
-export type DanceMood = "rat" | "dance" | "idle";
+export type DanceMood = "rat" | "dance" | "run" | "jump" | "wave" | "idle";
 
 interface KaraokeMoai3DProps {
   mood?: DanceMood;
@@ -54,7 +54,7 @@ function rot(actor: MoaiActor, key: string, axis: THREE.Vector3, angle: number) 
 }
 
 /**
- * Procedural RAT DANCE implementation from https://moai-rig-mobile-lab.vercel.app/rat-dance.js
+ * Procedural RAT DANCE (Focusing & deep groove)
  * Iconic alternating foot cross & arms bounce
  */
 function applyRatDance(actor: MoaiActor, seconds: number) {
@@ -92,6 +92,65 @@ function applyRatDance(actor: MoaiActor, seconds: number) {
 }
 
 /**
+ * Procedural Sprint / Run (Last spurt in focus timer)
+ * High energy running motion with forward tilt and rapid strides
+ */
+function applyRunMotion(actor: MoaiActor, seconds: number) {
+  const u = seconds;
+  const f = 1.6;
+  const a = Math.sin(u * 5 * f) * 0.8;
+  rot(actor, "ll", ax, a);
+  rot(actor, "rl", ax, -a);
+  rot(actor, "lk", ax, Math.max(0, -a) * 0.65);
+  rot(actor, "rk", ax, Math.max(0, a) * 0.65);
+  rot(actor, "lf", ax, -a * 0.12);
+  rot(actor, "rf", ax, a * 0.12);
+  rot(actor, "la", ax, -a * 0.6);
+  rot(actor, "ra", ax, a * 0.6);
+  rot(actor, "chest", ay, a * 0.14);
+  rot(actor, "spine", ax, 0.2); // Forward runner's tilt
+  rot(actor, "head", ax, -0.1);
+  actor.root.position.y = actor.y + Math.abs(a) * 0.055;
+  actor.root.position.x = actor.x + Math.sin(u * 5 * f) * 0.03;
+}
+
+/**
+ * Procedural Celebration Jump (Task completed / Victory / Potion recovery)
+ * Joyful leaps into the air with raised arms and head nods
+ */
+function applyJumpMotion(actor: MoaiActor, seconds: number) {
+  const u = seconds * 1.25;
+  const j = Math.max(0, Math.sin(u * 4));
+  actor.root.position.y = actor.y + j * 0.42;
+  rot(actor, "lk", ax, 0.55 * (1 - j));
+  rot(actor, "rk", ax, 0.55 * (1 - j));
+  rot(actor, "la", ax, -j * 0.9);
+  rot(actor, "ra", ax, -j * 0.9);
+  rot(actor, "la", az, -0.35 * j);
+  rot(actor, "ra", az, 0.35 * j);
+  rot(actor, "head", az, Math.sin(u * 4) * 0.15);
+  rot(actor, "spine", az, Math.sin(u * 4) * 0.08);
+  rot(actor, "chest", ay, Math.sin(u * 2) * 0.12);
+}
+
+/**
+ * Procedural Wave Motion (Waiting for task / Greeting)
+ * Warm, friendly greeting waving microphone arm to invite user
+ */
+function applyWaveMotion(actor: MoaiActor, seconds: number) {
+  const u = seconds;
+  const beat = Math.sin(u * 2.5);
+  rot(actor, "ra", ax, -0.95);
+  rot(actor, "re", ax, -0.7 + Math.sin(u * 6) * 0.45);
+  rot(actor, "head", ay, beat * 0.16);
+  rot(actor, "head", az, beat * 0.08);
+  rot(actor, "spine", az, beat * 0.06);
+  rot(actor, "chest", ay, beat * 0.09);
+  rot(actor, "la", ax, -0.25 + beat * 0.1);
+  actor.root.position.y = actor.y + Math.sin(u * 2.5) * 0.018;
+}
+
+/**
  * Procedural Disco Dance from reference app.js
  */
 function applyDiscoDance(actor: MoaiActor, seconds: number) {
@@ -117,15 +176,15 @@ function applyDiscoDance(actor: MoaiActor, seconds: number) {
 }
 
 /**
- * Gentle Idle breathing & body sway
+ * Gentle Idle breathing & body sway (Resting / Paused)
  */
 function applyIdleMotion(actor: MoaiActor, seconds: number) {
-  const beat = Math.sin(seconds * 2.5);
-  rot(actor, "head", az, beat * 0.065);
-  rot(actor, "spine", az, beat * 0.07);
-  rot(actor, "chest", ay, beat * 0.11);
-  rot(actor, "ra", ax, -0.15 + beat * 0.16);
-  actor.root.position.y = actor.y + beat * 0.015;
+  const beat = Math.sin(seconds * 2.0);
+  rot(actor, "head", az, beat * 0.05);
+  rot(actor, "spine", az, beat * 0.05);
+  rot(actor, "chest", ay, beat * 0.08);
+  rot(actor, "ra", ax, -0.15 + beat * 0.12);
+  actor.root.position.y = actor.y + beat * 0.012;
 }
 
 export function KaraokeMoai3D({
@@ -303,9 +362,13 @@ export function KaraokeMoai3D({
       animationFrameId = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
 
-      // Stage lights pulse
-      rimLightPink.intensity = 1.8 + Math.sin(elapsed * 4.0) * 0.8;
-      rimLightCyan.intensity = 1.6 + Math.cos(elapsed * 4.0) * 0.7;
+      const currentMood = moodRef.current;
+      const dancing = isDancingRef.current;
+
+      // Pulse lighting reacts to energy of current motion
+      const lightSpeed = currentMood === "jump" || currentMood === "run" ? 7.0 : currentMood === "idle" ? 2.0 : 4.0;
+      rimLightPink.intensity = 1.8 + Math.sin(elapsed * lightSpeed) * 0.8;
+      rimLightCyan.intensity = 1.6 + Math.cos(elapsed * lightSpeed) * 0.7;
 
       if (actor) {
         // ALWAYS reset to rest pose quaternion first before multiplying transforms
@@ -318,15 +381,20 @@ export function KaraokeMoai3D({
         actor.root.position.y = actor.y;
         actor.root.rotation.y = 0;
 
-        const currentMood = moodRef.current;
-        const dancing = isDancingRef.current;
-
         if (!dancing || currentMood === "idle") {
           applyIdleMotion(actor, elapsed);
         } else if (currentMood === "rat") {
           applyRatDance(actor, elapsed);
+        } else if (currentMood === "run") {
+          applyRunMotion(actor, elapsed);
+        } else if (currentMood === "jump") {
+          applyJumpMotion(actor, elapsed);
+        } else if (currentMood === "wave") {
+          applyWaveMotion(actor, elapsed);
         } else if (currentMood === "dance") {
           applyDiscoDance(actor, elapsed);
+        } else {
+          applyRatDance(actor, elapsed);
         }
       }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,7 +126,7 @@ export function ActiveMissionMoaiPanel({
 
   // Mode toggle between moai (2D), 3d-moai, and card
   const [displayMode, setDisplayMode] = useState<"moai" | "3d-moai" | "card">("moai");
-  const [danceMood, setDanceMood] = useState<DanceMood>("rat");
+  const [danceMoodSelection, setDanceMoodSelection] = useState<"auto" | DanceMood>("auto");
 
   // MP Energy state (CODEX flame & rhythm based on current time + potion bonuses)
   const [baseMp] = useState<number>(() => getMpRhythmByHour(getCurrentTimeHour()));
@@ -418,6 +418,82 @@ export function ActiveMissionMoaiPanel({
     ? Math.max(0, Math.min(100, (timerSecondsLeft / timerTotalSeconds) * 100))
     : 0;
 
+  // ------------------------------------------------------------------
+  // 3D MOAI TASK-ADAPTIVE DANCE ENGINE (タスク状況連動ダンスエンジン)
+  // ------------------------------------------------------------------
+  const autoMotionInfo = useMemo(() => {
+    // 1. Mission celebration / clear
+    if (transientState === "completed") {
+      return {
+        motion: "jump" as DanceMood,
+        label: "達成！歓喜ジャンプ",
+        icon: "🎉",
+        badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
+      };
+    }
+
+    // 2. Yogurt potion recovery (MP burst!)
+    if (isRecovering) {
+      return {
+        motion: "jump" as DanceMood,
+        label: "MP回復エナジージャンプ！",
+        icon: "🥛",
+        badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
+      };
+    }
+
+    // 3. Resting / Break (transient)
+    if (transientState === "resting") {
+      return {
+        motion: "idle" as DanceMood,
+        label: "ひと休み深呼吸中",
+        icon: "🍵",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-400/40",
+      };
+    }
+
+    // 4. No active quest selected (Standby)
+    if (!activeQuest) {
+      return {
+        motion: "wave" as DanceMood,
+        label: "何からやろう？手振り待機",
+        icon: "👋",
+        badgeColor: "bg-purple-500/20 text-purple-300 border-purple-400/40",
+      };
+    }
+
+    // 5. Active quest, but timer is paused
+    if (!isTimerRunning) {
+      return {
+        motion: "idle" as DanceMood,
+        label: "タイマー一時停止中（小休止）",
+        icon: "⏸️",
+        badgeColor: "bg-stone-500/20 text-stone-300 border-stone-400/40",
+      };
+    }
+
+    // 6. Active quest & timer running: check if in last spurt (<= 3 mins / 180s)
+    if (timerSecondsLeft > 0 && timerSecondsLeft <= 180) {
+      return {
+        motion: "run" as DanceMood,
+        label: "ラストスパート！猛ダッシュ",
+        icon: "🔥",
+        badgeColor: "bg-rose-500/20 text-rose-300 border-rose-400/40",
+      };
+    }
+
+    // 7. Regular active focus: RAT DANCE!
+    return {
+      motion: "rat" as DanceMood,
+      label: "集中ゾーン（RAT DANCE）",
+      icon: "🐭",
+      badgeColor: "bg-pink-500/20 text-pink-300 border-pink-400/40",
+    };
+  }, [transientState, isRecovering, activeQuest, isTimerRunning, timerSecondsLeft]);
+
+  const effectiveMotion: DanceMood =
+    danceMoodSelection === "auto" ? autoMotionInfo.motion : danceMoodSelection;
+
   // Actions
   const handleComplete = async () => {
     if (!activeQuest) return;
@@ -687,49 +763,87 @@ export function ActiveMissionMoaiPanel({
 
                   {displayMode === "3d-moai" ? (
                     <div className="flex flex-col items-center">
-                      {/* Dance Motion Selector (Above 3D model, never overlapping) */}
-                      <div className="mb-2 flex items-center gap-1.5 bg-stone-900/80 dark:bg-stone-800/90 backdrop-blur-md px-3 py-1 rounded-full border border-purple-500/30 shadow-md z-30">
-                        <span className="text-[11px] font-bold text-purple-300 mr-0.5 flex items-center gap-1">
-                          <Music className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
-                          <span className="hidden sm:inline">ダンス:</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setDanceMood("rat")}
-                          className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all whitespace-nowrap cursor-pointer ${
-                            danceMood === "rat"
-                              ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-xs scale-105"
-                              : "text-stone-300 hover:text-white"
-                          }`}
-                        >
-                          🐭 Rat Dance
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDanceMood("dance")}
-                          className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all whitespace-nowrap cursor-pointer ${
-                            danceMood === "dance"
-                              ? "bg-gradient-to-r from-amber-500 to-pink-500 text-white shadow-xs scale-105"
-                              : "text-stone-300 hover:text-white"
-                          }`}
-                        >
-                          🕺 ディスコ
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDanceMood("idle")}
-                          className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all whitespace-nowrap cursor-pointer ${
-                            danceMood === "idle"
-                              ? "bg-purple-600 text-white shadow-xs scale-105"
-                              : "text-stone-300 hover:text-white"
-                          }`}
-                        >
-                          🍵 待機
-                        </button>
+                      {/* Dance Motion Selector (Above 3D model, adaptive + manual override) */}
+                      <div className="mb-2 flex flex-col items-center gap-1.5 z-30">
+                        {/* Situation Live Status & Auto Pill */}
+                        <div className="flex items-center gap-2 bg-stone-900/85 dark:bg-stone-800/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-purple-500/40 shadow-lg">
+                          <button
+                            type="button"
+                            onClick={() => setDanceMoodSelection("auto")}
+                            className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                              danceMoodSelection === "auto"
+                                ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-xs scale-105"
+                                : "text-purple-300 hover:text-white"
+                            }`}
+                            title="タスクの状況に合わせて自動で踊りを切り替えます"
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+                            <span>⚡ 状況連動 (AUTO)</span>
+                          </button>
+
+                          <div className="h-3.5 w-px bg-purple-500/30" />
+
+                          {/* Live Status Badge */}
+                          <span
+                            className={`text-[11px] font-black px-2 py-0.5 rounded-full border flex items-center gap-1 whitespace-nowrap ${
+                              danceMoodSelection === "auto"
+                                ? autoMotionInfo.badgeColor
+                                : "bg-purple-950/60 text-purple-200 border-purple-500/30"
+                            }`}
+                          >
+                            <span>{danceMoodSelection === "auto" ? autoMotionInfo.icon : "🎯"}</span>
+                            <span>
+                              {danceMoodSelection === "auto"
+                                ? autoMotionInfo.label
+                                : `手動固定: ${
+                                    danceMoodSelection === "rat"
+                                      ? "RAT DANCE"
+                                      : danceMoodSelection === "run"
+                                      ? "猛ダッシュ"
+                                      : danceMoodSelection === "jump"
+                                      ? "歓喜ジャンプ"
+                                      : danceMoodSelection === "dance"
+                                      ? "ディスコ"
+                                      : danceMoodSelection === "wave"
+                                      ? "手振り"
+                                      : "ひと息"
+                                  }`}
+                            </span>
+                          </span>
+                        </div>
+
+                        {/* Quick Manual Override Options */}
+                        <div className="flex items-center gap-1 bg-stone-900/60 dark:bg-stone-800/60 backdrop-blur-sm px-2.5 py-0.5 rounded-full border border-stone-700/60 text-[10.5px]">
+                          {[
+                            { key: "rat", label: "🐭 Rat", title: "集中 RAT DANCE" },
+                            { key: "run", label: "🏃 激走", title: "ラストスパート猛ダッシュ" },
+                            { key: "jump", label: "🎉 歓喜", title: "達成大歓喜ジャンプ" },
+                            { key: "dance", label: "🕺 ディスコ", title: "ステージダンス" },
+                            { key: "wave", label: "👋 手振り", title: "挨拶・呼びかけ" },
+                            { key: "idle", label: "🍵 ひと息", title: "ゆったり深呼吸" },
+                          ].map((opt) => {
+                            const isSelected = danceMoodSelection === opt.key;
+                            return (
+                              <button
+                                key={opt.key}
+                                type="button"
+                                onClick={() => setDanceMoodSelection(opt.key as DanceMood)}
+                                title={opt.title}
+                                className={`px-2 py-0.5 rounded-full transition-all whitespace-nowrap cursor-pointer font-bold ${
+                                  isSelected
+                                    ? "bg-purple-600 text-white shadow-xs font-black scale-105"
+                                    : "text-stone-400 hover:text-stone-200"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       <KaraokeMoai3D
-                        mood={danceMood}
+                        mood={effectiveMotion}
                         isDancing={true}
                         width={280}
                         height={300}
