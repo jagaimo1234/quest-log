@@ -332,6 +332,10 @@ export const watchingMovies = sqliteTable("watching_movies", {
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   completedAt: integer("completedAt", { mode: "timestamp" }),
+  posterUrl: text("posterUrl"),
+  tmdbId: integer("tmdbId"),
+  officialTitle: text("officialTitle"),
+  releaseYear: text("releaseYear"),
 });
 
 export type WatchingMovie = typeof watchingMovies.$inferSelect;

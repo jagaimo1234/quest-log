@@ -40,6 +40,7 @@ import {
   incrementQuestCount,
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
+import { searchMovieCandidates, pickConfident, isTmdbConfigured } from "../services/tmdb.js";
 import { getDb } from "../db.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchingMovies, dailyBulletinBoards, monthlyGoals } from "../../drizzle/schema.js";
@@ -141,8 +142,82 @@ export const appRouter = router({
           title: input.title,
           status: "watching"
         }).returning();
-        return result[0];
+        let movie = result[0];
+        // 正確に一致した場合のみポスターを自動設定（失敗しても追加自体は成功させる）
+        try {
+          const confident = pickConfident(input.title, await searchMovieCandidates(input.title));
+          if (confident) {
+            const updated = await db.update(watchingMovies)
+              .set({
+                posterUrl: confident.posterUrl,
+                tmdbId: confident.tmdbId,
+                officialTitle: confident.officialTitle,
+                releaseYear: confident.releaseYear,
+                updatedAt: new Date(),
+              })
+              .where(eq(watchingMovies.id, movie.id))
+              .returning();
+            movie = updated[0] ?? movie;
+          }
+        } catch (e) {
+          console.warn("[movie.create] poster lookup failed:", e);
+        }
+        return movie;
       }),
+    searchPoster: protectedProcedure
+      .input(z.object({ query: z.string().min(1) }))
+      .query(async ({ input }) => {
+        return {
+          configured: isTmdbConfigured(),
+          candidates: await searchMovieCandidates(input.query, 8),
+        };
+      }),
+    setPoster: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        tmdbId: z.number().nullable(),
+        posterUrl: z.string().nullable(),
+        officialTitle: z.string().nullable(),
+        releaseYear: z.string().nullable(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const { id, ...fields } = input;
+        await db.update(watchingMovies)
+          .set({ ...fields, updatedAt: new Date() })
+          .where(and(eq(watchingMovies.id, id), eq(watchingMovies.userId, ctx.user!.id)));
+        return { success: true };
+      }),
+    // ポスター未設定の映画を、上位候補で一括補完（確信度が高いものだけ）
+    backfillPosters: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      if (!isTmdbConfigured()) return { updated: 0, skipped: 0, configured: false };
+      const rows = await db.select().from(watchingMovies)
+        .where(eq(watchingMovies.userId, ctx.user!.id));
+      const targets = rows.filter((m: any) => !m.posterUrl && !m.tmdbId).slice(0, 30);
+      let updated = 0;
+      for (const m of targets) {
+        try {
+          const c = pickConfident(m.title, await searchMovieCandidates(m.title));
+          if (!c) continue;
+          await db.update(watchingMovies)
+            .set({
+              posterUrl: c.posterUrl,
+              tmdbId: c.tmdbId,
+              officialTitle: c.officialTitle,
+              releaseYear: c.releaseYear,
+              updatedAt: new Date(),
+            })
+            .where(eq(watchingMovies.id, m.id));
+          updated++;
+        } catch (e) {
+          console.warn("[movie.backfill] failed for", m.title, e);
+        }
+      }
+      return { updated, skipped: targets.length - updated, configured: true };
+    }),
     updateStatus: protectedProcedure
       .input(z.object({ id: z.number(), status: z.enum(["watching", "completed"]) }))
       .mutation(async ({ ctx, input }) => {
