@@ -261,96 +261,105 @@ export function MovieStockDialog({
             </div>
           </DialogHeader>
 
-          {/* Quick Add Form (Mobile Optimized) */}
-          <form
-            onSubmit={handleAddMovie}
-            className="shrink-0 p-3 rounded-xl bg-stone-50 dark:bg-stone-950/40 border border-stone-200 dark:border-stone-800 space-y-2 mb-3"
-            onTouchStart={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <Label className="text-xs font-bold text-stone-700 dark:text-stone-200 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-              <span>気になった映画をすぐ溜める</span>
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                ref={inputRef}
-                type="text"
-                autoComplete="off"
-                enterKeyHint="done"
-                placeholder="映画のタイトルを入力..."
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                onTouchStart={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => (e.target as HTMLInputElement).focus()}
-                style={{ touchAction: "manipulation" }}
-                className="h-10 text-xs sm:text-sm bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 border-stone-300 dark:border-stone-700 flex-1"
-              />
-              <Button
-                type="submit"
-                disabled={createMovie.isPending || !newTitle.trim()}
-                className="h-10 px-4 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shrink-0 rounded-lg gap-1 shadow-xs active:scale-95 transition-all"
-              >
-                {createMovie.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    <span>溜める</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
+          {/* Quick Add Form (図鑑タブのときはスッキリ折りたたみ可能またはコンパクトに) */}
+          <div className="shrink-0 mb-2">
+            <form
+              onSubmit={handleAddMovie}
+              className="p-2.5 sm:p-3 rounded-xl bg-stone-50 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800 space-y-1.5"
+              onTouchStart={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <Label className="text-[11px] sm:text-xs font-bold text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                  <span>気になった映画をすぐ溜める</span>
+                </Label>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  type="text"
+                  autoComplete="off"
+                  enterKeyHint="done"
+                  placeholder="映画のタイトルを入力..."
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => (e.target as HTMLInputElement).focus()}
+                  style={{ touchAction: "manipulation" }}
+                  className="h-9 sm:h-10 text-xs sm:text-sm bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 border-stone-300 dark:border-stone-700 flex-1"
+                />
+                <Button
+                  type="submit"
+                  disabled={createMovie.isPending || !newTitle.trim()}
+                  className="h-9 sm:h-10 px-3.5 sm:px-4 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shrink-0 rounded-lg gap-1 shadow-xs active:scale-95 transition-all"
+                >
+                  {createMovie.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>溜める</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
 
-          {/* Tabs: Stock vs Completed */}
-          <div className="flex items-center gap-1 p-1 bg-stone-100 dark:bg-stone-800/60 rounded-lg text-xs font-bold mb-2 shrink-0">
+          {/* Tabs: Stock vs Completed vs Gallery */}
+          <div className="flex items-center gap-1 p-1 bg-stone-100 dark:bg-stone-800/80 rounded-xl text-xs font-bold mb-2 shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab("stock")}
-              className={`flex-1 py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "stock"
-                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-xs font-black"
+                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm font-black"
                   : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
               }`}
             >
               <Film className="w-3.5 h-3.5 text-rose-500" />
-              <span>観たい映画 ({stockMovies.length})</span>
+              <span>観たい ({stockMovies.length})</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("completed")}
-              className={`flex-1 py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "completed"
-                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-xs font-black"
+                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm font-black"
                   : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
               }`}
             >
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>観た履歴 ({completedMovies.length})</span>
+              <span>観た ({completedMovies.length})</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("gallery")}
-              className={`flex-1 py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "gallery"
-                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-xs font-black"
+                  ? "bg-stone-950 text-white shadow-sm font-black dark:bg-stone-100 dark:text-stone-950"
                   : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
               }`}
             >
-              <LayoutGrid className="w-3.5 h-3.5 text-indigo-500" />
+              <LayoutGrid className="w-3.5 h-3.5 text-rose-500" />
               <span>図鑑 ({movies?.length ?? 0})</span>
             </button>
           </div>
 
-          {/* Movie List Container */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[200px]">
+          {/* Movie List Container (スマホでのタッチスクロール確実化) */}
+          <div
+            className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-0 overscroll-contain"
+            style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+          >
             {activeTab === "gallery" ? (
               !movies || movies.length === 0 ? (
-                <div className="text-center py-10 px-4 text-xs text-stone-400 dark:text-stone-500 border border-dashed border-stone-200 dark:border-stone-800 rounded-xl">
-                  <LayoutGrid className="w-8 h-8 text-stone-300 dark:text-stone-600 mx-auto mb-2" />
-                  <div>まだ映画が登録されていません</div>
+                <div className="text-center py-12 px-4 text-xs text-stone-400 dark:text-stone-500 border border-dashed border-stone-200 dark:border-stone-800 rounded-2xl">
+                  <LayoutGrid className="w-10 h-10 text-stone-300 dark:text-stone-600 mx-auto mb-2" />
+                  <div className="font-bold">まだ映画が登録されていません</div>
                 </div>
               ) : (
                 <>
@@ -359,95 +368,115 @@ export function MovieStockDialog({
                       type="button"
                       onClick={handleBackfill}
                       disabled={backfill.isPending}
-                      className="w-full mb-2 py-1.5 text-[11px] font-bold rounded-lg border border-dashed border-rose-300 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center gap-1.5"
+                      className="w-full mb-3 py-2 text-xs font-bold rounded-xl border border-dashed border-rose-400/80 bg-rose-50/50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100/60 dark:hover:bg-rose-950/40 flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                     >
                       {backfill.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
-                      画像が無い映画のポスターを自動で探す
+                      画像が無い映画のポスターを一括自動取得
                     </button>
                   )}
-                  <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
+
+                  {/* Netflix風 フィルターピル */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-3 overflow-x-auto pb-1 scrollbar-none" style={{ touchAction: "pan-x" }}>
                     {([
                       ["all", "すべて", movies.length],
-                      ["completed", "観た", completedMovies.length],
-                      ["watching", "観たい", stockMovies.length],
+                      ["completed", "観た作品", completedMovies.length],
+                      ["watching", "観たい候補", stockMovies.length],
                     ] as const).map(([key, label, count]) => (
                       <button
                         key={key}
                         type="button"
                         onClick={() => setGalleryFilter(key)}
-                        className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
                           galleryFilter === key
-                            ? "bg-white border-white text-stone-900 shadow-md"
-                            : "bg-transparent border-stone-600 text-stone-300 hover:border-stone-300 hover:text-white"
+                            ? "bg-rose-600 text-white shadow-md shadow-rose-600/30 font-black scale-102"
+                            : "bg-stone-100 dark:bg-stone-800/90 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 border border-stone-200/60 dark:border-stone-700/60"
                         }`}
                       >
-                        {label}
-                        <span className="ml-1.5 font-mono text-stone-500">
+                        <span>{label}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                          galleryFilter === key ? "bg-white/20 text-white" : "bg-stone-200/80 dark:bg-stone-700/80 text-stone-500 dark:text-stone-400"
+                        }`}>
                           {count}
                         </span>
                       </button>
                     ))}
                   </div>
+
                   {galleryMovies.length === 0 && (
-                    <div className="text-center py-10 text-xs text-stone-500">該当する映画はありません</div>
+                    <div className="text-center py-12 text-xs text-stone-400 dark:text-stone-500 font-medium">
+                      該当する映画がありません
+                    </div>
                   )}
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-2.5 gap-y-3 p-1">
+
+                  {/* Netflix風 ポスターグリッド（スマホ演出強化） */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5 sm:gap-3 p-0.5">
                     {galleryMovies.map((movie: any) => {
                       const done = movie.status === "completed";
                       return (
-                        <button
+                        <div
                           key={movie.id}
-                          type="button"
                           onClick={() => setDetailTarget(movie)}
-                          className="group relative block text-left rounded-md overflow-hidden bg-stone-800 shadow-md ring-1 ring-white/5 aspect-[2/3] transition-all duration-300 ease-out hover:scale-[1.06] hover:z-10 hover:shadow-2xl hover:ring-white/30 active:scale-95 cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                          className="group relative block text-left rounded-xl overflow-hidden bg-stone-900 shadow-md ring-1 ring-black/10 dark:ring-white/10 aspect-[2/3] transition-all duration-300 ease-out active:scale-93 hover:scale-105 hover:z-20 hover:shadow-2xl hover:shadow-black/70 cursor-pointer select-none"
                         >
                           {movie.posterUrl ? (
                             <img
                               src={movie.posterUrl}
                               alt={movie.title}
                               loading="lazy"
-                              className={`absolute inset-0 w-full h-full object-cover transition-all duration-300 ${
-                                done ? "" : "brightness-75 saturate-50 group-hover:brightness-100 group-hover:saturate-100"
+                              className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-108 ${
+                                done ? "brightness-100" : "brightness-85 saturate-75 group-hover:brightness-100 group-hover:saturate-100"
                               }`}
                             />
                           ) : (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-2 bg-gradient-to-br from-stone-700 to-stone-900">
-                              <Film className="w-7 h-7 text-stone-500" />
-                              <span className="text-[10px] font-bold text-stone-300 text-center leading-tight line-clamp-4">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2 bg-gradient-to-br from-stone-800 via-stone-900 to-black text-center">
+                              <Film className="w-6 h-6 text-stone-500" />
+                              <span className="text-[10px] font-bold text-stone-300 leading-tight line-clamp-3">
                                 {movie.officialTitle || movie.title}
                               </span>
                             </div>
                           )}
 
-                          {/* 左上: ステータス */}
-                          <span
-                            className={`absolute top-1.5 left-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-sm text-white shadow ${
-                              done ? "bg-emerald-500/90" : "bg-rose-500/90"
-                            }`}
-                          >
-                            {done ? "観た" : "観たい"}
-                          </span>
+                          {/* シネマティックオーバーレイ：上部と下部フェード */}
+                          <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+                          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
 
-                          {/* 下部グラデーション: タイトル(ホバー時) */}
-                          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                          {movie.posterUrl && (
-                            <div className="absolute inset-x-0 bottom-0 p-1.5 pr-14 text-[10px] font-bold leading-tight text-white line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                          {/* 左上: 観た/観たいバッジ（Netflix風リボンピル） */}
+                          <div className="absolute top-1.5 left-1.5 pointer-events-none">
+                            <span
+                              className={`inline-flex items-center text-[9px] font-black tracking-tight px-1.5 py-0.5 rounded-md shadow-sm backdrop-blur-md ${
+                                done
+                                  ? "bg-emerald-500/90 text-white"
+                                  : "bg-rose-600/90 text-white ring-1 ring-white/20"
+                              }`}
+                            >
+                              {done ? "観た" : "観たい"}
+                            </span>
+                          </div>
+
+                          {/* 右下: 星評価バッジ（ゴールドネオン演出） */}
+                          {movie.rating ? (
+                            <div className="absolute bottom-1.5 right-1.5 pointer-events-none">
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-stone-950/85 backdrop-blur-md border border-amber-500/30 text-[10px] font-black text-amber-400 shadow-md">
+                                <span className="text-[9px] text-amber-400">★</span>
+                                <span>{movie.rating}</span>
+                              </span>
+                            </div>
+                          ) : null}
+
+                          {/* タイトル表示：スマホでも見やすいよう下部に上品に表示 */}
+                          <div className="absolute inset-x-0 bottom-0 p-1.5 pb-2 text-white pointer-events-none">
+                            <div className="text-[10px] sm:text-[11px] font-bold leading-tight line-clamp-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] pr-11">
                               {movie.officialTitle || movie.title}
                             </div>
-                          )}
-
-                          {/* 右下: 星評価 */}
-                          {movie.rating ? (
-                            <span className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-black/70 backdrop-blur-sm text-[10px] font-black text-amber-400 shadow">
-                              <span className="text-[9px]">★</span>
-                              {movie.rating}
-                            </span>
-                          ) : null}
-                        </button>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
                 </>
+
               )
             ) : activeTab === "stock" ? (
               stockMovies.length === 0 ? (
