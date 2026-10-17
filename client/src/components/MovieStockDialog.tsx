@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Plus, Film, CheckCircle2, Trash2, Calendar, Star, Play, Sparkles, LayoutGrid, Image as ImageIcon, Search, Ticket, Tv, Armchair, DoorOpen, Clock } from "lucide-react";
+import { Loader2, Plus, Film, CheckCircle2, Trash2, Calendar, Star, Play, Sparkles, LayoutGrid, Image as ImageIcon, Search, Ticket, Tv, Armchair, DoorOpen, Clock, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 
 /** 0.5刻み対応の星表示（読み取り専用） */
@@ -98,12 +98,59 @@ export function MovieStockDialog({
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerConfigured, setPickerConfigured] = useState<boolean | null>(null);
 
+  // イオンシネマ板橋のリアルタイム上映スケジュール取得
+  const { data: theaterMovies, isLoading: isTheaterLoading } = trpc.movie.listTheaterMovies.useQuery(undefined, {
+    enabled: isOpen && activeTab === "cinema",
+    staleTime: 1000 * 60 * 30, // 30分キャッシュ
+  });
+
   // シネマ座席予約ダイアログ用
   const [bookingTarget, setBookingTarget] = useState<{
     movie: any;
-    slot: { time: string; screen: string; formatType: string; isTheater?: boolean };
+    slot: { time: string; screen: string; formatType: string; isTheater?: boolean; bookingUrl?: string | null };
   } | null>(null);
+  const [cinemaDay, setCinemaDay] = useState<"today" | "tomorrow">("today");
   const [selectedSeat, setSelectedSeat] = useState<string>("sofa-1");
+
+  // タイトル正規化ヘルパー（イオンシネマ板橋スケジュールとの照合用）
+  const normalizeTitleKey = (str: string) => {
+    if (!str) return "";
+    return str
+      .toLowerCase()
+      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0))
+      .replace(/[\s\t\r\n　・:：!！?？\-ー〜~_（）\(\)「」『』【】]/g, "")
+      .trim();
+  };
+
+  const findTheaterSchedule = (movie: any) => {
+    if (!movie || !theaterMovies || theaterMovies.length === 0) return null;
+    const t1 = normalizeTitleKey(movie.officialTitle || movie.title);
+    const t2 = normalizeTitleKey(movie.title);
+
+    // 1. 完全一致
+    let found = theaterMovies.find((tm: any) => tm.normalizedTitle === t1 || tm.normalizedTitle === t2);
+    if (found) return found;
+
+    // 2. 部分一致（どちらかがどちらかを含む）
+    found = theaterMovies.find((tm: any) =>
+      (t1 && (tm.normalizedTitle.includes(t1) || t1.includes(tm.normalizedTitle))) ||
+      (t2 && (tm.normalizedTitle.includes(t2) || t2.includes(tm.normalizedTitle)))
+    );
+    if (found) return found;
+
+    // 3. 先頭3文字一致
+    if (t1.length >= 3 || t2.length >= 3) {
+      const p1 = t1.slice(0, 3);
+      const p2 = t2.slice(0, 3);
+      found = theaterMovies.find((tm: any) =>
+        (p1 && tm.normalizedTitle.startsWith(p1)) ||
+        (p2 && tm.normalizedTitle.startsWith(p2))
+      );
+      if (found) return found;
+    }
+
+    return null;
+  };
 
   // レビューダイアログ用
   const [reviewTarget, setReviewTarget] = useState<any | null>(null);
@@ -385,72 +432,137 @@ export function MovieStockDialog({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* ユナイテッド・シネマ風シアターヘッダー */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-stone-900 border border-stone-800 text-stone-200">
-                    <div className="flex items-center gap-2">
+                  {/* シアターヘッダー（イオンシネマ板橋リアル同期 ＆ 1Kホームシアター） */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-xl bg-stone-900 border border-stone-800 text-stone-200 gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs px-2 py-0.5 rounded-md bg-amber-500 text-stone-950 font-black">
-                        MY HOME CINEMA
+                        AEON & HOME
                       </span>
-                      <span className="text-xs font-bold text-stone-300">
-                        プライベートシアター 1K
+                      <span className="text-xs font-bold text-stone-300 flex items-center gap-1.5">
+                        <span>イオンシネマ板橋 ＆ 自宅シアター</span>
+                        {isTheaterLoading ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 font-normal">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            板橋同期中...
+                          </span>
+                        ) : theaterMovies && theaterMovies.length > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.2 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            板橋イオン同期中 ({theaterMovies.length}作品)
+                          </span>
+                        ) : null}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold">
-                      <span className="px-2 py-0.5 rounded bg-stone-800 text-amber-400">今日</span>
-                      <span className="px-2 py-0.5 rounded text-stone-500">明日</span>
+
+                    {/* 今日 / 明日 切り替えボタン */}
+                    <div className="flex items-center gap-1 text-[11px] font-bold self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setCinemaDay("today")}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                          cinemaDay === "today"
+                            ? "bg-amber-500 text-stone-950 font-black shadow-xs"
+                            : "bg-stone-800/80 text-stone-400 hover:text-stone-200"
+                        }`}
+                      >
+                        今日の上映
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCinemaDay("tomorrow")}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                          cinemaDay === "tomorrow"
+                            ? "bg-amber-500 text-stone-950 font-black shadow-xs"
+                            : "bg-stone-800/80 text-stone-400 hover:text-stone-200"
+                        }`}
+                      >
+                        明日の上映
+                      </button>
                     </div>
                   </div>
 
-                  {/* 映画ごとの上映回カード（ユナイテッド・シネマ再現） */}
+                  {/* 映画ごとの上映回カード */}
                   {stockMovies.map((movie: any, idx: number) => {
-                    // 劇場公開中・未配信かどうかの判定：
-                    // 公開年が今年以降（2026年以降）の作品は「映画館シネマ（未配信）」として扱い、
-                    // それ以前（2025年以前など）は「自宅シアター」として扱う
+                    // イオンシネマ板橋のリアルタイム上映データとのマッチング
+                    const matchedTheater = findTheaterSchedule(movie);
                     const relYear = Number(movie.releaseYear) || 2026;
-                    const isTheaterOnly = relYear >= 2026;
+                    const isTheaterOnly = !!matchedTheater || relYear >= 2026;
 
-                    // 劇場公開中の映画（映画館スクリーン） vs 自宅シアター（リビング/ベッド）
-                    const slots = isTheaterOnly
-                      ? [
-                          {
-                            time: idx % 2 === 0 ? "10:20 〜 12:40" : "11:15 〜 13:35",
-                            screen: "スクリーン7 (シネコン)",
-                            formatType: "IMAXレーザー",
-                            isTheater: true,
-                          },
-                          {
-                            time: idx % 2 === 0 ? "14:50 〜 17:10" : "16:00 〜 18:20",
-                            screen: "スクリーン3 (シネコン)",
-                            formatType: "Dolby Atmos",
-                            isTheater: true,
-                          },
-                          {
-                            time: "19:30 〜 21:50",
-                            screen: "スクリーン1 (シネコン)",
-                            formatType: "TCX / 迫力音響",
-                            isTheater: true,
-                          },
-                        ]
-                      : [
-                          {
-                            time: idx % 2 === 0 ? "13:30 〜 15:45" : "10:30 〜 12:45",
-                            screen: "スクリーン1 (リビング)",
-                            formatType: idx % 3 === 0 ? "4DX [臨場感]" : "3D [迫力]",
-                            isTheater: false,
-                          },
-                          {
-                            time: idx % 2 === 0 ? "18:40 〜 20:55" : "15:20 〜 17:35",
-                            screen: "スクリーン1 (リビング)",
-                            formatType: "2D [通常]",
-                            isTheater: false,
-                          },
-                          {
-                            time: "21:30 〜 23:45",
-                            screen: "スクリーン2 (ベッド)",
-                            formatType: "レイトショー [寝落可]",
-                            isTheater: false,
-                          },
-                        ];
+                    // 上映スロットの構築：
+                    // 板橋イオンにマッチした場合 -> 実際のタイムテーブル枠を精密反映
+                    // マッチしない場合 -> 予測シネコン枠または1K自宅枠
+                    let slots: Array<{
+                      time: string;
+                      screen: string;
+                      formatType: string;
+                      isTheater: boolean;
+                      bookingUrl?: string | null;
+                      isRealSchedule?: boolean;
+                    }> = [];
+
+                    if (matchedTheater) {
+                      const targetDateObj = cinemaDay === "today"
+                        ? matchedTheater.dates[0]
+                        : (matchedTheater.dates[1] || matchedTheater.dates[0]);
+
+                      if (targetDateObj && targetDateObj.slots.length > 0) {
+                        slots = targetDateObj.slots.map((s: any, sIdx: number) => ({
+                          time: s.endTime ? `${s.startTime} 〜 ${s.endTime}` : `${s.startTime}〜`,
+                          screen: `イオン板橋 SC${(sIdx % 12) + 1}`,
+                          formatType: s.screenFormat || "通常",
+                          isTheater: true,
+                          bookingUrl: s.bookingUrl,
+                          isRealSchedule: true,
+                        }));
+                      }
+                    }
+
+                    if (slots.length === 0) {
+                      slots = isTheaterOnly
+                        ? [
+                            {
+                              time: idx % 2 === 0 ? "10:20 〜 12:40" : "11:15 〜 13:35",
+                              screen: "スクリーン7 (シネコン)",
+                              formatType: "IMAXレーザー",
+                              isTheater: true,
+                            },
+                            {
+                              time: idx % 2 === 0 ? "14:50 〜 17:10" : "16:00 〜 18:20",
+                              screen: "スクリーン3 (シネコン)",
+                              formatType: "Dolby Atmos",
+                              isTheater: true,
+                            },
+                            {
+                              time: "19:30 〜 21:50",
+                              screen: "スクリーン1 (シネコン)",
+                              formatType: "TCX / 迫力音響",
+                              isTheater: true,
+                            },
+                          ]
+                        : [
+                            {
+                              time: idx % 2 === 0 ? "13:30 〜 15:45" : "10:30 〜 12:45",
+                              screen: "スクリーン1 (リビング)",
+                              formatType: idx % 3 === 0 ? "4DX [臨場感]" : "3D [迫力]",
+                              isTheater: false,
+                            },
+                            {
+                              time: idx % 2 === 0 ? "18:40 〜 20:55" : "15:20 〜 17:35",
+                              screen: "スクリーン1 (リビング)",
+                              formatType: "2D [通常]",
+                              isTheater: false,
+                            },
+                            {
+                              time: "21:30 〜 23:45",
+                              screen: "スクリーン2 (ベッド)",
+                              formatType: "レイトショー [寝落可]",
+                              isTheater: false,
+                            },
+                          ];
+                    }
+
+                    const posterImg = movie.posterUrl || matchedTheater?.posterUrl;
+                    const officialTitle = matchedTheater?.rawTitle || movie.officialTitle || movie.title;
 
                     return (
                       <div
@@ -460,9 +572,9 @@ export function MovieStockDialog({
                         {/* 映画タイトルバー */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            {movie.posterUrl ? (
+                            {posterImg ? (
                               <img
-                                src={movie.posterUrl}
+                                src={posterImg}
                                 alt={movie.title}
                                 className="w-10 h-14 object-cover rounded-md shrink-0 shadow-md ring-1 ring-white/10"
                               />
@@ -473,16 +585,27 @@ export function MovieStockDialog({
                             )}
                             <div className="min-w-0">
                               <div className="text-sm font-black text-white leading-tight break-words">
-                                {movie.officialTitle || movie.title}
+                                {officialTitle}
                               </div>
                               <div className="text-[11px] text-stone-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
                                 <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${
-                                  isTheaterOnly
+                                  matchedTheater
+                                    ? "bg-amber-500 text-stone-950 font-black shadow-xs"
+                                    : isTheaterOnly
                                     ? "bg-rose-600/90 text-white shadow-xs"
                                     : "bg-emerald-600/90 text-white shadow-xs"
                                 }`}>
-                                  {isTheaterOnly ? "🏢 劇場公開中・未配信" : "🛋️ おうちシネマ (配信)"}
+                                  {matchedTheater
+                                    ? "🏢 イオンシネマ板橋 上映中"
+                                    : isTheaterOnly
+                                    ? "🏢 劇場公開中・未配信"
+                                    : "🛋️ おうちシネマ (配信)"}
                                 </span>
+                                {matchedTheater?.durationMinutes && (
+                                  <span className="font-mono text-stone-300 font-bold">
+                                    {matchedTheater.durationMinutes}分
+                                  </span>
+                                )}
                                 <span>{movie.releaseYear || "上映作品"}</span>
                                 <span className="text-stone-600">•</span>
                                 <span className="text-stone-400">日本語字幕 / 吹替</span>
@@ -491,29 +614,43 @@ export function MovieStockDialog({
                           </div>
 
                           {/* 予約購入ボタン */}
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setBookingTarget({
-                                movie,
-                                slot: slots[0],
-                              });
-                            }}
-                            className="h-8 px-3 text-xs bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-lg gap-1 shrink-0 shadow-md active:scale-95 transition-all cursor-pointer"
-                          >
-                            <Ticket className="w-3.5 h-3.5" />
-                            <span>予約購入</span>
-                          </Button>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setBookingTarget({
+                                  movie,
+                                  slot: slots[0],
+                                });
+                              }}
+                              className="h-8 px-3 text-xs bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-lg gap-1 shrink-0 shadow-md active:scale-95 transition-all cursor-pointer"
+                            >
+                              <Ticket className="w-3.5 h-3.5" />
+                              <span>予約購入</span>
+                            </Button>
+                            {matchedTheater?.bookingUrl && (
+                              <a
+                                href={matchedTheater.bookingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-amber-400 hover:text-amber-300 underline flex items-center gap-0.5"
+                                title="イオンシネマ公式（ワタシアター）で直接購入"
+                              >
+                                <span>公式Web</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                          </div>
                         </div>
 
-                        {/* 上映スロット一覧（ユナイテッド・シネマ完全再現） */}
+                        {/* 上映スロット一覧（ユナイテッド・シネマ完全再現 + イオン板橋実データ） */}
                         <div className="space-y-1.5 pt-1 border-t border-stone-900">
                           {slots.map((slot, sIdx) => (
                             <div
                               key={sIdx}
                               className="flex items-center justify-between p-2 rounded-xl bg-stone-900/90 border border-stone-800/80 hover:border-amber-500/50 transition-colors"
                             >
-                              <div className="flex items-center gap-2 text-xs">
+                              <div className="flex items-center gap-2 text-xs flex-wrap">
                                 <span className="font-mono font-bold text-stone-100 text-xs sm:text-sm">
                                   {slot.time}
                                 </span>
@@ -523,21 +660,28 @@ export function MovieStockDialog({
                                 <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
                                   {slot.formatType}
                                 </span>
+                                {slot.isRealSchedule && (
+                                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/40 px-1 py-0.2 rounded">
+                                    実時間
+                                  </span>
+                                )}
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setBookingTarget({
-                                    movie,
-                                    slot,
-                                  });
-                                }}
-                                className="px-2.5 py-1 rounded-md bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-400 hover:text-emerald-300 font-black text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-sm"
-                              >
-                                <span className="text-[10px]">◎</span>
-                                <span>空席あり</span>
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setBookingTarget({
+                                      movie,
+                                      slot,
+                                    });
+                                  }}
+                                  className="px-2.5 py-1 rounded-md bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-400 hover:text-emerald-300 font-black text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-sm"
+                                >
+                                  <span className="text-[10px]">◎</span>
+                                  <span>空席あり</span>
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1226,44 +1370,59 @@ export function MovieStockDialog({
             </div>
 
             {/* 発券ボタン */}
-            <div className="pt-2 border-t border-stone-800/80 flex justify-end gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setBookingTarget(null)}
-                className="text-xs bg-transparent border-stone-700 text-stone-300 hover:bg-stone-800"
-              >
-                戻る
-              </Button>
-              <Button
-                size="sm"
-                onClick={async () => {
-                  const seatLabel = selectedSeat.startsWith("theater-")
-                    ? `劇場 ${selectedSeat.replace("theater-", "")}席`
-                    : selectedSeat === "sofa-1"
-                    ? "A-1 ソファ左"
-                    : selectedSeat === "sofa-2"
-                    ? "A-2 ソファ右"
-                    : "B-1 ベッド席";
+            <div className="pt-2 border-t border-stone-800/80 flex items-center justify-between gap-2 shrink-0">
+              <div>
+                {bookingTarget.slot.bookingUrl && (
+                  <a
+                    href={bookingTarget.slot.bookingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 underline underline-offset-2"
+                  >
+                    <span>イオン公式で席購入</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBookingTarget(null)}
+                  className="text-xs bg-transparent border-stone-700 text-stone-300 hover:bg-stone-800 cursor-pointer"
+                >
+                  戻る
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    const seatLabel = selectedSeat.startsWith("theater-")
+                      ? `劇場 ${selectedSeat.replace("theater-", "")}席`
+                      : selectedSeat === "sofa-1"
+                      ? "A-1 ソファ左"
+                      : selectedSeat === "sofa-2"
+                      ? "A-2 ソファ右"
+                      : "B-1 ベッド席";
 
-                  if (onAddToTodayMission) {
-                    await onAddToTodayMission(bookingTarget.movie.title, {
-                      timeSlot: bookingTarget.slot.time,
-                      seatName: seatLabel,
-                    });
-                  } else {
-                    toast.success(
-                      `🎟️ 発券完了！『${bookingTarget.movie.title}』(${bookingTarget.slot.time} 【${seatLabel}】)`
-                    );
-                  }
-                  setBookingTarget(null);
-                  onOpenChange(false);
-                }}
-                className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs px-4 rounded-lg shadow-lg shadow-amber-500/20 gap-1.5 active:scale-95 transition-all cursor-pointer"
-              >
-                <Ticket className="w-4 h-4 fill-current" />
-                <span>チケットを発券して今日の予定に追加</span>
-              </Button>
+                    if (onAddToTodayMission) {
+                      await onAddToTodayMission(bookingTarget.movie.title, {
+                        timeSlot: bookingTarget.slot.time,
+                        seatName: seatLabel,
+                      });
+                    } else {
+                      toast.success(
+                        `🎟️ 発券完了！『${bookingTarget.movie.title}』(${bookingTarget.slot.time} 【${seatLabel}】)`
+                      );
+                    }
+                    setBookingTarget(null);
+                    onOpenChange(false);
+                  }}
+                  className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs px-4 rounded-lg shadow-lg shadow-amber-500/20 gap-1.5 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Ticket className="w-4 h-4 fill-current" />
+                  <span>チケットを発券して今日の予定に追加</span>
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

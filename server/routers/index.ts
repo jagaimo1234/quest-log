@@ -41,6 +41,7 @@ import {
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
 import { searchMovieCandidates, pickConfident, isTmdbConfigured } from "../services/tmdb.js";
+import { findMovieInItabashi, getItabashiSchedule } from "../services/cinemaSchedule.js";
 import { getDb } from "../db.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { questHistory, memos, questTemplates, dailyConfig, readingBooks, watchingMovies, dailyBulletinBoards, monthlyGoals } from "../../drizzle/schema.js";
@@ -171,6 +172,21 @@ export const appRouter = router({
           configured: isTmdbConfigured(),
           candidates: await searchMovieCandidates(input.query, 8),
         };
+      }),
+    /**
+     * 指定タイトルの映画について、イオンシネマ板橋のリアルタイム上映スケジュールを取得
+     */
+    getTheaterSchedule: protectedProcedure
+      .input(z.object({ title: z.string().min(1) }))
+      .query(async ({ input }) => {
+        return findMovieInItabashi(input.title);
+      }),
+    /**
+     * 現在イオンシネマ板橋で上映中の作品一覧を取得
+     */
+    listTheaterMovies: protectedProcedure
+      .query(async () => {
+        return getItabashiSchedule();
       }),
     setPoster: protectedProcedure
       .input(z.object({
