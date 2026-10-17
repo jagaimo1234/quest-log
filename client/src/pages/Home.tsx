@@ -3417,8 +3417,15 @@ export default function Home() {
   const [isMovieStockOpen, setIsMovieStockOpen] = useState(false);
   const stockMovieCount = useMemo(() => movies?.filter((m: any) => m.status !== 'completed').length || 0, [movies]);
 
-  const handleAddMovieToTodayMission = async (movieTitle: string) => {
+  const handleAddMovieToTodayMission = async (
+    movieTitle: string,
+    slotInfo?: { timeSlot?: string; seatName?: string }
+  ) => {
     const movieTemplate = templates?.find(t => t.questType === "Relax" && t.questName?.includes("映画"));
+    const noteText = slotInfo?.timeSlot
+      ? `🎬 ${movieTitle} [${slotInfo.timeSlot} / 💺${slotInfo.seatName || "特等席"}]`
+      : `🎬 ${movieTitle}`;
+
     await createQuest.mutateAsync({
       questName: movieTemplate ? movieTemplate.questName : "映画鑑賞",
       questType: "Relax" as any,
@@ -3426,9 +3433,16 @@ export default function Home() {
       templateId: movieTemplate?.id,
       status: "accepted",
       startDate: getPlanningStartDate(),
-      note: `🎬 ${movieTitle}`,
+      note: noteText,
     } as any);
-    toast.success(`『${movieTitle}』をTODAYプランに追加しました`);
+
+    if (slotInfo?.seatName) {
+      toast.success(
+        `🎟️ 発券完了！『${movieTitle}』をTODAYプランに追加しました (${slotInfo.seatName})`
+      );
+    } else {
+      toast.success(`『${movieTitle}』をTODAYプランに追加しました`);
+    }
     refreshAll();
   };
 

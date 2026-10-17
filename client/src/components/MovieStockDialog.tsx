@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Plus, Film, CheckCircle2, Trash2, Calendar, Star, Play, Sparkles, LayoutGrid, Image as ImageIcon, Search } from "lucide-react";
+import { Loader2, Plus, Film, CheckCircle2, Trash2, Calendar, Star, Play, Sparkles, LayoutGrid, Image as ImageIcon, Search, Ticket, Tv, Armchair, DoorOpen, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 /** 0.5刻み対応の星表示（読み取り専用） */
@@ -63,7 +63,7 @@ interface MovieStockDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   // 今日のミッションに直接追加するコールバック（オプショナル）
-  onAddToTodayMission?: (movieTitle: string) => Promise<void> | void;
+  onAddToTodayMission?: (movieTitle: string, slotInfo?: { timeSlot?: string; seatName?: string }) => Promise<void> | void;
   // 既存の映画ミッションにこのタイトルをセットするコールバック（オプショナル）
   onSelectForActiveMission?: (movieTitle: string) => Promise<void> | void;
 }
@@ -75,7 +75,7 @@ export function MovieStockDialog({
   onSelectForActiveMission,
 }: MovieStockDialogProps) {
   const [newTitle, setNewTitle] = useState("");
-  const [activeTab, setActiveTab] = useState<"stock" | "completed" | "gallery">("stock");
+  const [activeTab, setActiveTab] = useState<"cinema" | "stock" | "completed" | "gallery">("cinema");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: movies, refetch: refetchMovies } = trpc.movie.list.useQuery(undefined, {
@@ -97,6 +97,13 @@ export function MovieStockDialog({
   const [pickerCandidates, setPickerCandidates] = useState<any[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerConfigured, setPickerConfigured] = useState<boolean | null>(null);
+
+  // シネマ座席予約ダイアログ用
+  const [bookingTarget, setBookingTarget] = useState<{
+    movie: any;
+    slot: { time: string; screen: string; formatType: string };
+  } | null>(null);
+  const [selectedSeat, setSelectedSeat] = useState<string>("sofa-1");
 
   // レビューダイアログ用
   const [reviewTarget, setReviewTarget] = useState<any | null>(null);
@@ -308,31 +315,19 @@ export function MovieStockDialog({
             </form>
           </div>
 
-          {/* Tabs: Stock vs Completed vs Gallery */}
+          {/* Tabs: Cinema vs Gallery vs Stock vs Completed */}
           <div className="flex items-center gap-1 p-1 bg-stone-100 dark:bg-stone-800/80 rounded-xl text-xs font-bold mb-2 shrink-0">
             <button
               type="button"
-              onClick={() => setActiveTab("stock")}
+              onClick={() => setActiveTab("cinema")}
               className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === "stock"
-                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm font-black"
+                activeTab === "cinema"
+                  ? "bg-amber-500 text-stone-950 shadow-sm font-black"
                   : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
               }`}
             >
-              <Film className="w-3.5 h-3.5 text-rose-500" />
-              <span>観たい ({stockMovies.length})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("completed")}
-              className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === "completed"
-                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm font-black"
-                  : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>観た ({completedMovies.length})</span>
+              <Ticket className="w-3.5 h-3.5" />
+              <span>上映中 ({stockMovies.length})</span>
             </button>
             <button
               type="button"
@@ -346,6 +341,30 @@ export function MovieStockDialog({
               <LayoutGrid className="w-3.5 h-3.5 text-rose-500" />
               <span>図鑑 ({movies?.length ?? 0})</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("stock")}
+              className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === "stock"
+                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm font-black"
+                  : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
+              }`}
+            >
+              <Film className="w-3.5 h-3.5 text-rose-500" />
+              <span>リスト</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("completed")}
+              className={`flex-1 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === "completed"
+                  ? "bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm font-black"
+                  : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200"
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              <span>履歴 ({completedMovies.length})</span>
+            </button>
           </div>
 
           {/* Movie List Container (スマホでのタッチスクロール確実化) */}
@@ -355,7 +374,142 @@ export function MovieStockDialog({
             onTouchStart={(e) => e.stopPropagation()}
             onTouchMove={(e) => e.stopPropagation()}
           >
-            {activeTab === "gallery" ? (
+            {activeTab === "cinema" ? (
+              stockMovies.length === 0 ? (
+                <div className="text-center py-12 px-4 text-xs text-stone-400 dark:text-stone-500 border border-dashed border-stone-200 dark:border-stone-800 rounded-2xl">
+                  <Ticket className="w-10 h-10 text-amber-500/60 mx-auto mb-2" />
+                  <div className="font-bold text-sm text-stone-800 dark:text-stone-200">現在上映中の作品（ストック）はありません</div>
+                  <div className="text-[11px] text-stone-400 mt-1">
+                    上の入力欄から気になる映画を追加すると、シネコン上映スケジュールに配給されます。
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* ユナイテッド・シネマ風シアターヘッダー */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-stone-900 border border-stone-800 text-stone-200">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-amber-500 text-stone-950 font-black">
+                        MY HOME CINEMA
+                      </span>
+                      <span className="text-xs font-bold text-stone-300">
+                        旭川プライベートシアター 1K
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                      <span className="px-2 py-0.5 rounded bg-stone-800 text-amber-400">今日</span>
+                      <span className="px-2 py-0.5 rounded text-stone-500">明日</span>
+                    </div>
+                  </div>
+
+                  {/* 映画ごとの上映回カード（ユナイテッド・シネマ再現） */}
+                  {stockMovies.map((movie: any, idx: number) => {
+                    // 映画ごとにリアルな上映回スロットを生成（自宅スクリーン1 / 2）
+                    const slots = [
+                      {
+                        time: idx % 2 === 0 ? "13:30 〜 15:45" : "10:30 〜 12:45",
+                        screen: "スクリーン1 (リビング)",
+                        formatType: idx % 3 === 0 ? "4DX [臨場感]" : "3D [迫力]",
+                      },
+                      {
+                        time: idx % 2 === 0 ? "18:40 〜 20:55" : "15:20 〜 17:35",
+                        screen: "スクリーン1 (リビング)",
+                        formatType: "2D [通常]",
+                      },
+                      {
+                        time: "21:30 〜 23:45",
+                        screen: "スクリーン2 (ベッド)",
+                        formatType: "レイトショー [寝落可]",
+                      },
+                    ];
+
+                    return (
+                      <div
+                        key={movie.id}
+                        className="p-3.5 rounded-2xl bg-stone-950 border border-stone-800 shadow-xl space-y-3"
+                      >
+                        {/* 映画タイトルバー */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {movie.posterUrl ? (
+                              <img
+                                src={movie.posterUrl}
+                                alt={movie.title}
+                                className="w-10 h-14 object-cover rounded-md shrink-0 shadow-md ring-1 ring-white/10"
+                              />
+                            ) : (
+                              <div className="w-10 h-14 rounded-md bg-stone-800 flex items-center justify-center shrink-0">
+                                <Film className="w-5 h-5 text-stone-500" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-sm font-black text-white leading-tight break-words">
+                                {movie.officialTitle || movie.title}
+                              </div>
+                              <div className="text-[11px] text-stone-400 mt-0.5 flex items-center gap-2">
+                                <span>{movie.releaseYear || "上映作品"}</span>
+                                <span className="text-stone-600">•</span>
+                                <span className="text-stone-400">日本語字幕 / 吹替</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 予約購入ボタン */}
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setBookingTarget({
+                                movie,
+                                slot: slots[0],
+                              });
+                            }}
+                            className="h-8 px-3 text-xs bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-lg gap-1 shrink-0 shadow-md active:scale-95 transition-all cursor-pointer"
+                          >
+                            <Ticket className="w-3.5 h-3.5" />
+                            <span>予約購入</span>
+                          </Button>
+                        </div>
+
+                        {/* 上映スロット一覧（ユナイテッド・シネマ完全再現） */}
+                        <div className="space-y-1.5 pt-1 border-t border-stone-900">
+                          {slots.map((slot, sIdx) => (
+                            <div
+                              key={sIdx}
+                              className="flex items-center justify-between p-2 rounded-xl bg-stone-900/90 border border-stone-800/80 hover:border-amber-500/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="font-mono font-bold text-stone-100 text-xs sm:text-sm">
+                                  {slot.time}
+                                </span>
+                                <span className="text-stone-400 text-[11px] underline underline-offset-2">
+                                  {slot.screen}
+                                </span>
+                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                  {slot.formatType}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBookingTarget({
+                                    movie,
+                                    slot,
+                                  });
+                                }}
+                                className="px-2.5 py-1 rounded-md bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-400 hover:text-emerald-300 font-black text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-sm"
+                              >
+                                <span className="text-[10px]">◎</span>
+                                <span>空席あり</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : activeTab === "gallery" ? (
               !movies || movies.length === 0 ? (
                 <div className="text-center py-12 px-4 text-xs text-stone-400 dark:text-stone-500 border border-dashed border-stone-200 dark:border-stone-800 rounded-2xl">
                   <LayoutGrid className="w-10 h-10 text-stone-300 dark:text-stone-600 mx-auto mb-2" />
@@ -826,6 +980,187 @@ export function MovieStockDialog({
                   ))}
                 </div>
               )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* 🎟️ 1Kおうちシアター 座席指定予約モーダル（手描き間取り完全再現） */}
+      {bookingTarget && (
+        <Dialog open onOpenChange={(open) => !open && setBookingTarget(null)}>
+          <DialogContent className="sm:max-w-md p-4 sm:p-5 bg-stone-950 border border-stone-800 text-stone-100 shadow-2xl max-h-[92vh] flex flex-col">
+            <DialogHeader className="shrink-0 text-left pb-2 border-b border-stone-800/80">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black px-2 py-0.5 rounded bg-amber-500 text-stone-950">
+                  座席指定
+                </span>
+                <span className="text-xs text-stone-400 font-mono">
+                  {bookingTarget.slot.time}
+                </span>
+              </div>
+              <DialogTitle className="text-base font-black text-white mt-1 break-words">
+                🎬 {bookingTarget.movie.officialTitle || bookingTarget.movie.title}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-stone-400">
+                お好みのシート（ソファ / ベッド）をタップして発券してください。
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* シアター間取りマップ（手描きの1K部屋を完全再現） */}
+            <div className="flex-1 py-3 overflow-y-auto">
+              <div className="relative mx-auto w-full max-w-[340px] aspect-[1/1] p-3 rounded-2xl bg-stone-900/90 border-2 border-stone-800 shadow-inner flex flex-col justify-between select-none">
+                
+                {/* 部屋の上部：左上にスクリーン（テレビ） */}
+                <div className="flex justify-between items-start">
+                  {/* テレビ・スクリーン */}
+                  <div className="p-2.5 rounded-xl bg-stone-800 border-2 border-amber-500/80 shadow-lg shadow-amber-500/10 text-center w-[130px]">
+                    <div className="flex items-center justify-center gap-1 text-[11px] font-black text-amber-400">
+                      <Tv className="w-3.5 h-3.5" />
+                      <span>SCREEN</span>
+                    </div>
+                    <div className="text-[9px] font-bold text-stone-300 mt-0.5">
+                      テレビ (大画面)
+                    </div>
+                    {/* スクリーンの白い発光バー */}
+                    <div className="w-full h-1 bg-white rounded-full mt-1.5 shadow-[0_0_8px_white]" />
+                  </div>
+
+                  {/* 部屋の天井・壁の雰囲気 */}
+                  <div className="text-right text-[10px] font-mono text-stone-600 pr-1">
+                    MY ROOM 1K
+                  </div>
+                </div>
+
+                {/* 部屋の中央左：ソファ席（2席並び） */}
+                <div className="my-auto pl-1">
+                  <div className="text-[10px] font-bold text-stone-400 mb-1 flex items-center gap-1">
+                    <Armchair className="w-3 h-3 text-rose-400" />
+                    <span>ソファ席 (特等席 / 正面)</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {/* ソファ A-1 */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSeat("sofa-1")}
+                      className={`w-[68px] py-2 rounded-xl border-2 flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        selectedSeat === "sofa-1"
+                          ? "bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/40 scale-105 font-black ring-2 ring-white/30"
+                          : "bg-stone-800/90 border-stone-700 text-stone-200 hover:border-stone-500"
+                      }`}
+                    >
+                      <span className="text-[10px] font-mono font-bold">A-1</span>
+                      <span className="text-[9px] mt-0.5">ソファ左</span>
+                      <span className="text-[8px] opacity-70">◎空席</span>
+                    </button>
+
+                    {/* ソファ A-2 */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSeat("sofa-2")}
+                      className={`w-[68px] py-2 rounded-xl border-2 flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        selectedSeat === "sofa-2"
+                          ? "bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/40 scale-105 font-black ring-2 ring-white/30"
+                          : "bg-stone-800/90 border-stone-700 text-stone-200 hover:border-stone-500"
+                      }`}
+                    >
+                      <span className="text-[10px] font-mono font-bold">A-2</span>
+                      <span className="text-[9px] mt-0.5">ソファ右</span>
+                      <span className="text-[8px] opacity-70">◎空席</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 部屋の下部：ベッド席（横長） ＆ 右下にEXIT廊下 */}
+                <div className="flex items-end justify-between pt-1">
+                  {/* ベッド席 */}
+                  <div className="w-[180px]">
+                    <div className="text-[10px] font-bold text-stone-400 mb-1 flex items-center gap-1">
+                      <span>🛏️</span>
+                      <span>ベッド席 (ごろ寝シアター)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSeat("bed-1")}
+                      className={`w-full py-2.5 rounded-xl border-2 flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        selectedSeat === "bed-1"
+                          ? "bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/40 scale-102 font-black ring-2 ring-white/30"
+                          : "bg-stone-800/90 border-stone-700 text-stone-200 hover:border-stone-500"
+                      }`}
+                    >
+                      <span className="text-[10px] font-mono font-bold">B-1</span>
+                      <span className="text-[10px]">エグゼクティブ・ベッド</span>
+                      <span className="text-[8px] opacity-70">◎空席</span>
+                    </button>
+                  </div>
+
+                  {/* 映画館おなじみのEXIT（廊下） */}
+                  <div className="flex flex-col items-center text-center pl-2">
+                    <div className="px-2 py-1 rounded bg-emerald-600 text-white text-[9px] font-black flex items-center gap-0.5 shadow-sm">
+                      <DoorOpen className="w-3 h-3" />
+                      <span>非常口</span>
+                    </div>
+                    <span className="text-[9px] font-bold text-stone-500 mt-1 font-mono">
+                      EXIT (廊下)
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* 席選択ステータス表示 */}
+              <div className="mt-3 p-2.5 rounded-xl bg-stone-900 border border-stone-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-stone-400">選択中の座席:</span>
+                  <span className="font-black text-amber-400 text-sm">
+                    {selectedSeat === "sofa-1" && "🛋️ A-1 ソファ左席"}
+                    {selectedSeat === "sofa-2" && "🛋️ A-2 ソファ右席"}
+                    {selectedSeat === "bed-1" && "🛏️ B-1 ベッド特別席"}
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-bold">
+                  鑑賞料金: ¥0 (自宅)
+                </span>
+              </div>
+            </div>
+
+            {/* 発券ボタン */}
+            <div className="pt-2 border-t border-stone-800/80 flex justify-end gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBookingTarget(null)}
+                className="text-xs bg-transparent border-stone-700 text-stone-300 hover:bg-stone-800"
+              >
+                戻る
+              </Button>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  const seatLabel =
+                    selectedSeat === "sofa-1"
+                      ? "A-1 ソファ左"
+                      : selectedSeat === "sofa-2"
+                      ? "A-2 ソファ右"
+                      : "B-1 ベッド席";
+
+                  if (onAddToTodayMission) {
+                    await onAddToTodayMission(bookingTarget.movie.title, {
+                      timeSlot: bookingTarget.slot.time,
+                      seatName: seatLabel,
+                    });
+                  } else {
+                    toast.success(
+                      `🎟️ 発券完了！『${bookingTarget.movie.title}』(${bookingTarget.slot.time} 【${seatLabel}】)`
+                    );
+                  }
+                  setBookingTarget(null);
+                  onOpenChange(false);
+                }}
+                className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs px-4 rounded-lg shadow-lg shadow-amber-500/20 gap-1.5 active:scale-95 transition-all cursor-pointer"
+              >
+                <Ticket className="w-4 h-4 fill-current" />
+                <span>チケットを発券して今日の予定に追加</span>
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
