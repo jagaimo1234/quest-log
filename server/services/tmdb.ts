@@ -112,3 +112,115 @@ export function pickConfident(title: string, candidates: MovieCandidate[]): Movi
   if (exact.length >= 1) return exact[0];
   return null;
 }
+
+export interface WatchProviderItem {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+  type: "flatrate" | "rent" | "buy";
+}
+
+export interface MovieProvidersResult {
+  tmdbId: number;
+  hasFlatrate: boolean;
+  isNetflix: boolean;
+  isPrimeVideo: boolean;
+  isUnext: boolean;
+  isHulu: boolean;
+  isDisneyPlus: boolean;
+  providers: WatchProviderItem[];
+  link?: string;
+}
+
+const providerCache = new Map<number, { data: MovieProvidersResult; timestamp: number }>();
+const PROVIDER_CACHE_TTL = 6 * 60 * 60 * 1000; // 6時間
+
+/**
+ * TMDBの watch/providers から日本の配信サービス一覧を取得
+ * （アマプラ、U-NEXT、ネトフリ等）
+ */
+export async function getWatchProviders(tmdbId: number): Promise<MovieProvidersResult | null> {
+  if (!isTmdbConfigured() || !tmdbId) return null;
+
+  const now = Date.now();
+  const cached = providerCache.get(tmdbId);
+  if (cached && (now - cached.timestamp < PROVIDER_CACHE_TTL)) {
+    return cached.data;
+  }
+
+  try {
+    const key = process.env.TMDB_API_KEY;
+    const url = `${TMDB_BASE}/movie/${tmdbId}/watch/providers`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${key}`, accept: "application/json" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+
+    const json = (await res.json()) as { results?: { JP?: any } };
+    const jp = json.results?.JP;
+    if (!jp) {
+      const emptyResult: MovieProvidersResult = {
+        tmdbId,
+        hasFlatrate: false,
+        isNetflix: false,
+        isPrimeVideo: false,
+        isUnext: false,
+        isHulu: false,
+        isDisneyPlus: false,
+        providers: [],
+      };
+      providerCache.set(tmdbId, { data: emptyResult, timestamp: now });
+      return emptyResult;
+    }
+
+    const providers: WatchProviderItem[] = [];
+    const collect = (list: any[] | undefined, type: "flatrate" | "rent" | "buy") => {
+      if (!list) return;
+      for (const p of list) {
+        if (!providers.some((item) => item.id === p.provider_id)) {
+          providers.push({
+            id: p.provider_id,
+            name: p.provider_name,
+            logoUrl: p.logo_path ? `https://image.tmdb.org/t/p/w92${p.logo_path}` : null,
+            type,
+          });
+        }
+      }
+    };
+
+    collect(jp.flatrate, "flatrate");
+    collect(jp.rent, "rent");
+    collect(jp.buy, "buy");
+
+    const flatrateList = (jp.flatrate || []) as Array<{ provider_id: number; provider_name: string }>;
+    const allProviders = providers.map((p) => p.name.toLowerCase());
+    const flatrateNames = flatrateList.map((p) => p.provider_name.toLowerCase());
+
+    // 主要配信サービス判定
+    const isNetflix = flatrateNames.some((n) => n.includes("netflix"));
+    const isPrimeVideo = flatrateNames.some((n) => n.includes("amazon prime") || n.includes("prime video")) ||
+      allProviders.some((n) => n.includes("amazon prime") || n.includes("prime video"));
+    const isUnext = flatrateNames.some((n) => n.includes("u-next") || n.includes("unext"));
+    const isHulu = flatrateNames.some((n) => n.includes("hulu"));
+    const isDisneyPlus = flatrateNames.some((n) => n.includes("disney"));
+
+    const result: MovieProvidersResult = {
+      tmdbId,
+      hasFlatrate: (jp.flatrate && jp.flatrate.length > 0) || false,
+      isNetflix,
+      isPrimeVideo,
+      isUnext,
+      isHulu,
+      isDisneyPlus,
+      providers,
+      link: jp.link,
+    };
+
+    providerCache.set(tmdbId, { data: result, timestamp: now });
+    return result;
+  } catch (err) {
+    console.warn(`[tmdb] getWatchProviders failed for ${tmdbId}:`, err);
+    return null;
+  }
+}

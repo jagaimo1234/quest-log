@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -59,6 +59,53 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
+/** 配信サービスバッジ（Netflix / Prime Video / U-NEXT 等） */
+function StreamingBadges({ tmdbId, providersMap }: { tmdbId?: number | null; providersMap?: Record<number, any> }) {
+  if (!tmdbId || !providersMap || !providersMap[tmdbId]) return null;
+  const p = providersMap[tmdbId];
+  if (!p) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+      {p.isNetflix && (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-stone-950 text-rose-500 border border-rose-600/70 shadow-xs">
+          Netflix
+        </span>
+      )}
+      {p.isPrimeVideo && (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-sky-950 text-sky-400 border border-sky-500/70 shadow-xs">
+          Prime Video
+        </span>
+      )}
+      {p.isUnext && (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-stone-900 text-cyan-400 border border-cyan-500/70 shadow-xs">
+          U-NEXT
+        </span>
+      )}
+      {p.isHulu && (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-950 text-emerald-400 border border-emerald-500/70 shadow-xs">
+          Hulu
+        </span>
+      )}
+      {p.isDisneyPlus && (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-950 text-indigo-300 border border-indigo-500/70 shadow-xs">
+          Disney+
+        </span>
+      )}
+      {!p.isNetflix && !p.isPrimeVideo && !p.isUnext && !p.isHulu && !p.isDisneyPlus && p.hasFlatrate && (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-400 border border-amber-500/50">
+          サブスク配信あり
+        </span>
+      )}
+      {!p.hasFlatrate && p.providers && p.providers.length > 0 && (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] text-stone-400 bg-stone-900 border border-stone-800">
+          レンタル/購入配信
+        </span>
+      )}
+    </div>
+  );
+}
+
 interface MovieStockDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -103,6 +150,20 @@ export function MovieStockDialog({
     enabled: isOpen && activeTab === "cinema",
     staleTime: 1000 * 60 * 30, // 30分キャッシュ
   });
+
+  // 配信サービス情報（Netflix, Prime Video, U-NEXT）の一括取得
+  const tmdbIds = useMemo(() => {
+    const ids: number[] = [];
+    movies?.forEach((m: any) => {
+      if (m.tmdbId && typeof m.tmdbId === "number") ids.push(m.tmdbId);
+    });
+    return Array.from(new Set(ids));
+  }, [movies]);
+
+  const { data: watchProvidersMap } = trpc.movie.batchWatchProviders.useQuery(
+    { tmdbIds },
+    { enabled: isOpen && tmdbIds.length > 0, staleTime: 1000 * 60 * 60 }
+  );
 
   // シネマ座席予約ダイアログ用
   const [bookingTarget, setBookingTarget] = useState<{
@@ -151,6 +212,46 @@ export function MovieStockDialog({
 
     return null;
   };
+
+  const renderSlotCard = (slot: any, movie: any, sIdx: number) => (
+    <div
+      key={sIdx}
+      className="flex items-center justify-between p-2 rounded-xl bg-stone-900/90 border border-stone-800/80 hover:border-amber-500/50 transition-colors"
+    >
+      <div className="flex items-center gap-2 text-xs flex-wrap">
+        <span className="font-mono font-bold text-stone-100 text-xs sm:text-sm">
+          {slot.time}
+        </span>
+        <span className="text-stone-400 text-[11px] underline underline-offset-2">
+          {slot.screen}
+        </span>
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          {slot.formatType}
+        </span>
+        {slot.isRealSchedule && (
+          <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/40 px-1 py-0.5 rounded">
+            実時間
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            setBookingTarget({
+              movie,
+              slot,
+            });
+          }}
+          className="px-2.5 py-1 rounded-md bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-400 hover:text-emerald-300 font-black text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-sm"
+        >
+          <span className="text-[10px]">◎</span>
+          <span>空席あり</span>
+        </button>
+      </div>
+    </div>
+  );
 
   // レビューダイアログ用
   const [reviewTarget, setReviewTarget] = useState<any | null>(null);
@@ -523,19 +624,19 @@ export function MovieStockDialog({
                             {
                               time: idx % 2 === 0 ? "10:20 〜 12:40" : "11:15 〜 13:35",
                               screen: "スクリーン7 (シネコン)",
-                              formatType: "IMAXレーザー",
+                              formatType: "IMAXレーザー [字幕]",
                               isTheater: true,
                             },
                             {
                               time: idx % 2 === 0 ? "14:50 〜 17:10" : "16:00 〜 18:20",
                               screen: "スクリーン3 (シネコン)",
-                              formatType: "Dolby Atmos",
+                              formatType: "Dolby Atmos [吹替]",
                               isTheater: true,
                             },
                             {
                               time: "19:30 〜 21:50",
                               screen: "スクリーン1 (シネコン)",
-                              formatType: "TCX / 迫力音響",
+                              formatType: "TCX [字幕]",
                               isTheater: true,
                             },
                           ]
@@ -554,7 +655,7 @@ export function MovieStockDialog({
                             },
                             {
                               time: "21:30 〜 23:45",
-                              screen: "スクリーン2 (ベッド)",
+                              screen: "スクリーン1 (リビング)",
                               formatType: "レイトショー [寝落可]",
                               isTheater: false,
                             },
@@ -563,6 +664,14 @@ export function MovieStockDialog({
 
                     const posterImg = movie.posterUrl || matchedTheater?.posterUrl;
                     const officialTitle = matchedTheater?.rawTitle || movie.officialTitle || movie.title;
+
+                    // 字幕版と吹替版の分離（要望⑤）
+                    const subSlots = slots.filter((s) => s.formatType.includes("字幕"));
+                    const dubSlots = slots.filter((s) => s.formatType.includes("吹替"));
+                    const otherSlots = slots.filter(
+                      (s) => !s.formatType.includes("字幕") && !s.formatType.includes("吹替")
+                    );
+                    const hasSplitFormats = (subSlots.length > 0 && dubSlots.length > 0) || (matchedTheater && (subSlots.length > 0 || dubSlots.length > 0));
 
                     return (
                       <div
@@ -607,9 +716,12 @@ export function MovieStockDialog({
                                   </span>
                                 )}
                                 <span>{movie.releaseYear || "上映作品"}</span>
-                                <span className="text-stone-600">•</span>
-                                <span className="text-stone-400">日本語字幕 / 吹替</span>
                               </div>
+
+                              {/* おうちシネマの配信サービス（Netflix, Prime Video, U-NEXT）表示（要望②） */}
+                              {!isTheaterOnly && (
+                                <StreamingBadges tmdbId={movie.tmdbId} providersMap={watchProvidersMap} />
+                              )}
                             </div>
                           </div>
 
@@ -643,47 +755,48 @@ export function MovieStockDialog({
                           </div>
                         </div>
 
-                        {/* 上映スロット一覧（ユナイテッド・シネマ完全再現 + イオン板橋実データ） */}
-                        <div className="space-y-1.5 pt-1 border-t border-stone-900">
-                          {slots.map((slot, sIdx) => (
-                            <div
-                              key={sIdx}
-                              className="flex items-center justify-between p-2 rounded-xl bg-stone-900/90 border border-stone-800/80 hover:border-amber-500/50 transition-colors"
-                            >
-                              <div className="flex items-center gap-2 text-xs flex-wrap">
-                                <span className="font-mono font-bold text-stone-100 text-xs sm:text-sm">
-                                  {slot.time}
-                                </span>
-                                <span className="text-stone-400 text-[11px] underline underline-offset-2">
-                                  {slot.screen}
-                                </span>
-                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                  {slot.formatType}
-                                </span>
-                                {slot.isRealSchedule && (
-                                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/40 px-1 py-0.2 rounded">
-                                    実時間
-                                  </span>
-                                )}
-                              </div>
+                        {/* 上映スロット一覧（字幕 / 吹替の分割表示対応） */}
+                        <div className="space-y-2 pt-1 border-t border-stone-900">
+                          {hasSplitFormats ? (
+                            <>
+                              {/* 字幕版スロット */}
+                              {subSlots.length > 0 && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5 text-[10px] font-black text-cyan-400 px-1">
+                                    <span>🔤</span>
+                                    <span>映画字幕版 ({subSlots.length}回)</span>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    {subSlots.map((slot, sIdx) => renderSlotCard(slot, movie, sIdx))}
+                                  </div>
+                                </div>
+                              )}
 
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setBookingTarget({
-                                      movie,
-                                      slot,
-                                    });
-                                  }}
-                                  className="px-2.5 py-1 rounded-md bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-400 hover:text-emerald-300 font-black text-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-sm"
-                                >
-                                  <span className="text-[10px]">◎</span>
-                                  <span>空席あり</span>
-                                </button>
-                              </div>
+                              {/* 吹替版スロット */}
+                              {dubSlots.length > 0 && (
+                                <div className="space-y-1 pt-1 border-t border-stone-900/60">
+                                  <div className="flex items-center gap-1.5 text-[10px] font-black text-amber-400 px-1">
+                                    <span>🗣️</span>
+                                    <span>日本語吹替版 ({dubSlots.length}回)</span>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    {dubSlots.map((slot, sIdx) => renderSlotCard(slot, movie, sIdx))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* その他の形式 */}
+                              {otherSlots.length > 0 && (
+                                <div className="space-y-1.5 pt-1 border-t border-stone-900/60">
+                                  {otherSlots.map((slot, sIdx) => renderSlotCard(slot, movie, sIdx))}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {slots.map((slot, sIdx) => renderSlotCard(slot, movie, sIdx))}
                             </div>
-                          ))}
+                          )}
                         </div>
                       </div>
                     );
@@ -1249,100 +1362,159 @@ export function MovieStockDialog({
                   </div>
                 </div>
               ) : (
-                /* 🛋️ 自宅 1Kシアター間取りマップ（手描き完全再現） */
-                <div className="relative mx-auto w-full max-w-[340px] aspect-[1/1] p-3 rounded-2xl bg-stone-900/90 border-2 border-stone-800 shadow-inner flex flex-col justify-between select-none">
-                  {/* 部屋の上部：左上にスクリーン（テレビ） */}
-                  <div className="flex justify-between items-start">
-                    {/* テレビ・スクリーン */}
-                    <div className="p-2.5 rounded-xl bg-stone-800 border-2 border-amber-500/80 shadow-lg shadow-amber-500/10 text-center w-[130px]">
-                      <div className="flex items-center justify-center gap-1 text-[11px] font-black text-amber-400">
-                        <Tv className="w-3.5 h-3.5" />
-                        <span>SCREEN</span>
-                      </div>
-                      <div className="text-[9px] font-bold text-stone-300 mt-0.5">
-                        テレビ (大画面)
-                      </div>
-                      {/* スクリーンの白い発光バー */}
-                      <div className="w-full h-1 bg-white rounded-full mt-1.5 shadow-[0_0_8px_white]" />
-                    </div>
+                /* 🛋️ 自宅 1Kシアター間取りマップ（添付写真完全再現ラグジュアリーアンビエント仕様） */
+                <div className="relative mx-auto w-full max-w-[360px] aspect-square rounded-2xl bg-[#090b10] border-[8px] border-[#1a1e27] shadow-[0_20px_45px_rgba(0,0,0,0.9)] overflow-hidden select-none">
+                  {/* 床面のシネマタイルグリッド ＆ 交点ドット */}
+                  <div
+                    className="absolute inset-0 opacity-25 pointer-events-none"
+                    style={{
+                      backgroundImage: `
+                        linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)
+                      `,
+                      backgroundSize: "12.5% 12.5%",
+                    }}
+                  />
+                  {/* グリッド交点の微小ドット光 */}
+                  <div
+                    className="absolute inset-0 opacity-30 pointer-events-none"
+                    style={{
+                      backgroundImage: `radial-gradient(circle, rgba(147, 197, 253, 0.4) 1px, transparent 1px)`,
+                      backgroundSize: "12.5% 12.5%",
+                    }}
+                  />
 
-                    {/* 部屋の天井・壁の雰囲気 */}
-                    <div className="text-right text-[10px] font-mono text-stone-600 pr-1">
-                      MY ROOM 1K
+                  {/* 四方の壁に走るウォームゴールドの間接照明（LEDネオングロー） */}
+                  <div className="absolute inset-0 pointer-events-none border-2 border-amber-500/70 shadow-[inset_0_0_18px_rgba(245,158,11,0.55),0_0_12px_rgba(245,158,11,0.4)]" />
+
+                  {/* 📺 北西（左上）：スクリーン（テレビ） */}
+                  <div className="absolute left-[7%] top-[6%] w-[42%] h-[16%] rounded-lg bg-[#0d1017] border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.15)] flex flex-col items-center justify-center">
+                    {/* 上部のシアンブルー・バックライトネオン */}
+                    <div className="absolute -top-[2px] inset-x-2 h-[3px] bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee,0_0_4px_#06b6d4]" />
+                    {/* スクリーンのテキスト */}
+                    <div className="text-center">
+                      <div className="text-[11px] font-black tracking-wider text-cyan-200 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
+                        スクリーン
+                      </div>
+                      <div className="text-[9px] font-bold text-stone-400 mt-0.5">
+                        (テレビ)
+                      </div>
                     </div>
+                    {/* 下部の細いアンバーライン */}
+                    <div className="absolute -bottom-[1px] inset-x-4 h-[1.5px] bg-amber-400/80 rounded-full shadow-[0_0_6px_#f59e0b]" />
                   </div>
 
-                  {/* 部屋の中央左：ソファ席（2席並び） */}
-                  <div className="my-auto pl-1">
-                    <div className="text-[10px] font-bold text-stone-400 mb-1 flex items-center gap-1">
-                      <Armchair className="w-3 h-3 text-rose-400" />
-                      <span>ソファ席 (特等席 / 正面)</span>
+                  {/* 🛋️ 西側（中央左）：ソファ（特等席） */}
+                  <div className="absolute left-[7%] top-[34%] w-[38%] h-[23%] flex items-center">
+                    {/* 左側のサイドテーブル ＆ 球体ランプ ＆ 観葉植物 */}
+                    <div className="absolute -left-[14px] flex flex-col items-center gap-1 z-10 pointer-events-none">
+                      <div className="w-3.5 h-3.5 rounded-full bg-amber-300 shadow-[0_0_10px_#fbbf24,0_0_4px_#f59e0b] border border-amber-100" />
+                      <span className="text-[10px] leading-none">🪴</span>
                     </div>
-                    <div className="flex gap-2">
-                      {/* ソファ A-1 */}
+
+                    {/* ソファの敷物（ラグ）＆ 間接照明アンビエント */}
+                    <div className="relative w-full h-full p-1 rounded-xl bg-[#141720] border-2 border-amber-500/70 shadow-[0_0_15px_rgba(245,158,11,0.5)] flex items-center justify-between gap-1">
+                      {/* ソファ A-1 (左) */}
                       <button
                         type="button"
                         onClick={() => setSelectedSeat("sofa-1")}
-                        className={`w-[68px] py-2 rounded-xl border-2 flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center p-1 relative ${
                           selectedSeat === "sofa-1"
-                            ? "bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/40 scale-105 font-black ring-2 ring-white/30"
-                            : "bg-stone-800/90 border-stone-700 text-stone-200 hover:border-stone-500"
+                            ? "bg-rose-600 text-white shadow-[0_0_12px_rgba(225,29,72,0.8)] scale-102 font-black ring-2 ring-white"
+                            : "bg-[#e5e0d8] hover:bg-[#f3ede3] text-stone-800 shadow-sm"
                         }`}
                       >
-                        <span className="text-[10px] font-mono font-bold">A-1</span>
-                        <span className="text-[9px] mt-0.5">ソファ左</span>
-                        <span className="text-[8px] opacity-70">◎空席</span>
+                        <span className="text-[8px] font-black opacity-60">A-1</span>
+                        <span className="text-[9px] font-black mt-0.5">ソファ左</span>
+                        {selectedSeat === "sofa-1" && (
+                          <span className="absolute -bottom-1 px-1 rounded-full bg-white text-rose-600 text-[7px] font-black">
+                            選択中
+                          </span>
+                        )}
                       </button>
 
-                      {/* ソファ A-2 */}
+                      {/* 中央の「ソファ」ラベル */}
+                      <div className="absolute inset-x-0 mx-auto w-12 py-0.5 rounded-full bg-stone-900/90 border border-amber-400/80 text-amber-300 text-[8px] font-black text-center pointer-events-none shadow-xs">
+                        ソファ
+                      </div>
+
+                      {/* ソファ A-2 (右) */}
                       <button
                         type="button"
                         onClick={() => setSelectedSeat("sofa-2")}
-                        className={`w-[68px] py-2 rounded-xl border-2 flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex flex-col items-center justify-center p-1 relative ${
                           selectedSeat === "sofa-2"
-                            ? "bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/40 scale-105 font-black ring-2 ring-white/30"
-                            : "bg-stone-800/90 border-stone-700 text-stone-200 hover:border-stone-500"
+                            ? "bg-rose-600 text-white shadow-[0_0_12px_rgba(225,29,72,0.8)] scale-102 font-black ring-2 ring-white"
+                            : "bg-[#e5e0d8] hover:bg-[#f3ede3] text-stone-800 shadow-sm"
                         }`}
                       >
-                        <span className="text-[10px] font-mono font-bold">A-2</span>
-                        <span className="text-[9px] mt-0.5">ソファ右</span>
-                        <span className="text-[8px] opacity-70">◎空席</span>
+                        <span className="text-[8px] font-black opacity-60">A-2</span>
+                        <span className="text-[9px] font-black mt-0.5">ソファ右</span>
+                        {selectedSeat === "sofa-2" && (
+                          <span className="absolute -bottom-1 px-1 rounded-full bg-white text-rose-600 text-[7px] font-black">
+                            選択中
+                          </span>
+                        )}
                       </button>
                     </div>
                   </div>
 
-                  {/* 部屋の下部：ベッド席（横長） ＆ 右下にEXIT廊下 */}
-                  <div className="flex items-end justify-between pt-1">
-                    {/* ベッド席 */}
-                    <div className="w-[180px]">
-                      <div className="text-[10px] font-bold text-stone-400 mb-1 flex items-center gap-1">
-                        <span>🛏️</span>
-                        <span>ベッド席 (ごろ寝シアター)</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSeat("bed-1")}
-                        className={`w-full py-2.5 rounded-xl border-2 flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                          selectedSeat === "bed-1"
-                            ? "bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/40 scale-102 font-black ring-2 ring-white/30"
-                            : "bg-stone-800/90 border-stone-700 text-stone-200 hover:border-stone-500"
-                        }`}
-                      >
-                        <span className="text-[10px] font-mono font-bold">B-1</span>
-                        <span className="text-[10px]">エグゼクティブ・ベッド</span>
-                        <span className="text-[8px] opacity-70">◎空席</span>
-                      </button>
+                  {/* 🛏️ 南西（左下）：ベッド（特別席） */}
+                  <div className="absolute left-[7%] bottom-[8%] w-[50%] h-[24%] flex items-center">
+                    {/* 左側の木製ヘッドボード ＆ 球体ランプ ＆ 観葉植物 */}
+                    <div className="absolute -left-[14px] top-1 flex flex-col items-center gap-1 z-10 pointer-events-none">
+                      <div className="w-3.5 h-3.5 rounded-full bg-amber-300 shadow-[0_0_10px_#fbbf24,0_0_4px_#f59e0b] border border-amber-100" />
+                      <span className="text-[10px] leading-none">🌿</span>
                     </div>
 
-                    {/* 映画館おなじみのEXIT（廊下） */}
-                    <div className="flex flex-col items-center text-center pl-2">
-                      <div className="px-2 py-1 rounded bg-emerald-600 text-white text-[9px] font-black flex items-center gap-0.5 shadow-sm">
-                        <DoorOpen className="w-3 h-3" />
-                        <span>非常口</span>
+                    {/* ベッド外枠 ＆ 間接照明アンビエント */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSeat("bed-1")}
+                      className={`relative w-full h-full rounded-xl transition-all cursor-pointer border-2 flex items-center justify-between p-1.5 overflow-hidden ${
+                        selectedSeat === "bed-1"
+                          ? "bg-rose-950/80 border-rose-500 shadow-[0_0_18px_rgba(225,29,72,0.8)] scale-102 ring-2 ring-white"
+                          : "bg-[#141720] border-amber-500/80 shadow-[0_0_16px_rgba(245,158,11,0.55)] hover:border-amber-400"
+                      }`}
+                    >
+                      {/* 枕（左側） */}
+                      <div className="w-[28%] h-4/5 rounded-md bg-[#e6ded5] flex items-center justify-center shadow-inner">
+                        <div className="w-4/5 h-3/5 rounded bg-white shadow-xs" />
                       </div>
-                      <span className="text-[9px] font-bold text-stone-500 mt-1 font-mono">
-                        EXIT (廊下)
-                      </span>
+
+                      {/* 掛け布団（中央〜右側：ネイビー＆チャコールトーン） */}
+                      <div className="flex-1 h-4/5 ml-1.5 rounded-md bg-gradient-to-r from-[#8a7f76] via-[#474c58] to-[#252a36] flex items-center justify-center relative shadow-inner">
+                        <div className="px-2 py-0.5 rounded-full bg-black/75 border border-amber-400/80 text-amber-300 text-[9px] font-black shadow-xs">
+                          ベッド (特別席)
+                        </div>
+                      </div>
+
+                      {selectedSeat === "bed-1" && (
+                        <span className="absolute bottom-1 right-2 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[8px] font-black shadow-xs">
+                          B-1 選択中
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* 🚪 南東（右下）：EXIT (廊下) ＆ ドアスイング */}
+                  <div className="absolute right-[6%] bottom-[6%] flex items-end">
+                    {/* ドアスイング扇形の破線アーク (SVG) */}
+                    <div className="relative w-12 h-12 pointer-events-none">
+                      <svg className="w-full h-full" viewBox="0 0 48 48" fill="none">
+                        <path
+                          d="M 46 46 A 44 44 0 0 0 2 46"
+                          stroke="rgba(245, 158, 11, 0.7)"
+                          strokeWidth="1.5"
+                          strokeDasharray="3 3"
+                        />
+                        <line x1="46" y1="2" x2="46" y2="46" stroke="#475569" strokeWidth="2" />
+                      </svg>
+                    </div>
+
+                    {/* EXIT (廊下) ネオンバッジ */}
+                    <div className="ml-1 px-2.5 py-1 rounded-md bg-[#0a0f1d] border border-cyan-400 text-cyan-300 text-[9px] font-black tracking-wider shadow-[0_0_12px_rgba(34,211,238,0.7)] flex items-center gap-1">
+                      <span>EXIT (廊下)</span>
                     </div>
                   </div>
                 </div>

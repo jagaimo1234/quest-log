@@ -40,7 +40,7 @@ import {
   incrementQuestCount,
 } from "../db.js";
 import { SheetPayload, sendToSpreadsheet } from "../services/sheets.js";
-import { searchMovieCandidates, pickConfident, isTmdbConfigured } from "../services/tmdb.js";
+import { searchMovieCandidates, pickConfident, isTmdbConfigured, getWatchProviders } from "../services/tmdb.js";
 import { findMovieInItabashi, getItabashiSchedule } from "../services/cinemaSchedule.js";
 import { getDb } from "../db.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
@@ -187,6 +187,28 @@ export const appRouter = router({
     listTheaterMovies: protectedProcedure
       .query(async () => {
         return getItabashiSchedule();
+      }),
+    /**
+     * 映画の配信サービス情報（Netflix, Prime Video, U-NEXT等）を取得
+     */
+    getWatchProviders: protectedProcedure
+      .input(z.object({ tmdbId: z.number() }))
+      .query(async ({ input }) => {
+        return getWatchProviders(input.tmdbId);
+      }),
+    /**
+     * 複数のtmdbIdの配信サービス情報を一括取得
+     */
+    batchWatchProviders: protectedProcedure
+      .input(z.object({ tmdbIds: z.array(z.number()) }))
+      .query(async ({ input }) => {
+        const results: Record<number, any> = {};
+        for (const id of input.tmdbIds) {
+          if (!id) continue;
+          const p = await getWatchProviders(id);
+          if (p) results[id] = p;
+        }
+        return results;
       }),
     setPoster: protectedProcedure
       .input(z.object({

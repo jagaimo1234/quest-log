@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
-import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown, Clock, ArrowLeftToLine, ArrowRightToLine, Check } from "lucide-react";
+import { Loader2, Plus, Flame, CheckCircle2, Circle, XCircle, Pencil, LayoutGrid, Calendar as CalendarIcon, Trash2, ArrowRight, PlayCircle, Folder, GripVertical, Database, History, MessageSquarePlus, ChevronLeft, ChevronRight, Lightbulb, Activity, CornerDownRight, Heart, Maximize2, ChevronUp, ChevronDown, Clock, ArrowLeftToLine, ArrowRightToLine, Check, Film } from "lucide-react";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore, isEqual, parseISO, isWithinInterval } from "date-fns";
@@ -1104,6 +1104,7 @@ function TodayItem({
   const deleteQuest = trpc.quest.delete.useMutation();
   const incrementCount = trpc.quest.incrementCount.useMutation();
   const template = templates.find(t => t.id === quest.templateId);
+  const isRelax = template?.questType === "Relax" || quest.questType === "Relax";
 
   // Optimistic local status for instant UI response
   const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
@@ -1127,6 +1128,44 @@ function TodayItem({
   const [bookTitle, setBookTitle] = useState("");
   const [movieTitle, setMovieTitle] = useState("");
   const [isMovieStockSubOpen, setIsMovieStockSubOpen] = useState(false);
+
+  const isReadingMission = isRelax && quest.questName.includes("読書");
+
+  // 映画情報のパース（タイトル、上映時間、座席、ポスターの紐付け）
+  const currentMovieInfo = React.useMemo(() => {
+    const text = quest.note || quest.questName || "";
+    if (!text.includes("🎬") && !quest.questName.includes("映画")) return null;
+
+    // 形式: "🎬 クジラに落ちた男 [20:55 〜 22:41 / 💺劇場 A-1席]" または "🎬 映画: クジラに落ちた男"
+    const match = text.match(/🎬\s*(?:映画:\s*)?([^\[\n\r]+)(?:\[([^\]]+)\])?/);
+    let rawTitle = match ? match[1].trim() : "";
+    let timeSlot = "";
+    let seatInfo = "";
+
+    if (match && match[2]) {
+      const details = match[2].trim();
+      const parts = details.split("/").map((s: string) => s.trim());
+      timeSlot = parts[0] || "";
+      seatInfo = parts[1] || "";
+    } else if (!rawTitle && quest.questName.startsWith("🎬 映画: ")) {
+      rawTitle = quest.questName.replace("🎬 映画: ", "").trim();
+    }
+
+    if (!rawTitle) return null;
+
+    const movieObj = movieList?.find((m: any) =>
+      m.title === rawTitle || m.officialTitle === rawTitle || (rawTitle && m.title?.includes(rawTitle))
+    );
+
+    return {
+      title: movieObj?.officialTitle || movieObj?.title || rawTitle,
+      timeSlot,
+      seatInfo,
+      movieObj,
+    };
+  }, [quest.note, quest.questName, movieList]);
+
+  const isMovieMission = (isRelax && quest.questName.includes("映画")) || quest.questName.includes("映画") || quest.questName.startsWith("🎬") || !!currentMovieInfo;
 
   useEffect(() => {
     setNote(quest.note || "");
@@ -1187,10 +1226,7 @@ function TodayItem({
   const isWeeklyPool = template?.questType === "Weekly" && (!template.daysOfWeek || JSON.parse(template.daysOfWeek).length === 0);
   const isMonthlyPool = template?.questType === "Monthly" && (!template.datesOfMonth || JSON.parse(template.datesOfMonth).length === 0) && (!template.weeksOfMonth || JSON.parse(template.weeksOfMonth).length === 0);
   const isProject = quest.questType === "Project";
-  const isRelax = template?.questType === "Relax";
   const isFree = template?.questType === "Free" || quest.questType === "Free";
-  const isReadingMission = isRelax && quest.questName.includes("読書");
-  const isMovieMission = isRelax && quest.questName.includes("映画");
 
   if (template) {
     if (isRelax) {
@@ -1304,7 +1340,11 @@ function TodayItem({
     if (!movieTitle.trim()) return;
     try {
       await createMovie.mutateAsync({ title: movieTitle.trim() });
-      await updateQuest.mutateAsync({ questId: quest.id, note: `🎬 ${movieTitle.trim()}` });
+      await updateQuest.mutateAsync({
+        questId: quest.id,
+        questName: `🎬 映画: ${movieTitle.trim()}`,
+        note: `🎬 ${movieTitle.trim()}`,
+      });
       toast.success("Movie recorded!");
       setIsMenuOpen(false);
       setMovieTitle("");
@@ -1520,6 +1560,73 @@ function TodayItem({
                 </div>
                 <div className="text-[10px] text-rose-600/80">これから観る映画を登録・選択して、記録します。</div>
 
+                {/* 🎟️ セット中の映画チケット・鑑賞予定カード（ポスター・時間・座席・劇場情報を完全連動） */}
+                {currentMovieInfo && (
+                  <div className="p-3 rounded-xl bg-stone-900 border-2 border-amber-500/80 shadow-md text-white space-y-2">
+                    <div className="flex items-start gap-3">
+                      {currentMovieInfo.movieObj?.posterUrl ? (
+                        <img
+                          src={currentMovieInfo.movieObj.posterUrl}
+                          alt={currentMovieInfo.title}
+                          className="w-12 h-16 object-cover rounded-md shrink-0 shadow-md ring-1 ring-white/10"
+                        />
+                      ) : (
+                        <div className="w-12 h-16 rounded-md bg-stone-800 flex items-center justify-center shrink-0">
+                          <Film className="w-6 h-6 text-stone-500" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500 text-stone-950">
+                            🎟️ セット中の映画
+                          </span>
+                          {currentMovieInfo.movieObj?.status === "completed" && (
+                            <span className="text-[10px] text-emerald-400 font-bold">
+                              ✓ 鑑賞完了
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm font-black text-white mt-1 leading-snug break-words">
+                          {currentMovieInfo.title}
+                        </div>
+                        <div className="text-[11px] text-stone-300 mt-1 flex flex-wrap gap-1.5 items-center font-mono">
+                          {currentMovieInfo.timeSlot && (
+                            <span className="px-1.5 py-0.5 rounded bg-stone-800 text-amber-300 border border-stone-700 font-bold">
+                              ⏰ {currentMovieInfo.timeSlot}
+                            </span>
+                          )}
+                          {currentMovieInfo.seatInfo && (
+                            <span className="px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold">
+                              {currentMovieInfo.seatInfo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-stone-800 flex items-center justify-between text-[11px]">
+                      <span className="text-stone-400 text-[10px]">
+                        別の映画に変更する場合は下から選択
+                      </span>
+                      {currentMovieInfo.movieObj && currentMovieInfo.movieObj.status !== "completed" && (
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await updateStatus.mutateAsync({ questId: quest.id, status: "cleared" });
+                            toast.success(`🎬『${currentMovieInfo.title}』を鑑賞完了にしました！`);
+                            setIsMenuOpen(false);
+                            onStatusChange();
+                          }}
+                          className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] transition-colors cursor-pointer"
+                        >
+                          ✓ 鑑賞完了にする
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Uncompleted movie list */}
                 {(() => {
                   const unfinished = movieList?.filter((m: any) => m.status !== 'completed') || [];
@@ -1534,7 +1641,11 @@ function TodayItem({
                             type="button"
                             onClick={async (e) => {
                               e.stopPropagation();
-                              await updateQuest.mutateAsync({ questId: quest.id, note: `🎬 ${m.title}` });
+                              await updateQuest.mutateAsync({
+                                questId: quest.id,
+                                questName: `🎬 映画: ${m.title}`,
+                                note: `🎬 ${m.title}`,
+                              });
                               toast.success(`『${m.title}』を記録しました`);
                               setIsMenuOpen(false);
                               onStatusChange();
@@ -1593,7 +1704,11 @@ function TodayItem({
                     isOpen={isMovieStockSubOpen}
                     onOpenChange={setIsMovieStockSubOpen}
                     onSelectForActiveMission={async (title) => {
-                      await updateQuest.mutateAsync({ questId: quest.id, note: `🎬 ${title}` });
+                      await updateQuest.mutateAsync({
+                        questId: quest.id,
+                        questName: `🎬 映画: ${title}`,
+                        note: `🎬 ${title}`,
+                      });
                       toast.success(`『${title}』を記録しました`);
                       setIsMenuOpen(false);
                       onStatusChange();
@@ -3426,8 +3541,10 @@ export default function Home() {
       ? `🎬 ${movieTitle} [${slotInfo.timeSlot} / 💺${slotInfo.seatName || "特等席"}]`
       : `🎬 ${movieTitle}`;
 
+    const questTitle = `🎬 映画: ${movieTitle}`;
+
     await createQuest.mutateAsync({
-      questName: movieTemplate ? movieTemplate.questName : "映画鑑賞",
+      questName: questTitle,
       questType: "Relax" as any,
       difficulty: "1",
       templateId: movieTemplate?.id,
