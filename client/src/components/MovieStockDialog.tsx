@@ -8,6 +8,57 @@ import { toast } from "sonner";
 import { Loader2, Plus, Film, CheckCircle2, Trash2, Calendar, Star, Play, Sparkles, LayoutGrid, Image as ImageIcon, Search } from "lucide-react";
 import { format } from "date-fns";
 
+/** 0.5刻み対応の星表示（読み取り専用） */
+function StarsView({ rating, size = "text-sm" }: { rating: number; size?: string }) {
+  const pct = Math.max(0, Math.min(5, rating)) * 20;
+  return (
+    <span
+      className={`relative inline-block leading-none tracking-tight ${size}`}
+      title={`${rating} / 5`}
+      aria-label={`評価 ${rating} / 5`}
+    >
+      <span className="text-stone-300 dark:text-stone-700">★★★★★</span>
+      <span className="absolute left-0 top-0 overflow-hidden whitespace-nowrap text-amber-500" style={{ width: `${pct}%` }}>
+        ★★★★★
+      </span>
+    </span>
+  );
+}
+
+/** 0.5刻みで選べる星入力（各星の左半分=x.5 / 右半分=x.0） */
+function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center">
+      {[1, 2, 3, 4, 5].map((star) => {
+        const fill = Math.max(0, Math.min(1, value - (star - 1)));
+        return (
+          <span key={star} className="relative inline-block w-9 h-9 text-3xl leading-9 text-center select-none">
+            <span className="text-stone-300 dark:text-stone-700">★</span>
+            <span
+              className="absolute left-0 top-0 overflow-hidden text-amber-500 whitespace-nowrap"
+              style={{ width: `${fill * 100}%` }}
+            >
+              <span className="inline-block w-9 text-center">★</span>
+            </span>
+            <button
+              type="button"
+              aria-label={`${star - 0.5}点`}
+              onClick={() => onChange(star - 0.5)}
+              className="absolute left-0 top-0 h-full w-1/2 cursor-pointer"
+            />
+            <button
+              type="button"
+              aria-label={`${star}点`}
+              onClick={() => onChange(star)}
+              className="absolute right-0 top-0 h-full w-1/2 cursor-pointer"
+            />
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 interface MovieStockDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,6 +105,9 @@ export function MovieStockDialog({
 
   const stockMovies = movies?.filter((m: any) => m.status !== "completed") || [];
   const completedMovies = movies?.filter((m: any) => m.status === "completed") || [];
+  const [galleryFilter, setGalleryFilter] = useState<"all" | "completed" | "watching">("all");
+  const galleryMovies =
+    galleryFilter === "completed" ? completedMovies : galleryFilter === "watching" ? stockMovies : movies || [];
 
   // スマホでも確実に送信できる追加処理
   const handleAddMovie = async (e?: React.FormEvent) => {
@@ -187,7 +241,7 @@ export function MovieStockDialog({
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent
-          className="sm:max-w-lg max-h-[90vh] flex flex-col p-4 sm:p-6 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 shadow-xl"
+          className={`${activeTab === "gallery" ? "sm:max-w-3xl" : "sm:max-w-lg"} transition-[max-width] duration-300 max-h-[90vh] flex flex-col p-4 sm:p-6 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 shadow-xl`}
           onTouchStart={(e) => e.stopPropagation()}
         >
           <DialogHeader className="shrink-0 mb-2">
@@ -311,38 +365,84 @@ export function MovieStockDialog({
                       画像が無い映画のポスターを自動で探す
                     </button>
                   )}
-                  <div className="grid grid-cols-3 gap-2">
-                    {movies.map((movie: any) => {
+                  <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
+                    {([
+                      ["all", "すべて", movies.length],
+                      ["completed", "観た", completedMovies.length],
+                      ["watching", "観たい", stockMovies.length],
+                    ] as const).map(([key, label, count]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setGalleryFilter(key)}
+                        className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                          galleryFilter === key
+                            ? "bg-white border-white text-stone-900 shadow-md"
+                            : "bg-transparent border-stone-600 text-stone-300 hover:border-stone-300 hover:text-white"
+                        }`}
+                      >
+                        {label}
+                        <span className="ml-1.5 font-mono text-stone-500">
+                          {count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {galleryMovies.length === 0 && (
+                    <div className="text-center py-10 text-xs text-stone-500">該当する映画はありません</div>
+                  )}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-2.5 gap-y-3 p-1">
+                    {galleryMovies.map((movie: any) => {
                       const done = movie.status === "completed";
                       return (
                         <button
                           key={movie.id}
                           type="button"
                           onClick={() => setDetailTarget(movie)}
-                          className="text-left rounded-lg overflow-hidden border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 active:scale-95 transition-all"
+                          className="group relative block text-left rounded-md overflow-hidden bg-stone-800 shadow-md ring-1 ring-white/5 aspect-[2/3] transition-all duration-300 ease-out hover:scale-[1.06] hover:z-10 hover:shadow-2xl hover:ring-white/30 active:scale-95 cursor-pointer"
                         >
-                          <div className="relative aspect-[2/3] bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
-                            {movie.posterUrl ? (
-                              <img
-                                src={movie.posterUrl}
-                                alt={movie.title}
-                                loading="lazy"
-                                className={`w-full h-full object-cover ${done ? "" : "opacity-60 grayscale"}`}
-                              />
-                            ) : (
-                              <Film className="w-7 h-7 text-stone-300 dark:text-stone-600" />
-                            )}
-                            <span
-                              className={`absolute top-1 right-1 text-[9px] font-black px-1.5 py-0.5 rounded-full text-white ${
-                                done ? "bg-emerald-500" : "bg-rose-500"
+                          {movie.posterUrl ? (
+                            <img
+                              src={movie.posterUrl}
+                              alt={movie.title}
+                              loading="lazy"
+                              className={`absolute inset-0 w-full h-full object-cover transition-all duration-300 ${
+                                done ? "" : "brightness-75 saturate-50 group-hover:brightness-100 group-hover:saturate-100"
                               }`}
-                            >
-                              {done ? "観た" : "観たい"}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-2 bg-gradient-to-br from-stone-700 to-stone-900">
+                              <Film className="w-7 h-7 text-stone-500" />
+                              <span className="text-[10px] font-bold text-stone-300 text-center leading-tight line-clamp-4">
+                                {movie.officialTitle || movie.title}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* 左上: ステータス */}
+                          <span
+                            className={`absolute top-1.5 left-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-sm text-white shadow ${
+                              done ? "bg-emerald-500/90" : "bg-rose-500/90"
+                            }`}
+                          >
+                            {done ? "観た" : "観たい"}
+                          </span>
+
+                          {/* 下部グラデーション: タイトル(ホバー時) */}
+                          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                          {movie.posterUrl && (
+                            <div className="absolute inset-x-0 bottom-0 p-1.5 pr-14 text-[10px] font-bold leading-tight text-white line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                              {movie.officialTitle || movie.title}
+                            </div>
+                          )}
+
+                          {/* 右下: 星評価 */}
+                          {movie.rating ? (
+                            <span className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-black/70 backdrop-blur-sm text-[10px] font-black text-amber-400 shadow">
+                              <span className="text-[9px]">★</span>
+                              {movie.rating}
                             </span>
-                          </div>
-                          <div className="p-1 text-[10px] leading-tight font-bold line-clamp-2 min-h-[2.2em]">
-                            {movie.officialTitle || movie.title}
-                          </div>
+                          ) : null}
                         </button>
                       );
                     })}
@@ -445,11 +545,7 @@ export function MovieStockDialog({
                       <span className="font-bold text-xs sm:text-sm text-stone-800 dark:text-stone-200 line-through opacity-70 break-words">
                         {movie.title}
                       </span>
-                      {movie.rating ? (
-                        <span className="text-amber-500 text-xs font-mono font-bold">
-                          {"★".repeat(movie.rating)}
-                        </span>
-                      ) : null}
+                      {movie.rating ? <StarsView rating={movie.rating} size="text-xs" /> : null}
                     </div>
                     {movie.review && (
                       <div className="text-[11px] text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800/60 p-2 rounded-lg mt-1.5 whitespace-pre-wrap border border-stone-200/50 dark:border-stone-700/50">
@@ -512,20 +608,11 @@ export function MovieStockDialog({
 
             <div className="space-y-4 pt-2">
               <div>
-                <Label className="text-xs font-bold text-stone-700 dark:text-stone-200 block mb-1">星評価 (1〜5)</Label>
+                <Label className="text-xs font-bold text-stone-700 dark:text-stone-200 block mb-1">
+                  星評価 (0.5刻み){rating > 0 ? `：${rating}` : ""}
+                </Label>
                 <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setRating(star)}
-                      className={`text-2xl transition-transform hover:scale-125 cursor-pointer ${
-                        star <= rating ? "text-amber-500" : "text-stone-300 dark:text-stone-700"
-                      }`}
-                    >
-                      ★
-                    </button>
-                  ))}
+                  <StarPicker value={rating} onChange={setRating} />
                   {rating > 0 && (
                     <button
                       type="button"
@@ -541,7 +628,7 @@ export function MovieStockDialog({
               <div>
                 <Label className="text-xs font-bold block mb-1">感想 / 一言メモ</Label>
                 <textarea
-                  className="w-full min-h-[90px] rounded-lg border border-input p-2.5 text-xs sm:text-sm bg-background"
+                  className="w-full min-h-[90px] rounded-lg border border-stone-300 dark:border-stone-700 p-2.5 text-xs sm:text-sm bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-rose-400/60"
                   placeholder="面白かったシーンやおすすめポイントなど..."
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
@@ -566,58 +653,88 @@ export function MovieStockDialog({
         const d = movies?.find((m: any) => m.id === detailTarget.id) ?? detailTarget;
         return (
           <Dialog open onOpenChange={(open) => !open && setDetailTarget(null)}>
-            <DialogContent className="sm:max-w-sm p-5 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 shadow-xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="text-base font-black break-words">{d.title}</DialogTitle>
-                <DialogDescription className="text-xs">
-                  {d.officialTitle && d.officialTitle !== d.title ? `正式タイトル: ${d.officialTitle}` : "映画の詳細"}
-                  {d.releaseYear ? `（${d.releaseYear}）` : ""}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex gap-3">
-                <div className="w-28 shrink-0 aspect-[2/3] rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
-                  {d.posterUrl ? (
-                    <img src={d.posterUrl} alt={d.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <Film className="w-8 h-8 text-stone-300 dark:text-stone-600" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1 text-xs space-y-1.5">
-                  <div className="font-bold">
-                    {d.status === "completed" ? "✅ 観た" : "👀 観たい"}
+            <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden bg-stone-950 border border-stone-800 text-stone-100 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="relative">
+                {d.posterUrl && (
+                  <img
+                    src={d.posterUrl}
+                    alt=""
+                    aria-hidden
+                    className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl opacity-40"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-stone-950/60 to-stone-950" />
+                <div className="relative flex gap-4 p-5 pt-9">
+                  <div className="w-32 shrink-0 aspect-[2/3] rounded-md overflow-hidden bg-stone-800 flex items-center justify-center shadow-2xl ring-1 ring-white/10">
+                    {d.posterUrl ? (
+                      <img src={d.posterUrl} alt={d.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <Film className="w-8 h-8 text-stone-600" />
+                    )}
                   </div>
-                  {d.rating ? <div className="text-amber-500 font-mono">{"★".repeat(d.rating)}</div> : null}
-                  <div className="text-[10px] text-stone-500 font-mono">
-                    {d.completedAt
-                      ? `鑑賞日: ${format(new Date(d.completedAt), "yyyy/MM/dd")}`
-                      : `追加: ${format(new Date(d.createdAt), "yyyy/MM/dd")}`}
-                  </div>
-                  {d.review && (
-                    <div className="text-[11px] bg-stone-100 dark:bg-stone-800/60 p-2 rounded-lg whitespace-pre-wrap">
-                      {d.review}
+                  <DialogHeader className="min-w-0 flex-1 space-y-2 text-left justify-end">
+                    <span
+                      className={`self-start text-[10px] font-black px-2 py-0.5 rounded-sm ${
+                        d.status === "completed" ? "bg-emerald-500/90 text-white" : "bg-rose-500/90 text-white"
+                      }`}
+                    >
+                      {d.status === "completed" ? "観た" : "観たい"}
+                    </span>
+                    <DialogTitle className="text-lg font-black leading-tight break-words text-white">
+                      {d.officialTitle || d.title}
+                    </DialogTitle>
+                    <DialogDescription className="text-[11px] text-stone-400 leading-snug">
+                      {d.releaseYear ? `${d.releaseYear}` : ""}
+                      {d.officialTitle && d.officialTitle !== d.title
+                        ? `${d.releaseYear ? " ・ " : ""}登録名: ${d.title}`
+                        : ""}
+                    </DialogDescription>
+                    {d.rating ? (
+                      <div className="flex items-center gap-2">
+                        <StarsView rating={d.rating} size="text-base" />
+                        <span className="text-sm font-black text-amber-400">{d.rating}</span>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-stone-500">未評価</div>
+                    )}
+                    <div className="text-[10px] text-stone-500 font-mono">
+                      {d.completedAt
+                        ? `鑑賞日 ${format(new Date(d.completedAt), "yyyy/MM/dd")}`
+                        : `追加 ${format(new Date(d.createdAt), "yyyy/MM/dd")}`}
                     </div>
-                  )}
+                  </DialogHeader>
                 </div>
               </div>
-              <div className="flex flex-wrap justify-end gap-2 pt-1">
-                <Button variant="outline" size="sm" className="text-xs" onClick={() => openPosterPicker(d)}>
-                  <ImageIcon className="w-3 h-3 mr-1" />
-                  画像を探し直す
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => {
-                    setReviewTarget(d);
-                    setRating(d.rating || 0);
-                    setReviewText(d.review || "");
-                    setDetailTarget(null);
-                  }}
-                >
-                  <Star className="w-3 h-3 text-amber-500 mr-1" />
-                  レビュー
-                </Button>
+              <div className="px-5 pb-5 space-y-3">
+                {d.review && (
+                  <div className="text-xs leading-relaxed text-stone-200 bg-white/5 p-3 rounded-md whitespace-pre-wrap border border-white/5">
+                    {d.review}
+                  </div>
+                )}
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs bg-transparent border-stone-700 text-stone-200 hover:bg-white/10 hover:text-white"
+                    onClick={() => openPosterPicker(d)}
+                  >
+                    <ImageIcon className="w-3 h-3 mr-1" />
+                    画像を探し直す
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="text-xs bg-white text-stone-900 hover:bg-stone-200 font-bold"
+                    onClick={() => {
+                      setReviewTarget(d);
+                      setRating(d.rating || 0);
+                      setReviewText(d.review || "");
+                      setDetailTarget(null);
+                    }}
+                  >
+                    <Star className="w-3 h-3 text-amber-500 mr-1 fill-current" />
+                    評価・感想
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>

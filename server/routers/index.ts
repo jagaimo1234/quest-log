@@ -235,7 +235,11 @@ export const appRouter = router({
         return { success: true };
       }),
     updateReview: protectedProcedure
-      .input(z.object({ id: z.number(), rating: z.number().nullable(), review: z.string().nullable() }))
+      .input(z.object({
+        id: z.number(),
+        rating: z.number().min(0).max(5).refine((v) => Number.isInteger(v * 2), "0.5刻みで指定してください").nullable(),
+        review: z.string().nullable(),
+      }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database not available");
