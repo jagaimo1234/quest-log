@@ -150,8 +150,8 @@ const MISSION_CARD_LAYOUT = "w-55 ml-0";
 
 
 // 時間枠（左右のスペース）の横幅を設定します。
-// Options: w-16 (64px), w-20 (80px), w-22 (88px), w-24 (96px), w-28 (112px), w-32 (128px)
-const TIME_SLOT_WIDTH = "w-28 sm:w-32";
+// Mobile: 68px, Desktop: w-28 (112px) ~ w-32 (128px)
+const TIME_SLOT_WIDTH = "w-[68px] sm:w-28 md:w-32";
 
 // ------------------------------------------------------------------
 // HELPERS
@@ -765,7 +765,7 @@ function DayColumn({
       </div>
 
       {/* Sub-column 2: Timeline Column */}
-      <div className={`flex flex-col gap-2 shrink-0 ${showMoaiRhythm ? 'w-auto min-w-[140px] max-w-[260px]' : TIME_SLOT_WIDTH} z-10`}>
+      <div className={`flex flex-col gap-2 shrink-0 ${showMoaiRhythm ? 'w-auto sm:min-w-[140px] sm:max-w-[260px]' : TIME_SLOT_WIDTH} z-10`}>
         <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground/70 mb-2 px-1 select-none">
           <span>TIMELINE</span>
           {showMoaiRhythm && (
@@ -830,7 +830,7 @@ function DayColumn({
                   />
                   {isFirstSlotOfZone && (
                     <div
-                      className={`px-1.5 py-0.5 rounded text-[8.5px] font-black border flex items-center gap-1 whitespace-nowrap shadow-2xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
+                      className={`hidden sm:flex px-1.5 py-0.5 rounded text-[8.5px] font-black border items-center gap-1 whitespace-nowrap shadow-2xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
                     >
                       <span>{zone.emoji}</span>
                       <span>{zone.shortName}</span>
@@ -1464,7 +1464,7 @@ function TodayItem({
 
       {/* Action Dialog for Touch Devices (Long Press) */}
       <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-        <DialogContent className="sm:max-w-md p-6">
+        <DialogContent className="w-[95vw] sm:max-w-md p-4 sm:p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
           <DialogHeader>
             <DialogTitle className="text-center text-lg font-bold truncate">
               {quest.questName}
@@ -2438,6 +2438,21 @@ export default function Home() {
   const [isRelaxOpen, setIsRelaxOpen] = useState(false);
   const [isLunchCounterOpen, setIsLunchCounterOpen] = useState(false);
   const [planningDayOffset, setPlanningDayOffset] = useState(0); // 0=today, 1=tomorrow
+
+  // Responsive mobile screen detection
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== "undefined") return window.innerWidth < 640;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const { data: activeQuests, refetch: refetchQuests } = trpc.quest.list.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -3685,20 +3700,43 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground" onClick={() => setIsRelaxOpen(false)}>
-      <main className={`${planningViewMode === 'weekly' ? 'w-full max-w-none px-4 sm:px-8 py-8' : 'max-w-7xl px-4 sm:px-6 py-8'} mx-auto`}>
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Quest Log</h1>
-          <div className="flex gap-4">
-            {(progression?.currentStreak ?? 0) > 0 && <div className="flex items-center gap-1 text-orange-500 font-bold"><Flame className="fill-orange-500 w-5 h-5" /> {progression?.currentStreak}</div>}
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/rhythm"} className="text-amber-500 dark:text-amber-400 font-semibold"><Activity className="w-4 h-4 mr-1 text-amber-500" /> 生活リズム</Button>
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/history"}><History className="w-4 h-4 mr-1" /> 履歴</Button>
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"}>Templates</Button>
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"}>Projects</Button>
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/awareness"} className="text-amber-600 dark:text-amber-400 font-semibold"><Lightbulb className="w-4 h-4 mr-1 fill-amber-500/20" /> 意識を育てる</Button>
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"}><Database className="w-4 h-4 mr-1" /> DB</Button>
+      <main className={`${planningViewMode === 'weekly' ? 'w-full max-w-none px-2.5 sm:px-8 py-3 sm:py-8' : 'max-w-7xl px-2.5 sm:px-6 py-3 sm:py-8'} mx-auto overflow-x-hidden`}>
+        {/* Top Header */}
+        <div className="flex flex-col gap-2.5 sm:gap-4 mb-4 sm:mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Quest Log</h1>
+              {(progression?.currentStreak ?? 0) > 0 && (
+                <div className="flex items-center gap-1 text-orange-500 font-bold text-xs sm:text-sm">
+                  <Flame className="fill-orange-500 w-4 h-4 sm:w-5 sm:h-5" /> {progression?.currentStreak}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
               <QuestCreateDialog onCreated={refreshAll} planningDayOffset={planningDayOffset} />
             </div>
+          </div>
+
+          {/* Sub Navigation Bar - Horizontal Scroll on mobile, flex on desktop */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1 text-xs">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/rhythm"} className="text-amber-500 dark:text-amber-400 font-semibold shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+              <Activity className="w-3.5 h-3.5 mr-1 text-amber-500" /> 生活リズム
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/history"} className="shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+              <History className="w-3.5 h-3.5 mr-1" /> 履歴
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"} className="shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+              Templates
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"} className="shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+              Projects
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/awareness"} className="text-amber-600 dark:text-amber-400 font-semibold shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+              <Lightbulb className="w-3.5 h-3.5 mr-1 fill-amber-500/20" /> 意識を育てる
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"} className="shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+              <Database className="w-3.5 h-3.5 mr-1" /> DB
+            </Button>
           </div>
         </div>
 
@@ -3711,12 +3749,12 @@ export default function Home() {
           <TabsContent value="today" className="space-y-6 animate-fade-in">
 
             {/* SLIDE NAVIGATION BAR: [ 📋 今日の計画 (TODAY PLANNING) | 🗿 集中モード (脳みその画面) | 🗿 MOAI活動ログ ] */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-stone-100/80 dark:bg-stone-900/80 p-1.5 sm:p-2 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-2xs">
-              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white/70 dark:bg-stone-800/70 rounded-xl border border-stone-200/50 dark:border-stone-700/50 shadow-2xs">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 bg-stone-100/80 dark:bg-stone-900/80 p-1 sm:p-2 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-2xs">
+              <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-white/70 dark:bg-stone-800/70 rounded-xl border border-stone-200/50 dark:border-stone-700/50 shadow-2xs overflow-x-auto no-scrollbar">
                 <button
                   type="button"
                   onClick={() => handleSubViewChange('planning')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
                     todaySubView === 'planning'
                       ? 'bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 shadow-xs font-black'
                       : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
@@ -3731,7 +3769,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => handleSubViewChange('focus')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
                     todaySubView === 'focus'
                       ? 'bg-amber-500 text-stone-950 shadow-xs font-black'
                       : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
@@ -3746,7 +3784,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => handleSubViewChange('moai')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
                     todaySubView === 'moai'
                       ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-950 shadow-xs font-black'
                       : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
@@ -3864,9 +3902,9 @@ export default function Home() {
                 </div>
 
                 {/* Granularity, Spacing & View controls */}
-                <div className="flex flex-wrap items-center gap-4">
-                  {/* Card Width Slider */}
-                  <div className="flex items-center gap-2 text-xs bg-muted px-2.5 py-1.5 rounded-lg shadow-inner">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                  {/* Card Width Slider (Hidden on mobile where width auto-fits screen) */}
+                  <div className="hidden sm:flex items-center gap-2 text-xs bg-muted px-2.5 py-1.5 rounded-lg shadow-inner">
                     <span className="font-bold text-muted-foreground">横幅:</span>
                     <input
                       type="range"
@@ -4013,8 +4051,8 @@ export default function Home() {
 
               {planningViewMode === 'today' ? (
                 /* TODAY VIEW (Original Layout, but dynamic slots) */
-                <div className="relative">
-                  <div ref={containerRef} className="flex justify-center gap-6 sm:gap-10 md:gap-14 items-start relative min-h-[500px] w-full">
+                <div className="relative w-full max-w-full">
+                  <div ref={containerRef} className="flex justify-center gap-2 sm:gap-8 md:gap-12 items-start relative min-h-[500px] w-full max-w-full">
                     <ConnectionLines
                       quests={todayQuests}
                       parentRef={containerRef as React.RefObject<HTMLDivElement>}
@@ -4024,8 +4062,11 @@ export default function Home() {
                     />
 
                     <div
-                      className="flex flex-col gap-1.5 sm:gap-3 rounded-lg sm:rounded-xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150"
-                      style={{ width: `${cardWidth}px`, maxWidth: 'calc(100% - 76px)' }}
+                      className="flex flex-col gap-1.5 sm:gap-3 rounded-lg sm:rounded-xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150 flex-1 sm:flex-initial min-w-0"
+                      style={{
+                        width: isMobile ? 'calc(100% - 76px)' : `${cardWidth}px`,
+                        maxWidth: isMobile ? 'calc(100% - 76px)' : 'calc(100% - 76px)',
+                      }}
                     >
                       {todayQuests.length > 0 && (
                         <div className="flex items-center justify-between px-1 pb-1">
@@ -4084,7 +4125,7 @@ export default function Home() {
                       })}
                     </div>
 
-                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${showMoaiRhythmToday ? 'w-auto min-w-[140px] max-w-[280px]' : TIME_SLOT_WIDTH}`}>
+                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${showMoaiRhythmToday ? 'w-auto sm:min-w-[140px] sm:max-w-[280px]' : TIME_SLOT_WIDTH}`}>
                       <div className="flex flex-col gap-2 w-full pb-10">
                         <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground/70 mb-1 px-1">
                           <span>Log</span>
@@ -4096,7 +4137,7 @@ export default function Home() {
                               title="モアイの1日リズム図を表示"
                             >
                               <span>🗿</span>
-                              <span>リズム図</span>
+                              <span className="hidden sm:inline">リズム図</span>
                             </button>
                           )}
                         </div>
@@ -4114,25 +4155,25 @@ export default function Home() {
                           });
 
                           return (
-                            <div key={slot.id} className="flex items-center gap-2 w-full group/slot-row relative">
+                            <div key={slot.id} className="flex items-center gap-1 sm:gap-2 w-full group/slot-row relative">
                               <div
                                 data-slot-id={slot.id}
                                 data-slot-date={format(targetDate, "yyyy-MM-dd")}
                                 title={showMoaiRhythmToday ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
-                                className={`w-28 sm:w-32 shrink-0 rounded-lg border border-border/80 bg-card/90 px-1.5 py-1 min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythmToday ? zone.slotClass : ''}`}
+                                className={`w-[66px] sm:w-28 md:w-32 shrink-0 rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] sm:min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythmToday ? zone.slotClass : ''}`}
                               >
-                                <span className="z-10 font-mono text-[11.5px] sm:text-[12.5px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
+                                <span className="z-10 font-mono text-[10.5px] sm:text-[12.5px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
                                   {slot.label}
                                 </span>
                                 {!isUsed && (
                                   <>
                                     {isJobModeActive && isJobSlot(slot.label) ? (
                                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                                        <img src="/job_stamp.png" alt="job" className="w-16 sm:w-20 -rotate-12 select-none" />
+                                        <img src="/job_stamp.png" alt="job" className="w-12 sm:w-16 md:w-20 -rotate-12 select-none" />
                                       </div>
                                     ) : (
                                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                                        <img src="/free_stamp.png" alt="free" className="w-16 sm:w-20 -rotate-12 select-none" />
+                                        <img src="/free_stamp.png" alt="free" className="w-12 sm:w-16 md:w-20 -rotate-12 select-none" />
                                       </div>
                                     )}
                                   </>
@@ -4141,15 +4182,15 @@ export default function Home() {
 
                               {showMoaiRhythmToday && (
                                 <div
-                                  className="flex items-center gap-2 shrink-0 select-none"
+                                  className="flex items-center gap-1 sm:gap-2 shrink-0 select-none"
                                   title={`${zone.name}: ${zone.motto}\n${zone.actionGuidance}`}
                                 >
                                   <div
-                                    className={`w-1.5 h-7 rounded-full transition-all group-hover/slot-row:scale-x-125 ${zone.barColorClass}`}
+                                    className={`w-1 sm:w-1.5 h-6 sm:h-7 rounded-full transition-all group-hover/slot-row:scale-x-125 ${zone.barColorClass}`}
                                   />
                                   {isFirstSlotOfZone && (
                                     <div
-                                      className={`px-2 py-0.5 rounded-md text-[9.5px] font-black border flex items-center gap-1.5 whitespace-nowrap shadow-xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
+                                      className={`hidden sm:flex px-2 py-0.5 rounded-md text-[9.5px] font-black border items-center gap-1.5 whitespace-nowrap shadow-xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
                                     >
                                       <span>{zone.emoji}</span>
                                       <span>{zone.shortName}</span>

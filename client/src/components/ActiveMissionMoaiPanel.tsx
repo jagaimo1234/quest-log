@@ -149,6 +149,19 @@ export function ActiveMissionMoaiPanel({
     }, 2400);
   };
 
+  // Responsive mobile screen detection
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== "undefined") return window.innerWidth < 640;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Transient state for Moai celebrations / rests
   const [transientState, setTransientState] = useState<MoaiState | null>(null);
 
@@ -766,11 +779,11 @@ export function ActiveMissionMoaiPanel({
                       {/* Dance Motion Selector (Above 3D model, adaptive + manual override) */}
                       <div className="mb-2 flex flex-col items-center gap-1.5 z-30">
                         {/* Situation Live Status & Auto Pill */}
-                        <div className="flex items-center gap-2 bg-stone-900/85 dark:bg-stone-800/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-purple-500/40 shadow-lg">
+                        <div className="flex items-center gap-1.5 sm:gap-2 bg-stone-900/85 dark:bg-stone-800/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-purple-500/40 shadow-lg max-w-[92vw] overflow-x-auto no-scrollbar">
                           <button
                             type="button"
                             onClick={() => setDanceMoodSelection("auto")}
-                            className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                            className={`px-2.5 py-0.5 text-xs font-black rounded-full transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0 ${
                               danceMoodSelection === "auto"
                                 ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-xs scale-105"
                                 : "text-purple-300 hover:text-white"
@@ -781,11 +794,11 @@ export function ActiveMissionMoaiPanel({
                             <span>⚡ 状況連動 (AUTO)</span>
                           </button>
 
-                          <div className="h-3.5 w-px bg-purple-500/30" />
+                          <div className="h-3.5 w-px bg-purple-500/30 shrink-0" />
 
                           {/* Live Status Badge */}
                           <span
-                            className={`text-[11px] font-black px-2 py-0.5 rounded-full border flex items-center gap-1 whitespace-nowrap ${
+                            className={`text-[11px] font-black px-2 py-0.5 rounded-full border flex items-center gap-1 whitespace-nowrap shrink-0 ${
                               danceMoodSelection === "auto"
                                 ? autoMotionInfo.badgeColor
                                 : "bg-purple-950/60 text-purple-200 border-purple-500/30"
@@ -813,7 +826,7 @@ export function ActiveMissionMoaiPanel({
                         </div>
 
                         {/* Quick Manual Override Options */}
-                        <div className="flex items-center gap-1 bg-stone-900/60 dark:bg-stone-800/60 backdrop-blur-sm px-2.5 py-0.5 rounded-full border border-stone-700/60 text-[10.5px]">
+                        <div className="flex items-center gap-1 bg-stone-900/60 dark:bg-stone-800/60 backdrop-blur-sm px-2 py-0.5 rounded-full border border-stone-700/60 text-[10px] sm:text-[10.5px] max-w-[92vw] overflow-x-auto no-scrollbar">
                           {[
                             { key: "rat", label: "🐭 Rat", title: "集中 RAT DANCE" },
                             { key: "run", label: "🏃 激走", title: "ラストスパート猛ダッシュ" },
@@ -829,7 +842,7 @@ export function ActiveMissionMoaiPanel({
                                 type="button"
                                 onClick={() => setDanceMoodSelection(opt.key as DanceMood)}
                                 title={opt.title}
-                                className={`px-2 py-0.5 rounded-full transition-all whitespace-nowrap cursor-pointer font-bold ${
+                                className={`px-2 py-0.5 rounded-full transition-all whitespace-nowrap cursor-pointer font-bold shrink-0 ${
                                   isSelected
                                     ? "bg-purple-600 text-white shadow-xs font-black scale-105"
                                     : "text-stone-400 hover:text-stone-200"
@@ -845,8 +858,8 @@ export function ActiveMissionMoaiPanel({
                       <KaraokeMoai3D
                         mood={effectiveMotion}
                         isDancing={true}
-                        width={280}
-                        height={300}
+                        width={isMobile ? 220 : 280}
+                        height={isMobile ? 240 : 300}
                       />
                     </div>
                   ) : (
@@ -872,8 +885,8 @@ export function ActiveMissionMoaiPanel({
                             : "いま、やること"
                           : "待機中"
                       }
-                      width={260}
-                      height={300}
+                      width={isMobile ? 220 : 260}
+                      height={isMobile ? 240 : 300}
                     />
                   )}
                 </div>

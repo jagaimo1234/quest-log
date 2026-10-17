@@ -396,7 +396,7 @@ export function MovieStockDialog({
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent
-          className={`${activeTab === "gallery" ? "sm:max-w-3xl" : "sm:max-w-lg"} transition-[max-width] duration-300 max-h-[90vh] flex flex-col p-4 sm:p-6 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 shadow-xl`}
+          className={`${activeTab === "gallery" ? "sm:max-w-3xl" : "sm:max-w-lg"} w-[95vw] max-w-full transition-[max-width] duration-300 max-h-[92vh] flex flex-col p-3 sm:p-6 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 shadow-xl overflow-hidden`}
           onTouchStart={(e) => e.stopPropagation()}
         >
           <DialogHeader className="shrink-0 mb-2">
@@ -1282,7 +1282,7 @@ export function MovieStockDialog({
       {/* 🎟️ 1Kおうちシアター 座席指定予約モーダル（手描き間取り完全再現） */}
       {bookingTarget && (
         <Dialog open onOpenChange={(open) => !open && setBookingTarget(null)}>
-          <DialogContent className="sm:max-w-md p-4 sm:p-5 bg-stone-950 border border-stone-800 text-stone-100 shadow-2xl max-h-[92vh] flex flex-col">
+          <DialogContent className="w-[95vw] sm:max-w-md p-3 sm:p-5 bg-stone-950 border border-stone-800 text-stone-100 shadow-2xl max-h-[92vh] flex flex-col">
             <DialogHeader className="shrink-0 text-left pb-2 border-b border-stone-800/80">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-black px-2 py-0.5 rounded bg-amber-500 text-stone-950">
