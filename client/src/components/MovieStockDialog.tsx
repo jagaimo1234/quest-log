@@ -392,7 +392,7 @@ export function MovieStockDialog({
                         MY HOME CINEMA
                       </span>
                       <span className="text-xs font-bold text-stone-300">
-                        旭川プライベートシアター 1K
+                        プライベートシアター 1K
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-[11px] font-bold">
