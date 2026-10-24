@@ -4215,6 +4215,23 @@ export default function Home() {
     setTimeout(() => setMemoLikeAnimId(null), 300);
   };
 
+  // Reading & Watching Collapsible States (Persisted in localStorage)
+  const [isReadingOpen, setIsReadingOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("is_reading_open");
+      if (saved !== null) return saved === "true";
+    } catch {}
+    return false;
+  });
+
+  const [isWatchingOpen, setIsWatchingOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("is_watching_open");
+      if (saved !== null) return saved === "true";
+    } catch {}
+    return false;
+  });
+
   // Daily Insight
   const [isInsightOpen, setIsInsightOpen] = useState(false);
   const [insightInput, setInsightInput] = useState("");
@@ -5710,88 +5727,131 @@ export default function Home() {
               )}
             </section>
 
-            {/* SHELF 9 & 10: READING & WATCHING */}
+            {/* SHELF 9 & 10: READING & WATCHING (Collapsible) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <section className="apple-glass rounded-3xl p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-3 px-1">
+                <div
+                  onClick={() => {
+                    const next = !isReadingOpen;
+                    setIsReadingOpen(next);
+                    try { localStorage.setItem("is_reading_open", String(next)); } catch {}
+                  }}
+                  className="flex items-center justify-between cursor-pointer hover:bg-fuchsia-50/50 rounded-xl px-2 py-1 transition-colors select-none"
+                >
                   <div className="flex items-center gap-2">
                     <h2 className="text-xs font-bold text-fuchsia-600 uppercase tracking-wider flex items-center gap-1.5">
                       📚 READING
                     </h2>
+                    {books && books.length > 0 && (
+                      <span className="text-[10px] font-semibold text-fuchsia-700 bg-fuchsia-100/80 px-2 py-0.5 rounded-full">
+                        {books.length}冊
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-fuchsia-400 text-xs">
+                    {isReadingOpen ? "▼" : "▶"}
                   </div>
                 </div>
 
-                {!books?.length ? <div className="text-xs text-muted-foreground px-1 italic">No reading records.</div> : (
-                  <div className="space-y-2">
-                    {books.map((book: any) => (
-                      <MediaItem
-                        key={book.id}
-                        item={book}
-                        type="book"
-                        color="fuchsia"
-                        onStatusToggle={async (item: any) => {
-                          await updateBookStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'reading' : 'completed' });
-                          refetchBooks();
-                        }}
-                        onDelete={async (item: any) => {
-                          if (confirm("Delete this book record?")) {
-                            await deleteBook.mutateAsync({ id: item.id });
-                            refetchBooks();
-                          }
-                        }}
-                        onLongPress={openReviewDialog}
-                        renderStars={renderStars}
-                      />
-                    ))}
+                {isReadingOpen && (
+                  <div className="animate-in slide-in-from-top-2 fade-in duration-200 mt-3">
+                    {!books?.length ? <div className="text-xs text-muted-foreground px-1 italic">No reading records.</div> : (
+                      <div className="space-y-2">
+                        {books.map((book: any) => (
+                          <MediaItem
+                            key={book.id}
+                            item={book}
+                            type="book"
+                            color="fuchsia"
+                            onStatusToggle={async (item: any) => {
+                              await updateBookStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'reading' : 'completed' });
+                              refetchBooks();
+                            }}
+                            onDelete={async (item: any) => {
+                              if (confirm("Delete this book record?")) {
+                                await deleteBook.mutateAsync({ id: item.id });
+                                refetchBooks();
+                              }
+                            }}
+                            onLongPress={openReviewDialog}
+                            renderStars={renderStars}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
 
               <section className="apple-glass rounded-3xl p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-3 px-1">
+                <div
+                  onClick={() => {
+                    const next = !isWatchingOpen;
+                    setIsWatchingOpen(next);
+                    try { localStorage.setItem("is_watching_open", String(next)); } catch {}
+                  }}
+                  className="flex items-center justify-between cursor-pointer hover:bg-rose-50/50 rounded-xl px-2 py-1 transition-colors select-none"
+                >
                   <div className="flex items-center gap-2">
                     <h2 className="text-xs font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1.5">
                       🎬 WATCHING
                     </h2>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsMovieStockOpen(true)}
-                    className="h-7 rounded-full text-xs font-bold text-rose-600 border-rose-200/90 hover:bg-rose-50 flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>映画をストック</span>
-                    {stockMovieCount > 0 && (
-                      <span className="ml-1 bg-rose-500 text-white rounded-full px-1.5 py-0 text-[10px] font-bold">
-                        {stockMovieCount}
+                    {movies && movies.length > 0 && (
+                      <span className="text-[10px] font-semibold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-full">
+                        {movies.length}本
                       </span>
                     )}
-                  </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMovieStockOpen(true);
+                      }}
+                      className="h-7 rounded-full text-xs font-bold text-rose-600 border-rose-200/90 hover:bg-rose-50 flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>映画をストック</span>
+                      {stockMovieCount > 0 && (
+                        <span className="ml-1 bg-rose-500 text-white rounded-full px-1.5 py-0 text-[10px] font-bold">
+                          {stockMovieCount}
+                        </span>
+                      )}
+                    </Button>
+                    <div className="text-rose-400 text-xs pl-1">
+                      {isWatchingOpen ? "▼" : "▶"}
+                    </div>
+                  </div>
                 </div>
 
-                {!movies?.length ? <div className="text-xs text-muted-foreground px-1 italic">No watching records.</div> : (
-                  <div className="space-y-2">
-                    {movies.map((movie: any) => (
-                      <MediaItem
-                        key={movie.id}
-                        item={movie}
-                        type="movie"
-                        color="rose"
-                        onStatusToggle={async (item: any) => {
-                          await updateMovieStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'watching' : 'completed' });
-                          refetchMovies();
-                        }}
-                        onDelete={async (item: any) => {
-                          if (confirm("Delete this movie record?")) {
-                            await deleteMovie.mutateAsync({ id: item.id });
-                            refetchMovies();
-                          }
-                        }}
-                        onLongPress={openReviewDialog}
-                        renderStars={renderStars}
-                      />
-                    ))}
+                {isWatchingOpen && (
+                  <div className="animate-in slide-in-from-top-2 fade-in duration-200 mt-3">
+                    {!movies?.length ? <div className="text-xs text-muted-foreground px-1 italic">No watching records.</div> : (
+                      <div className="space-y-2">
+                        {movies.map((movie: any) => (
+                          <MediaItem
+                            key={movie.id}
+                            item={movie}
+                            type="movie"
+                            color="rose"
+                            onStatusToggle={async (item: any) => {
+                              await updateMovieStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'watching' : 'completed' });
+                              refetchMovies();
+                            }}
+                            onDelete={async (item: any) => {
+                              if (confirm("Delete this movie record?")) {
+                                await deleteMovie.mutateAsync({ id: item.id });
+                                refetchMovies();
+                              }
+                            }}
+                            onLongPress={openReviewDialog}
+                            renderStars={renderStars}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
