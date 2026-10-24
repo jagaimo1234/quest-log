@@ -583,6 +583,7 @@ export interface MoaiZoneInfo {
   id: string;
   name: string;
   shortName: string;
+  compactName: string;
   emoji: string;
   motto: string;
   actionGuidance: string;
@@ -590,6 +591,7 @@ export interface MoaiZoneInfo {
   slotClass: string;
   headerBorderClass: string;
   barColorClass: string;
+  dotColorClass: string;
   badgeText?: string;
   badgeSubText?: string;
 }
@@ -599,105 +601,121 @@ export const MOAI_WEEKEND_ZONES: Record<string, MoaiZoneInfo> = {
     id: "morning",
     name: "朝：準備",
     shortName: "朝：準備",
+    compactName: "朝・準備",
     emoji: "🌅",
     motto: "よし！1日を始めよう！",
     actionGuidance: "心と環境を整える・起床・軽い運動・部屋掃除・予定確認",
-    badgeClass: "bg-amber-500/15 text-amber-900 dark:text-amber-200 border-amber-500/30",
-    slotClass: "border-l-4 border-l-amber-400/80 bg-amber-500/[0.02]",
-    headerBorderClass: "border-amber-400/50 bg-amber-500/10 text-amber-900 dark:text-amber-200",
-    barColorClass: "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]",
-    badgeSubText: "MP上昇中",
+    badgeClass: "bg-amber-500/15 text-amber-900 border-amber-500/30",
+    slotClass: "bg-gradient-to-r from-amber-50/90 to-white/90 border-amber-200/90",
+    headerBorderClass: "border-amber-300/80 bg-gradient-to-r from-amber-100/90 to-amber-50/90 text-amber-900",
+    barColorClass: "bg-amber-400",
+    dotColorClass: "bg-amber-400",
+    badgeSubText: "MP↑",
   },
   golden: {
     id: "golden",
     name: "午前：ゴールデンタイム",
-    shortName: "午前：ゴールデンタイム",
+    shortName: "ゴールデンタイム",
+    compactName: "ゴールデン",
     emoji: "🌟",
     motto: "今が勝負だ！高MPで一番使える時間帯！",
     actionGuidance: "重要な判断や考える作業・ものづくり・企画・試作・発信",
-    badgeClass: "bg-amber-400/25 text-amber-950 dark:text-amber-100 border-amber-500/50 shadow-xs",
-    slotClass: "border-l-4 border-l-amber-500 bg-amber-500/[0.06] shadow-amber-500/5 ring-1 ring-amber-400/30",
-    headerBorderClass: "border-amber-500/80 bg-gradient-to-r from-amber-500/20 via-yellow-400/25 to-amber-500/20 text-amber-950 dark:text-amber-100 shadow-xs",
-    barColorClass: "bg-gradient-to-b from-amber-400 via-yellow-400 to-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)] ring-1 ring-amber-300/60",
-    badgeText: "高MP 勝負!",
+    badgeClass: "bg-amber-400/25 text-amber-950 border-amber-500/50 shadow-xs",
+    slotClass: "bg-gradient-to-r from-amber-100/85 via-yellow-50/80 to-white/95 border-amber-300/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]",
+    headerBorderClass: "border-amber-400/90 bg-gradient-to-r from-amber-400/25 via-yellow-300/30 to-amber-400/20 text-amber-950 shadow-2xs",
+    barColorClass: "bg-amber-500",
+    dotColorClass: "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.7)]",
+    badgeText: "高MP!",
   },
   lunch: {
     id: "lunch",
     name: "昼：休憩",
     shortName: "昼：休憩",
+    compactName: "昼・休憩",
     emoji: "🍱",
     motto: "うまい…しっかり食べて午後もやるぞ",
     actionGuidance: "昼ごはん・ゆっくり休憩",
-    badgeClass: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200 border-emerald-500/30",
-    slotClass: "border-l-4 border-l-emerald-500/80 bg-emerald-500/[0.02]",
-    headerBorderClass: "border-emerald-500/50 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200",
-    barColorClass: "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]",
+    badgeClass: "bg-emerald-500/15 text-emerald-900 border-emerald-500/30",
+    slotClass: "bg-gradient-to-r from-emerald-50/85 to-white/90 border-emerald-200/80",
+    headerBorderClass: "border-emerald-300/80 bg-gradient-to-r from-emerald-100/90 to-emerald-50/90 text-emerald-900",
+    barColorClass: "bg-emerald-400",
+    dotColorClass: "bg-emerald-400",
     badgeSubText: "回復",
   },
   afternoon: {
     id: "afternoon",
     name: "午後前半",
     shortName: "午後前半",
+    compactName: "午後前半",
     emoji: "⚡",
     motto: "まだまだ戦える！よし、続きやるぞ！",
     actionGuidance: "モアイの作業の続き・中MPタスク・制作・試作・イベント検討",
-    badgeClass: "bg-sky-500/15 text-sky-900 dark:text-sky-200 border-sky-500/30",
-    slotClass: "border-l-4 border-l-sky-500/80 bg-sky-500/[0.02]",
-    headerBorderClass: "border-sky-500/50 bg-sky-500/10 text-sky-900 dark:text-sky-200",
-    barColorClass: "bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.6)]",
+    badgeClass: "bg-sky-500/15 text-sky-900 border-sky-500/30",
+    slotClass: "bg-gradient-to-r from-sky-50/85 to-white/90 border-sky-200/80",
+    headerBorderClass: "border-sky-300/80 bg-gradient-to-r from-sky-100/90 to-sky-50/90 text-sky-900",
+    barColorClass: "bg-sky-400",
+    dotColorClass: "bg-sky-400",
     badgeSubText: "中MP",
   },
   slump: {
     id: "slump",
     name: "だれやすい時間帯",
     shortName: "だれ注意帯",
+    compactName: "だれ注意",
     emoji: "☕",
     motto: "だんだん低下…ここがだれやすい。無理せず軽作業へ！",
     actionGuidance: "頭を使わない作業に切替・整理・軽作業・SNS・散歩・コーヒー",
-    badgeClass: "bg-rose-500/15 text-rose-900 dark:text-rose-200 border-rose-500/30",
-    slotClass: "border-l-4 border-l-rose-400/80 bg-rose-500/[0.03]",
-    headerBorderClass: "border-rose-400/60 bg-rose-500/10 text-rose-900 dark:text-rose-200",
-    barColorClass: "bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,0.6)]",
-    badgeText: "だれ注意",
+    badgeClass: "bg-rose-500/15 text-rose-900 border-rose-500/30",
+    slotClass: "bg-gradient-to-r from-rose-50/85 to-white/90 border-rose-200/85",
+    headerBorderClass: "border-rose-300/80 bg-gradient-to-r from-rose-100/90 to-rose-50/90 text-rose-900",
+    barColorClass: "bg-rose-400",
+    dotColorClass: "bg-rose-400",
+    badgeText: "軽作業へ",
   },
   evening: {
     id: "evening",
     name: "夕方：ひと息",
     shortName: "夕方：ひと息",
+    compactName: "夕方ひと息",
     emoji: "🍳",
     motto: "よし ご飯作ってひと息つこう",
     actionGuidance: "夕食の準備・食事・休憩・リラックス・家事",
-    badgeClass: "bg-orange-500/15 text-orange-900 dark:text-orange-200 border-orange-500/30",
-    slotClass: "border-l-4 border-l-orange-400/80 bg-orange-500/[0.03]",
-    headerBorderClass: "border-orange-400/50 bg-orange-500/10 text-orange-900 dark:text-orange-200",
-    barColorClass: "bg-orange-400 shadow-[0_0_6px_rgba(251,146,60,0.6)]",
+    badgeClass: "bg-orange-500/15 text-orange-900 border-orange-500/30",
+    slotClass: "bg-gradient-to-r from-orange-50/85 to-white/90 border-orange-200/80",
+    headerBorderClass: "border-orange-300/80 bg-gradient-to-r from-orange-100/90 to-orange-50/90 text-orange-900",
+    barColorClass: "bg-orange-400",
+    dotColorClass: "bg-orange-400",
     badgeSubText: "ひと息",
   },
   night: {
     id: "night",
     name: "夜：頭使わない時間",
-    shortName: "夜：頭使わない時間",
+    shortName: "夜：頭使わない",
+    compactName: "夜・休脳",
     emoji: "🌙",
     motto: "ほぼ戦力外。無理すんな！ここからは体を動かす！考えないぞ！",
     actionGuidance: "筋トレ・運動・洗濯・皿洗い・映画・ゲーム・AIに指示して進める",
-    badgeClass: "bg-indigo-500/15 text-indigo-900 dark:text-indigo-200 border-indigo-500/30",
-    slotClass: "border-l-4 border-l-indigo-500/80 bg-indigo-500/[0.04]",
-    headerBorderClass: "border-indigo-500/70 bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-indigo-500/20 text-indigo-950 dark:text-indigo-100 shadow-xs",
-    barColorClass: "bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.6)]",
-    badgeText: "考えないぞ!",
+    badgeClass: "bg-indigo-500/15 text-indigo-900 border-indigo-500/30",
+    slotClass: "bg-gradient-to-r from-indigo-50/85 to-white/90 border-indigo-200/85",
+    headerBorderClass: "border-indigo-300/80 bg-gradient-to-r from-indigo-100/90 via-purple-50/85 to-indigo-50/90 text-indigo-950",
+    barColorClass: "bg-indigo-400",
+    dotColorClass: "bg-indigo-400",
+    badgeText: "考えない!",
   },
   midnight: {
     id: "midnight",
     name: "深夜：回復＆就寝",
     shortName: "深夜：回復＆就寝",
+    compactName: "深夜・就寝",
     emoji: "🛁",
     motto: "夜は遊び・回復の時間。それでいい。今日もよくやった…寝ろ！",
     actionGuidance: "23:00 お風呂・23:30 スマホ終了・0:00前に就寝",
-    badgeClass: "bg-slate-500/20 text-slate-800 dark:text-slate-200 border-slate-500/40",
-    slotClass: "border-l-4 border-l-slate-600/80 bg-slate-900/[0.04]",
-    headerBorderClass: "border-slate-500/60 bg-slate-800/10 text-slate-800 dark:text-slate-200",
-    barColorClass: "bg-slate-500 shadow-[0_0_6px_rgba(100,116,139,0.6)]",
-    badgeSubText: "回復",
+    badgeClass: "bg-slate-500/20 text-slate-800 border-slate-500/40",
+    slotClass: "bg-gradient-to-r from-slate-100/90 to-white/90 border-slate-300/80",
+    headerBorderClass: "border-slate-300/90 bg-gradient-to-r from-slate-200/80 to-slate-100/80 text-slate-800",
+    barColorClass: "bg-slate-500",
+    dotColorClass: "bg-slate-400",
+    badgeSubText: "睡眠",
   },
 };
 
@@ -1169,19 +1187,19 @@ function DayColumn({
         </div>
       </div>
 
-      {/* Sub-column 2: Timeline Column */}
-      <div className={`flex flex-col gap-2 shrink-0 ${showMoaiRhythm ? 'w-auto sm:min-w-[140px] sm:max-w-[260px]' : TIME_SLOT_WIDTH} z-10`}>
-        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-stone-500 tracking-wider mb-1.5 px-1.5 select-none">
+      {/* Sub-column 2: Timeline Column (Zero horizontal expansion; inline rhythm zone headers) */}
+      <div className={`flex flex-col gap-1.5 shrink-0 ${TIME_SLOT_WIDTH} z-10`}>
+        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 tracking-wider mb-1 px-1 select-none">
           <span>TIMELINE</span>
           {showMoaiRhythm && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onOpenRhythmGuide?.(); }}
-              className="hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-900 dark:text-amber-200 border border-amber-500/20 transition-all cursor-pointer"
+              className="hover:text-amber-700 flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-800 border border-amber-500/20 transition-all cursor-pointer"
               title="モアイの1日リズム図を表示"
             >
               <span>🗿</span>
-              <span>リズム</span>
+              <span>図解</span>
             </button>
           )}
         </div>
@@ -1200,21 +1218,44 @@ function DayColumn({
           });
 
           return (
-            <div key={slot.id} className="flex items-center gap-1.5 w-full group/slot-row relative">
+            <React.Fragment key={slot.id}>
+              {showMoaiRhythm && isFirstSlotOfZone && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onOpenRhythmGuide?.(); }}
+                  title={`${zone.name}: ${zone.motto}\nおすすめ: ${zone.actionGuidance}`}
+                  className={`w-full mt-1.5 first:mt-0 px-2 py-0.5 rounded-lg border text-[8.5px] sm:text-[9.5px] font-black flex items-center justify-between gap-1 select-none transition-all hover:brightness-95 cursor-pointer ${zone.headerBorderClass}`}
+                >
+                  <span className="flex items-center gap-1 truncate">
+                    <span className="shrink-0">{zone.emoji}</span>
+                    <span className="truncate">{zone.compactName}</span>
+                  </span>
+                  {(zone.badgeText || zone.badgeSubText) && (
+                    <span className="hidden sm:inline-block text-[7.5px] px-1 py-0.1 rounded bg-black/10 font-black shrink-0">
+                      {zone.badgeText || zone.badgeSubText}
+                    </span>
+                  )}
+                </button>
+              )}
               <div
                 data-slot-id={slot.id}
                 data-slot-date={dateStr}
                 title={showMoaiRhythm ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
-                className={`w-full rounded-xl px-2 py-1.5 min-h-[30px] flex items-center justify-center transition-all duration-200 group relative overflow-hidden ${
+                className={`w-full rounded-xl px-2 py-1.5 min-h-[30px] flex items-center justify-center transition-all duration-200 group relative overflow-hidden border ${
                   isUsed
-                    ? 'bg-white dark:bg-stone-800 border border-sky-400/60 shadow-xs ring-2 ring-sky-500/10'
-                    : 'bg-white/55 dark:bg-stone-900/50 border border-slate-200/70 dark:border-stone-800/80 hover:bg-white/95 hover:border-sky-300/70 hover:shadow-xs'
-                } ${showMoaiRhythm ? zone.slotClass : ''}`}
+                    ? 'bg-white border-sky-400/80 shadow-xs ring-2 ring-sky-500/15'
+                    : showMoaiRhythm
+                      ? `${zone.slotClass} hover:border-sky-300/80 hover:shadow-xs`
+                      : 'bg-white/65 border-slate-200/70 hover:bg-white hover:border-sky-300/70 hover:shadow-xs'
+                }`}
               >
+                {showMoaiRhythm && !isUsed && (
+                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 shrink-0 ${zone.dotColorClass}`} />
+                )}
                 <span className={`z-10 font-mono text-[11px] sm:text-[11.5px] tracking-tight select-none pointer-events-none transition-colors ${
                   isUsed
-                    ? 'font-black text-slate-900 dark:text-white'
-                    : 'font-semibold text-slate-500 dark:text-stone-400 group-hover:text-slate-800 dark:group-hover:text-stone-200'
+                    ? 'font-black text-slate-900'
+                    : 'font-semibold text-slate-600 group-hover:text-slate-900'
                 }`}>
                   {slot.label}
                 </span>
@@ -1222,40 +1263,12 @@ function DayColumn({
                   <span className="w-1.5 h-1.5 rounded-full bg-sky-500 ml-1.5 shrink-0 shadow-[0_0_6px_rgba(14,165,233,0.8)]" />
                 )}
                 {!isUsed && isJobModeActive && isJobSlot(slot.label) && (
-                  <span className="ml-1 text-[8px] font-black uppercase tracking-wider px-1 py-0.2 rounded bg-slate-200/80 dark:bg-stone-800 text-slate-500 select-none pointer-events-none">
+                  <span className="ml-1 text-[8px] font-black uppercase tracking-wider px-1 py-0.2 rounded bg-slate-200/80 text-slate-500 select-none pointer-events-none">
                     JOB
                   </span>
                 )}
               </div>
-
-              {showMoaiRhythm && (
-                <div
-                  className="flex items-center gap-1.5 shrink-0 select-none"
-                  title={`${zone.name}: ${zone.motto}\n${zone.actionGuidance}`}
-                >
-                  <div
-                    className={`w-1.5 h-6 rounded-full transition-all group-hover/slot-row:scale-x-125 ${zone.barColorClass}`}
-                  />
-                  {isFirstSlotOfZone && (
-                    <div
-                      className={`hidden sm:flex px-1.5 py-0.5 rounded-full text-[8.5px] font-black border items-center gap-1 whitespace-nowrap shadow-2xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
-                    >
-                      <span>{zone.emoji}</span>
-                      <span>{zone.shortName}</span>
-                      {zone.badgeText ? (
-                        <span className="text-[7.5px] px-1 py-0.1 rounded-full bg-stone-900/10 dark:bg-stone-100/10 font-black">
-                          {zone.badgeText}
-                        </span>
-                      ) : zone.badgeSubText ? (
-                        <span className="text-[7px] opacity-75 font-bold">
-                          {zone.badgeSubText}
-                        </span>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            </React.Fragment>
           );
         })}
       </div>
@@ -4875,15 +4888,15 @@ export default function Home() {
                       })}
                     </div>
 
-                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${showMoaiRhythmToday ? 'w-auto sm:min-w-[150px] sm:max-w-[290px]' : TIME_SLOT_WIDTH}`}>
-                      <div className="flex flex-col gap-2 w-full pb-10">
-                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 dark:text-stone-400 uppercase tracking-wider mb-1 px-1.5">
+                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
+                      <div className="flex flex-col gap-1.5 w-full pb-10">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">
                           <span>TIMELINE</span>
                           {showMoaiRhythmToday && (
                             <button
                               type="button"
                               onClick={() => setIsMoaiRhythmGuideOpen(true)}
-                              className="hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/20 transition-all cursor-pointer"
+                              className="hover:text-amber-700 flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 border border-amber-500/20 transition-all cursor-pointer"
                               title="モアイの1日リズム図を表示"
                             >
                               <span>🗿</span>
@@ -4910,69 +4923,63 @@ export default function Home() {
                           const isCurrentHourSlot = planningDayOffset === 0 && nowHour === slotStartHour;
 
                           return (
-                            <div key={slot.id} className="flex items-center gap-1.5 sm:gap-2 w-full group/slot-row relative">
+                            <React.Fragment key={slot.id}>
+                              {showMoaiRhythmToday && isFirstSlotOfZone && (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsMoaiRhythmGuideOpen(true)}
+                                  title={`${zone.name}: ${zone.motto}\nおすすめ: ${zone.actionGuidance}\n(タップでリズム図を表示)`}
+                                  className={`w-[68px] sm:w-32 md:w-36 mt-1.5 first:mt-0 px-1.5 sm:px-2.5 py-0.5 rounded-lg border text-[8.5px] sm:text-[10px] font-black flex items-center justify-between gap-1 select-none transition-all hover:brightness-95 active:scale-95 cursor-pointer ${zone.headerBorderClass}`}
+                                >
+                                  <span className="flex items-center gap-0.5 sm:gap-1 truncate">
+                                    <span className="shrink-0">{zone.emoji}</span>
+                                    <span className="truncate">{zone.compactName}</span>
+                                  </span>
+                                  {(zone.badgeText || zone.badgeSubText) && (
+                                    <span className="hidden sm:inline-block text-[8px] px-1 py-0.1 rounded bg-black/10 font-black shrink-0">
+                                      {zone.badgeText || zone.badgeSubText}
+                                    </span>
+                                  )}
+                                </button>
+                              )}
                               <div
                                 data-slot-id={slot.id}
                                 data-slot-date={format(targetDate, "yyyy-MM-dd")}
                                 title={showMoaiRhythmToday ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
-                                className={`w-[68px] sm:w-32 md:w-36 shrink-0 rounded-xl px-2 py-1.5 min-h-[30px] sm:min-h-[33px] flex items-center justify-center transition-all duration-200 group relative overflow-hidden ${
+                                className={`w-[68px] sm:w-32 md:w-36 shrink-0 rounded-xl px-1.5 sm:px-2 py-1.5 min-h-[30px] sm:min-h-[33px] flex items-center justify-center transition-all duration-200 group relative overflow-hidden border ${
                                   isUsed
-                                    ? 'bg-white dark:bg-stone-800 border border-sky-400/70 shadow-xs ring-2 ring-sky-500/10'
+                                    ? 'bg-white border-sky-400/80 shadow-xs ring-2 ring-sky-500/15'
                                     : isCurrentHourSlot
-                                      ? 'bg-rose-50/70 dark:bg-rose-950/30 border border-rose-300/80 dark:border-rose-700/60 shadow-2xs'
-                                      : 'bg-white/55 dark:bg-stone-900/50 border border-slate-200/70 dark:border-stone-800/80 hover:bg-white/95 hover:border-sky-300/70 hover:shadow-xs'
-                                } ${showMoaiRhythmToday ? zone.slotClass : ''}`}
+                                      ? 'bg-rose-50/90 border-rose-300/90 shadow-2xs'
+                                      : showMoaiRhythmToday
+                                        ? `${zone.slotClass} hover:border-sky-300/80 hover:shadow-xs`
+                                        : 'bg-white/65 border-slate-200/70 hover:bg-white hover:border-sky-300/70 hover:shadow-xs'
+                                }`}
                               >
-                                {isCurrentHourSlot && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5 shrink-0 animate-pulse" title="現在時刻" />
-                                )}
-                                <span className={`z-10 font-mono text-[10.5px] sm:text-[12px] tracking-tight select-none pointer-events-none transition-colors ${
+                                {isCurrentHourSlot ? (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1 sm:mr-1.5 shrink-0 animate-pulse" title="現在時刻" />
+                                ) : showMoaiRhythmToday && !isUsed ? (
+                                  <span className={`w-1.5 h-1.5 rounded-full mr-1 sm:mr-1.5 shrink-0 ${zone.dotColorClass}`} />
+                                ) : null}
+                                <span className={`z-10 font-mono text-[10px] sm:text-[12px] tracking-tight select-none pointer-events-none transition-colors ${
                                   isUsed
-                                    ? 'font-black text-slate-900 dark:text-white'
+                                    ? 'font-black text-slate-900'
                                     : isCurrentHourSlot
-                                      ? 'font-bold text-rose-700 dark:text-rose-300'
-                                      : 'font-semibold text-slate-500 dark:text-stone-400 group-hover:text-slate-800 dark:group-hover:text-stone-200'
+                                      ? 'font-bold text-rose-700'
+                                      : 'font-semibold text-slate-600 group-hover:text-slate-900'
                                 }`}>
                                   {slot.label}
                                 </span>
                                 {isUsed && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500 ml-1.5 shrink-0 shadow-[0_0_6px_rgba(14,165,233,0.8)]" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500 ml-1 sm:ml-1.5 shrink-0 shadow-[0_0_6px_rgba(14,165,233,0.8)]" />
                                 )}
                                 {!isUsed && isJobModeActive && isJobSlot(slot.label) && (
-                                  <span className="ml-1.5 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-slate-200/80 dark:bg-stone-800 text-slate-500 select-none pointer-events-none">
+                                  <span className="ml-1 text-[7.5px] sm:text-[8px] font-black uppercase tracking-wider px-1 py-0.2 rounded-full bg-slate-200/80 text-slate-500 select-none pointer-events-none">
                                     JOB
                                   </span>
                                 )}
                               </div>
-
-                              {showMoaiRhythmToday && (
-                                <div
-                                  className="flex items-center gap-1 sm:gap-2 shrink-0 select-none"
-                                  title={`${zone.name}: ${zone.motto}\n${zone.actionGuidance}`}
-                                >
-                                  <div
-                                    className={`w-1 sm:w-1.5 h-6 sm:h-7 rounded-full transition-all group-hover/slot-row:scale-x-125 ${zone.barColorClass}`}
-                                  />
-                                  {isFirstSlotOfZone && (
-                                    <div
-                                      className={`hidden sm:flex px-2.5 py-0.5 rounded-full text-[9.5px] font-black border items-center gap-1.5 whitespace-nowrap shadow-xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
-                                    >
-                                      <span>{zone.emoji}</span>
-                                      <span>{zone.shortName}</span>
-                                      {zone.badgeText ? (
-                                        <span className="text-[8px] px-1.5 py-0.2 rounded-full bg-amber-500 text-stone-950 font-black animate-pulse shadow-2xs">
-                                          {zone.badgeText}
-                                        </span>
-                                      ) : zone.badgeSubText ? (
-                                        <span className="text-[7.5px] opacity-75 font-bold">
-                                          {zone.badgeSubText}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                            </React.Fragment>
                           );
                         })}
                       </div>
