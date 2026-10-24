@@ -1640,43 +1640,79 @@ function TodayItem({
     }
   };
 
-  let borderClass = "border-l-emerald-500";
-  let bgClass = "bg-card/90";
+  // Category-based color theming matching reference shelves (Sky = Daily, Fuchsia = Weekly/Monthly, Orange = Free, Indigo = Project, Emerald = Relax)
+  type ThemeCategory = "daily" | "weekly" | "free" | "project" | "relax";
 
-  const isDaily = template?.questType === "Daily";
-  const isWeeklyPool = template?.questType === "Weekly" && (!template.daysOfWeek || JSON.parse(template.daysOfWeek).length === 0);
-  const isMonthlyPool = template?.questType === "Monthly" && (!template.datesOfMonth || JSON.parse(template.datesOfMonth).length === 0) && (!template.weeksOfMonth || JSON.parse(template.weeksOfMonth).length === 0);
-  const isProject = quest.questType === "Project";
-  const isFree = template?.questType === "Free" || quest.questType === "Free";
-
-  if (template) {
-    if (isRelax) {
-      borderClass = "border-l-emerald-500"; // Green for Relax
-    } else if (isProject) {
-      borderClass = "border-l-indigo-500";
-    } else if (isWeeklyPool || isMonthlyPool) {
-      borderClass = "border-l-fuchsia-500";
-    } else if (isFree) {
-      borderClass = "border-l-orange-500";
-    } else {
-      borderClass = "border-l-sky-500";
-    }
-  } else if (isProject) {
-    borderClass = "border-l-indigo-500";
-  } else if (isFree) {
-    borderClass = "border-l-orange-500";
+  let category: ThemeCategory = "daily";
+  if (isRelax) {
+    category = "relax";
+  } else if (quest.questType === "Project" || template?.questType === "Project") {
+    category = "project";
+  } else if (
+    quest.questType === "Weekly" ||
+    quest.questType === "Monthly" ||
+    quest.questType === "Yearly" ||
+    template?.questType === "Weekly" ||
+    template?.questType === "Monthly" ||
+    template?.questType === "Yearly"
+  ) {
+    category = "weekly";
+  } else if (quest.questType === "Free" || template?.questType === "Free") {
+    category = "free";
+  } else if (quest.questType === "Daily" || template?.questType === "Daily") {
+    category = "daily";
   } else {
-    // Manual / unknown
-    borderClass = "border-l-orange-500"; // Orange for Manual
+    category = "free";
   }
 
+  const THEMES: Record<ThemeCategory, {
+    border: string;
+    bg: string;
+    checkbox: string;
+    badge: string;
+  }> = {
+    daily: {
+      border: "border-sky-200/90 dark:border-sky-800/60 hover:border-sky-400 dark:hover:border-sky-600 border-l-[5px] border-l-sky-500 dark:border-l-sky-400",
+      bg: "bg-gradient-to-r from-sky-50/80 via-sky-50/25 to-white/95 dark:from-sky-950/35 dark:via-stone-900/50 dark:to-stone-900/95",
+      checkbox: "border-sky-400/80 dark:border-sky-600 bg-sky-50/80 dark:bg-sky-950/60 hover:border-sky-500 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-sky-600 shadow-2xs",
+      badge: "bg-sky-500/15 border border-sky-400/40 text-sky-700 dark:text-sky-300 font-extrabold shadow-2xs",
+    },
+    weekly: {
+      border: "border-fuchsia-200/90 dark:border-fuchsia-800/60 hover:border-fuchsia-400 dark:hover:border-fuchsia-600 border-l-[5px] border-l-fuchsia-500 dark:border-l-fuchsia-400",
+      bg: "bg-gradient-to-r from-fuchsia-50/80 via-fuchsia-50/25 to-white/95 dark:from-fuchsia-950/35 dark:via-stone-900/50 dark:to-stone-900/95",
+      checkbox: "border-fuchsia-400/80 dark:border-fuchsia-600 bg-fuchsia-50/80 dark:bg-fuchsia-950/60 hover:border-fuchsia-500 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/60 text-fuchsia-600 shadow-2xs",
+      badge: "bg-fuchsia-500/15 border border-fuchsia-400/40 text-fuchsia-700 dark:text-fuchsia-300 font-extrabold shadow-2xs",
+    },
+    free: {
+      border: "border-orange-200/90 dark:border-orange-800/60 hover:border-orange-400 dark:hover:border-orange-600 border-l-[5px] border-l-orange-500 dark:border-l-orange-400",
+      bg: "bg-gradient-to-r from-orange-50/80 via-orange-50/25 to-white/95 dark:from-orange-950/35 dark:via-stone-900/50 dark:to-stone-900/95",
+      checkbox: "border-orange-400/80 dark:border-orange-600 bg-orange-50/80 dark:bg-orange-950/60 hover:border-orange-500 hover:bg-orange-100 dark:hover:bg-orange-900/60 text-orange-600 shadow-2xs",
+      badge: "bg-orange-500/15 border border-orange-400/40 text-orange-700 dark:text-orange-300 font-extrabold shadow-2xs",
+    },
+    project: {
+      border: "border-indigo-200/90 dark:border-indigo-800/60 hover:border-indigo-400 dark:hover:border-indigo-600 border-l-[5px] border-l-indigo-500 dark:border-l-indigo-400",
+      bg: "bg-gradient-to-r from-indigo-50/80 via-indigo-50/25 to-white/95 dark:from-indigo-950/35 dark:via-stone-900/50 dark:to-stone-900/95",
+      checkbox: "border-indigo-400/80 dark:border-indigo-600 bg-indigo-50/80 dark:bg-indigo-950/60 hover:border-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 shadow-2xs",
+      badge: "bg-indigo-500/15 border border-indigo-400/40 text-indigo-700 dark:text-indigo-300 font-extrabold shadow-2xs",
+    },
+    relax: {
+      border: "border-emerald-200/90 dark:border-emerald-850/60 hover:border-emerald-400 dark:hover:border-emerald-600 border-l-[5px] border-l-emerald-500 dark:border-l-emerald-400",
+      bg: "bg-gradient-to-r from-emerald-50/80 via-emerald-50/25 to-white/95 dark:from-emerald-950/35 dark:via-stone-900/50 dark:to-stone-900/95",
+      checkbox: "border-emerald-400/80 dark:border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/60 hover:border-emerald-500 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-600 shadow-2xs",
+      badge: "bg-emerald-500/15 border border-emerald-400/40 text-emerald-700 dark:text-emerald-300 font-extrabold shadow-2xs",
+    },
+  };
+
+  const currentTheme = THEMES[category];
+
+  let cardBgClass = currentTheme.bg;
   if (isChallenging) {
-    bgClass = "bg-amber-50/80 dark:bg-amber-900/10";
+    cardBgClass = "bg-amber-50/85 dark:bg-amber-900/20";
   }
 
   // 過去分は控えめに表示
   if (isPreviousDay) {
-    bgClass += " opacity-90";
+    cardBgClass += " opacity-85";
   }
 
   let slotCount = 0;
@@ -1777,7 +1813,7 @@ function TodayItem({
 
   return (
     <div
-      className={`group relative flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-2xl apple-card border-l-[5px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-2 ring-amber-400/70 dark:ring-amber-600 shadow-[0_4px_20px_rgba(245,158,11,0.15)]' : ''}`}
+      className={`group relative flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-2xl apple-card shadow-xs transition-all duration-200 ${currentTheme.border} ${cardBgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-2 ring-amber-400/70 dark:ring-amber-600 shadow-[0_4px_20px_rgba(245,158,11,0.15)]' : ''}`}
       // 過去分でなければドラッグ開始イベントを有効にする
       onMouseDown={(e) => {
         if (!isPreviousDay) {
@@ -1815,7 +1851,7 @@ function TodayItem({
               ? 'bg-destructive border-destructive text-destructive-foreground'
               : isChallenging
                 ? 'border-amber-500 text-amber-600 bg-amber-100 dark:bg-amber-900/40 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-                : 'border-slate-300 dark:border-stone-600 bg-white/80 dark:bg-stone-800 hover:border-sky-500'
+                : currentTheme.checkbox
         } ${isPending ? 'pointer-events-none' : ''}`}
       >
         {isCompleted && <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />}
@@ -1823,11 +1859,11 @@ function TodayItem({
         {isChallenging && <PlayCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />}
       </div>
       <div className="flex-1 min-w-0 z-10">
-        <div className={`font-bold text-[12px] sm:text-[13.5px] tracking-tight leading-snug break-words ${isCompleted ? 'text-slate-500 dark:text-stone-400' : 'text-slate-900 dark:text-stone-100'} ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-800 dark:text-amber-300' : ''}`}>
+        <div className={`font-bold text-[12px] sm:text-[13.5px] tracking-tight leading-snug break-words ${isCompleted ? 'text-slate-500 dark:text-stone-400 line-through decoration-slate-400/50' : 'text-slate-900 dark:text-stone-100'} ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-800 dark:text-amber-300' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
         {(quest.note || template?.description) && (
-          <div className="w-full min-w-0 text-[10.5px] sm:text-xs text-slate-600 dark:text-stone-300 leading-snug sm:leading-relaxed mt-1.5 break-words line-clamp-2 sm:line-clamp-none bg-slate-100/70 dark:bg-stone-800/50 rounded-xl p-1.5 sm:p-2 border border-slate-200/60 dark:border-stone-700/50">
+          <div className="w-full min-w-0 text-[10.5px] sm:text-xs text-slate-600 dark:text-stone-300 leading-snug sm:leading-relaxed mt-1.5 break-words line-clamp-2 sm:line-clamp-none bg-white/70 dark:bg-stone-850/60 rounded-xl p-1.5 sm:p-2 border border-slate-200/60 dark:border-stone-700/50">
             {quest.note && <div>{quest.note}</div>}
             {template?.description && template.description !== quest.note && (
               <div className={`text-[9.5px] sm:text-[10px] text-muted-foreground ${quest.note ? 'mt-1 pt-1 border-t border-border/30' : ''}`}>
@@ -1837,8 +1873,8 @@ function TodayItem({
           </div>
         )}
         <div className="text-[9px] sm:text-[9.5px] text-slate-400 dark:text-stone-400 flex flex-wrap gap-1.5 items-center leading-none mt-1.5">
-          <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-stone-800 text-slate-600 dark:text-stone-300 uppercase tracking-wider font-bold text-[8.5px]">
-            {QUEST_TYPE_LABELS[quest.questType]}
+          <span className={`px-1.5 py-0.5 rounded-md uppercase tracking-wider font-black text-[8.5px] ${currentTheme.badge}`}>
+            {QUEST_TYPE_LABELS[quest.questType] || quest.questType?.[0] || "M"}
           </span>
           {isMoai && (
             <span className="text-amber-900 dark:text-amber-100 font-black bg-amber-500/20 border border-amber-500/35 px-1.5 py-0.5 rounded-full text-[8.5px] select-none flex items-center gap-0.5 shadow-2xs">
