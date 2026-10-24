@@ -868,6 +868,7 @@ function DayColumn({
   handleMouseDown,
   isToday,
   cardWidth = 300,
+  lineGapWidth = 32,
   isSelected,
   onSelect,
   isDragHovered,
@@ -889,6 +890,7 @@ function DayColumn({
   handleMouseDown: any;
   isToday: boolean;
   cardWidth?: number;
+  lineGapWidth?: number;
   isSelected: boolean;
   onSelect: () => void;
   isDragHovered?: boolean;
@@ -955,7 +957,8 @@ function DayColumn({
     <div
       ref={columnRef}
       data-column-date={dateStr}
-      className={`flex gap-8 p-4 rounded-3xl shrink-0 relative transition-all duration-300 apple-glass ${
+      style={{ gap: `${lineGapWidth}px` }}
+      className={`flex p-4 rounded-3xl shrink-0 relative transition-all duration-300 apple-glass ${
         isDragHovered
           ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-500/[0.08] shadow-xl scale-[1.01]'
           : isSelected
@@ -3333,14 +3336,142 @@ export default function Home() {
     }
   });
 
-  const [cardWidth, setCardWidth] = useState<number>(() => {
+  type DeviceProfileId = 'iphone' | 'ipad' | 'macbook' | 'desktop';
+
+  const DEVICE_PROFILES: Record<DeviceProfileId, {
+    label: string;
+    defaultCardWidth: number;
+    defaultLineGap: number;
+    minCard: number;
+    maxCard: number;
+    minGap: number;
+    maxGap: number;
+  }> = {
+    iphone: {
+      label: '📱 iPhone',
+      defaultCardWidth: 205,
+      defaultLineGap: 24,
+      minCard: 130,
+      maxCard: 310,
+      minGap: 8,
+      maxGap: 110,
+    },
+    ipad: {
+      label: '📲 iPad mini',
+      defaultCardWidth: 290,
+      defaultLineGap: 52,
+      minCard: 180,
+      maxCard: 500,
+      minGap: 16,
+      maxGap: 200,
+    },
+    macbook: {
+      label: '💻 MacBook Air',
+      defaultCardWidth: 360,
+      defaultLineGap: 76,
+      minCard: 200,
+      maxCard: 620,
+      minGap: 20,
+      maxGap: 260,
+    },
+    desktop: {
+      label: '🖥️ Desktop',
+      defaultCardWidth: 460,
+      defaultLineGap: 104,
+      minCard: 220,
+      maxCard: 720,
+      minGap: 24,
+      maxGap: 320,
+    },
+  };
+
+  const detectDeviceProfile = (): DeviceProfileId => {
+    if (typeof window === 'undefined') return 'macbook';
+    const w = window.innerWidth;
+    if (w < 640) return 'iphone';
+    if (w < 1024) return 'ipad';
+    if (w < 1536) return 'macbook';
+    return 'desktop';
+  };
+
+  const loadProfileCardWidth = (profile: DeviceProfileId): number => {
+    const cfg = DEVICE_PROFILES[profile];
     try {
-      const saved = localStorage.getItem('planning_card_width') || localStorage.getItem('column_spacing');
+      const saved = localStorage.getItem(`planning_card_width_${profile}`);
       const num = Number(saved);
-      if (num && num >= 200) return num;
+      if (num && num >= cfg.minCard && num <= cfg.maxCard) return num;
+      // Fallback migration for desktop/macbook legacy key if present
+      if (profile === 'desktop' || profile === 'macbook') {
+        const legacy = Number(localStorage.getItem('planning_card_width') || localStorage.getItem('column_spacing'));
+        if (legacy && legacy >= cfg.minCard && legacy <= cfg.maxCard) return legacy;
+      }
     } catch {}
-    return 360; // generous, readable default
-  });
+    return cfg.defaultCardWidth;
+  };
+
+  const loadProfileLineGap = (profile: DeviceProfileId): number => {
+    const cfg = DEVICE_PROFILES[profile];
+    try {
+      const saved = localStorage.getItem(`planning_line_gap_${profile}`);
+      const num = Number(saved);
+      if (!Number.isNaN(num) && saved !== null && num >= cfg.minGap && num <= cfg.maxGap) return num;
+    } catch {}
+    return cfg.defaultLineGap;
+  };
+
+  const [deviceProfile, setDeviceProfile] = useState<DeviceProfileId>(() => detectDeviceProfile());
+  const currentProfileCfg = DEVICE_PROFILES[deviceProfile];
+
+  const [cardWidth, setCardWidth] = useState<number>(() => loadProfileCardWidth(detectDeviceProfile()));
+  const [lineGapWidth, setLineGapWidth] = useState<number>(() => loadProfileLineGap(detectDeviceProfile()));
+
+  // Automatically switch profile & load that profile's saved values when viewport crosses device breakpoints
+  useEffect(() => {
+    const handleProfileResize = () => {
+      const nextProfile = detectDeviceProfile();
+      setDeviceProfile(prev => {
+        if (prev !== nextProfile) {
+          setCardWidth(loadProfileCardWidth(nextProfile));
+          setLineGapWidth(loadProfileLineGap(nextProfile));
+        }
+        return nextProfile;
+      });
+    };
+    window.addEventListener('resize', handleProfileResize);
+    return () => window.removeEventListener('resize', handleProfileResize);
+  }, []);
+
+  const handleCardWidthChange = (val: number) => {
+    setCardWidth(val);
+    try {
+      localStorage.setItem(`planning_card_width_${deviceProfile}`, String(val));
+      if (deviceProfile === 'desktop' || deviceProfile === 'macbook') {
+        localStorage.setItem('planning_card_width', String(val));
+      }
+    } catch {}
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 20);
+  };
+
+  const handleLineGapChange = (val: number) => {
+    setLineGapWidth(val);
+    try {
+      localStorage.setItem(`planning_line_gap_${deviceProfile}`, String(val));
+    } catch {}
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 20);
+  };
+
+  const handleResetDeviceLayout = () => {
+    const cfg = DEVICE_PROFILES[deviceProfile];
+    setCardWidth(cfg.defaultCardWidth);
+    setLineGapWidth(cfg.defaultLineGap);
+    try {
+      localStorage.removeItem(`planning_card_width_${deviceProfile}`);
+      localStorage.removeItem(`planning_line_gap_${deviceProfile}`);
+    } catch {}
+    toast.success(`${cfg.label} の最適サイズ（カード ${cfg.defaultCardWidth}px / 線幅 ${cfg.defaultLineGap}px）に戻しました`);
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
+  };
+
   const colSpacing = cardWidth;
   const setColSpacing = setCardWidth;
 
@@ -4480,27 +4611,49 @@ export default function Home() {
 
                 {/* Granularity, Spacing & View controls (iOS Control Center Pills) */}
                 <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                  {/* Card Width Slider (Hidden on mobile where width auto-fits screen) */}
-                  <div className="hidden sm:flex items-center gap-2 text-xs apple-segmented px-3 py-1.5">
-                    <span className="font-bold text-slate-500 dark:text-stone-300 text-[11px]">横幅</span>
-                    <input
-                      type="range"
-                      min="220"
-                      max="650"
-                      step="10"
-                      value={cardWidth}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setCardWidth(val);
-                        try {
-                          localStorage.setItem('planning_card_width', String(val));
-                          localStorage.setItem('column_spacing', String(val));
-                        } catch {}
-                        setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
-                      }}
-                      className="w-20 sm:w-24 accent-sky-500 cursor-ew-resize h-1.5 bg-slate-300/80 dark:bg-slate-700 rounded-lg appearance-none"
-                    />
-                    <span className="font-mono text-[10px] text-slate-500 w-9 text-right">{cardWidth}px</span>
+                  {/* Per-Device Card Width & Connection Line Width Sliders */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs apple-segmented px-2.5 py-1.5">
+                    <button
+                      type="button"
+                      onClick={handleResetDeviceLayout}
+                      title="クリックでこの端末の最適サイズにリセット（端末ごとに個別保存されます）"
+                      className="px-2 py-0.5 rounded-md bg-white/90 hover:bg-white text-slate-700 font-bold text-[10px] shadow-2xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <span>{currentProfileCfg.label}</span>
+                      <span className="text-slate-400">↺</span>
+                    </button>
+
+                    {/* Mission Card Width Slider */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-600 text-[10.5px] whitespace-nowrap">カード幅</span>
+                      <input
+                        type="range"
+                        min={currentProfileCfg.minCard}
+                        max={currentProfileCfg.maxCard}
+                        step="5"
+                        value={cardWidth}
+                        onChange={(e) => handleCardWidthChange(Number(e.target.value))}
+                        className="w-16 sm:w-20 accent-sky-500 cursor-ew-resize h-1.5 bg-slate-300/80 rounded-lg appearance-none"
+                      />
+                      <span className="font-mono text-[10px] text-slate-500 w-8 text-right">{cardWidth}</span>
+                    </div>
+
+                    <div className="w-px h-3.5 bg-slate-300/70 hidden sm:block" />
+
+                    {/* Connection Line Horizontal Gap Slider */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-indigo-600 text-[10.5px] whitespace-nowrap">線の幅</span>
+                      <input
+                        type="range"
+                        min={currentProfileCfg.minGap}
+                        max={currentProfileCfg.maxGap}
+                        step="4"
+                        value={lineGapWidth}
+                        onChange={(e) => handleLineGapChange(Number(e.target.value))}
+                        className="w-16 sm:w-20 accent-indigo-500 cursor-ew-resize h-1.5 bg-slate-300/80 rounded-lg appearance-none"
+                      />
+                      <span className="font-mono text-[10px] text-indigo-600 font-semibold w-7 text-right">{lineGapWidth}</span>
+                    </div>
                   </div>
 
                   {/* Granularity Toggle */}
@@ -4629,7 +4782,11 @@ export default function Home() {
               {planningViewMode === 'today' ? (
                 /* TODAY VIEW (Apple Glass Stage with Sweeping Bezier Curves) */
                 <div className="relative w-full max-w-full pt-1">
-                  <div ref={containerRef} className="flex justify-center gap-3 sm:gap-12 md:gap-20 items-start relative min-h-[500px] w-full max-w-full">
+                  <div
+                    ref={containerRef}
+                    style={{ gap: `${lineGapWidth}px` }}
+                    className="flex justify-center items-start relative min-h-[500px] w-full max-w-full"
+                  >
                     <ConnectionLines
                       quests={todayQuests}
                       parentRef={containerRef as React.RefObject<HTMLDivElement>}
@@ -4639,10 +4796,10 @@ export default function Home() {
                     />
 
                     <div
-                      className="flex flex-col gap-2 sm:gap-3 rounded-2xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150 flex-1 sm:flex-initial min-w-0"
+                      className="flex flex-col gap-2 sm:gap-3 rounded-2xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150 min-w-0"
                       style={{
-                        width: isMobile ? 'calc(100% - 76px)' : `${cardWidth}px`,
-                        maxWidth: isMobile ? 'calc(100% - 76px)' : 'calc(100% - 76px)',
+                        width: `${cardWidth}px`,
+                        maxWidth: `calc(100% - ${lineGapWidth + (isMobile ? 72 : 132)}px)`,
                       }}
                     >
                       <div className="flex items-center justify-between px-1.5 pb-1">
@@ -4867,6 +5024,7 @@ export default function Home() {
                           handleMouseDown={handleMouseDown}
                           isToday={isColToday}
                           cardWidth={cardWidth}
+                          lineGapWidth={lineGapWidth}
                           isSelected={planningDayOffset === colOffset}
                           onSelect={() => setPlanningDayOffset(colOffset)}
                           isDragHovered={hoveredColumnDate === colDateStr && dragState.active}
