@@ -555,14 +555,14 @@ function DayColumn({
     <div
       ref={columnRef}
       data-column-date={dateStr}
-      className={`flex gap-8 p-3 rounded-xl border shrink-0 relative transition-all duration-200 ${
+      className={`flex gap-8 p-4 rounded-3xl shrink-0 relative transition-all duration-300 apple-glass ${
         isDragHovered
-          ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-500/[0.08] shadow-lg scale-[1.01]'
+          ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-500/[0.08] shadow-xl scale-[1.01]'
           : isSelected
-            ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/[0.01]'
+            ? 'ring-2 ring-sky-500/40 border-sky-400/60 shadow-lg'
             : isToday
-              ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.1)] bg-amber-500/[0.02]'
-              : 'border-border/60 bg-card/40'
+              ? 'ring-1 ring-amber-400/60 shadow-[0_8px_30px_rgba(245,158,11,0.12)]'
+              : ''
       }`}
     >
       {/* SVG Connecting Lines inside this column */}
@@ -582,10 +582,11 @@ function DayColumn({
         style={{ width: `${cardWidth}px`, maxWidth: `${cardWidth}px` }}
       >
         {/* Header */}
-        <div onClick={onSelect} className="flex items-center justify-between border-b pb-2 mb-1 border-border/40 select-none cursor-pointer hover:opacity-85 transition-opacity">
-          <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-muted-foreground'} flex items-center gap-1.5`}>
+        <div onClick={onSelect} className="flex items-center justify-between border-b pb-2.5 mb-0.5 border-slate-200/60 dark:border-stone-800 select-none cursor-pointer hover:opacity-85 transition-opacity">
+          <span className={`text-xs font-black uppercase tracking-wider ${isToday ? 'text-amber-500 font-black' : 'text-slate-600 dark:text-stone-300'} flex items-center gap-1.5`}>
             {format(date, "E M/d")}
-            {isSelected && <span className="text-[8px] font-black text-primary bg-primary/10 px-1 py-0.5 rounded leading-none border border-primary/20">🎯 選択中</span>}
+            {isToday && <span className="text-[9px] font-bold text-white bg-amber-500 px-1.5 py-0.5 rounded-full leading-none shadow-2xs">TODAY</span>}
+            {isSelected && <span className="text-[9px] font-bold text-sky-600 dark:text-sky-300 bg-sky-500/10 px-1.5 py-0.5 rounded-full leading-none border border-sky-500/20">🎯 選択中</span>}
           </span>
           <div className="flex items-center gap-1.5">
             {quests.length > 1 && onSortByTime && (
@@ -595,30 +596,30 @@ function DayColumn({
                   e.stopPropagation();
                   onSortByTime(dateStr);
                 }}
-                className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 px-1.5 py-0.5 rounded flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs active:scale-95"
+                className="text-[9.5px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 px-2 py-0.5 rounded-full flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs active:scale-95"
                 title="時間枠の早い順に並び替えて保存"
               >
                 <Clock className="w-2.5 h-2.5" />
                 時間順
               </button>
             )}
-            <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-bold text-slate-500 dark:text-stone-400 bg-slate-100/80 dark:bg-stone-800 px-2 py-0.5 rounded-full">
               {quests.length} tasks
             </span>
           </div>
         </div>
 
         {/* Bulletin Board Daily Note (Focus / Reflection) */}
-        <div className="rounded-xl border border-stone-200/90 dark:border-stone-800 bg-white/80 dark:bg-stone-900/60 shadow-2xs overflow-hidden">
-          <div className="flex items-center justify-between px-2.5 py-1 border-b border-stone-100 dark:border-stone-800/80 text-[10px] text-muted-foreground select-none bg-stone-50/50 dark:bg-stone-800/40">
-            <span className="font-bold flex items-center gap-1 text-stone-600 dark:text-stone-300">
+        <div className="rounded-2xl border border-slate-200/80 dark:border-stone-800 bg-white/85 dark:bg-stone-900/70 backdrop-blur-md shadow-2xs overflow-hidden transition-all hover:shadow-sm">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 dark:border-stone-800/80 text-[10px] text-muted-foreground select-none bg-slate-50/60 dark:bg-stone-800/40">
+            <span className="font-bold flex items-center gap-1 text-slate-600 dark:text-stone-300">
               📝 フォーカス・メモ
             </span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="p-0.5 hover:bg-stone-200/60 dark:hover:bg-stone-700 rounded text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 transition cursor-pointer"
+                className="p-0.5 hover:bg-slate-200/60 dark:hover:bg-stone-700 rounded-full text-slate-500 hover:text-slate-800 dark:hover:text-stone-200 transition cursor-pointer"
                 title={isExpanded ? "枠を縮小" : "枠を縦に広げる"}
               >
                 {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -629,7 +630,7 @@ function DayColumn({
                   setModalContent(localContent);
                   setIsModalOpen(true);
                 }}
-                className="p-0.5 hover:bg-stone-200/60 dark:hover:bg-stone-700 rounded text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 transition cursor-pointer"
+                className="p-0.5 hover:bg-slate-200/60 dark:hover:bg-stone-700 rounded-full text-slate-500 hover:text-slate-800 dark:hover:text-stone-200 transition cursor-pointer"
                 title="大画面で拡大表示・編集"
               >
                 <Maximize2 className="w-3 h-3" />
@@ -642,20 +643,20 @@ function DayColumn({
               setModalContent(localContent);
               setIsModalOpen(true);
             }}
-            className={`p-2 text-[10px] sm:text-[11px] leading-relaxed cursor-pointer hover:bg-amber-50/20 transition-all overflow-y-auto break-words ${
+            className={`p-2.5 text-[10.5px] sm:text-[11px] leading-relaxed cursor-pointer hover:bg-amber-50/20 transition-all overflow-y-auto break-words ${
               isExpanded ? "max-h-[260px] min-h-[120px]" : "max-h-[80px] min-h-[46px]"
             }`}
           >
             {localContent ? (
               <div
                 dangerouslySetInnerHTML={{ __html: localContent }}
-                className={`text-stone-700 dark:text-stone-300 [&_div]:my-0.5 [&_img]:max-h-24 [&_img]:rounded-md ${
+                className={`text-slate-700 dark:text-stone-300 [&_div]:my-0.5 [&_img]:max-h-24 [&_img]:rounded-md ${
                   isHideDone ? "hide-done-active" : ""
                 }`}
               />
             ) : (
-              <span className="text-stone-300 dark:text-stone-600 italic select-none">
-                クリックしてフォーカス・振り返りを記入...
+              <span className="text-slate-400/70 dark:text-stone-600 italic select-none">
+                タップしてフォーカス・振り返りを記入...
               </span>
             )}
           </div>
@@ -670,7 +671,7 @@ function DayColumn({
             }
           }
         }}>
-          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-4 sm:p-6">
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-4 sm:p-6 rounded-3xl">
             <DialogHeader className="pb-2 border-b border-border/50">
               <DialogTitle className="text-sm sm:text-base font-bold flex items-center justify-between">
                 <span>📝 {format(date, "yyyy年M月d日 (E)")} のフォーカス・日間メモ</span>
@@ -699,7 +700,7 @@ function DayColumn({
               <Button
                 size="sm"
                 onClick={() => setIsModalOpen(false)}
-                className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs"
+                className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs rounded-full px-4"
               >
                 閉じる
               </Button>
@@ -712,16 +713,17 @@ function DayColumn({
           onCreated={refreshAll}
           defaultDate={date}
           trigger={
-            <button className="w-full py-1.5 text-[10px] font-bold border border-dashed border-slate-300 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all select-none">
-              + 新規タスク
+            <button className="w-full py-2 text-[11px] font-bold border border-dashed border-slate-300/80 dark:border-stone-700 rounded-2xl text-slate-500 hover:text-sky-600 hover:border-sky-300 hover:bg-sky-50/50 dark:hover:bg-stone-800/60 transition-all select-none flex items-center justify-center gap-1 cursor-pointer active:scale-[0.98]">
+              <Plus className="w-3.5 h-3.5" />
+              <span>新規タスク</span>
             </button>
           }
         />
 
         {/* Quests list */}
-        <div className="flex flex-col gap-2 min-h-[100px]">
+        <div className="flex flex-col gap-2.5 min-h-[100px]">
           {quests.length === 0 ? (
-            <div className="text-[10px] text-muted-foreground/30 italic text-center py-8 select-none">No tasks</div>
+            <div className="text-[11px] text-muted-foreground/40 italic text-center py-8 select-none">No tasks</div>
           ) : (
             quests.map(q => {
               const isDraggingCurrent = dragState.itemId === q.id && dragState.mode === 'sort';
@@ -735,12 +737,12 @@ function DayColumn({
                   key={q.id}
                   data-sort-id={q.id}
                   data-sort-date={dateStr}
-                  className={`cursor-default relative bg-background rounded-xl z-20 transition-all duration-150 ${
+                  className={`cursor-default relative rounded-2xl z-20 transition-all duration-200 ${
                     effectiveAdhoc ? 'ml-4 sm:ml-5 w-[calc(100%-1rem)] sm:w-[calc(100%-1.25rem)]' : 'ml-0 w-full'
                   } ${
                     isDraggingCurrent
-                      ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
-                      : 'hover:scale-[1.01]'
+                      ? 'shadow-2xl scale-105 z-50 ring-2 ring-sky-500'
+                      : ''
                   }`}
                 >
                   <TodayItem
@@ -766,13 +768,13 @@ function DayColumn({
 
       {/* Sub-column 2: Timeline Column */}
       <div className={`flex flex-col gap-2 shrink-0 ${showMoaiRhythm ? 'w-auto sm:min-w-[140px] sm:max-w-[260px]' : TIME_SLOT_WIDTH} z-10`}>
-        <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground/70 mb-2 px-1 select-none">
+        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-stone-500 tracking-wider mb-1.5 px-1.5 select-none">
           <span>TIMELINE</span>
           {showMoaiRhythm && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onOpenRhythmGuide?.(); }}
-              className="hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 text-[8.5px] font-bold px-1 py-0.2 rounded bg-amber-500/10 text-amber-900 dark:text-amber-200 border border-amber-500/20 transition-all cursor-pointer"
+              className="hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-900 dark:text-amber-200 border border-amber-500/20 transition-all cursor-pointer"
               title="モアイの1日リズム図を表示"
             >
               <span>🗿</span>
@@ -800,23 +802,26 @@ function DayColumn({
                 data-slot-id={slot.id}
                 data-slot-date={dateStr}
                 title={showMoaiRhythm ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
-                className={`w-full rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythm ? zone.slotClass : ''}`}
+                className={`w-full rounded-xl px-2 py-1.5 min-h-[30px] flex items-center justify-center transition-all duration-200 group relative overflow-hidden ${
+                  isUsed
+                    ? 'bg-white dark:bg-stone-800 border border-sky-400/60 shadow-xs ring-2 ring-sky-500/10'
+                    : 'bg-white/55 dark:bg-stone-900/50 border border-slate-200/70 dark:border-stone-800/80 hover:bg-white/95 hover:border-sky-300/70 hover:shadow-xs'
+                } ${showMoaiRhythm ? zone.slotClass : ''}`}
               >
-                <span className="z-10 font-mono text-[11px] sm:text-[12px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
+                <span className={`z-10 font-mono text-[11px] sm:text-[11.5px] tracking-tight select-none pointer-events-none transition-colors ${
+                  isUsed
+                    ? 'font-black text-slate-900 dark:text-white'
+                    : 'font-semibold text-slate-500 dark:text-stone-400 group-hover:text-slate-800 dark:group-hover:text-stone-200'
+                }`}>
                   {slot.label}
                 </span>
-                {!isUsed && (
-                  <>
-                    {isJobModeActive && isJobSlot(slot.label) ? (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                        <img src="/job_stamp.png" alt="job" className="w-16 sm:w-20 -rotate-12 select-none" />
-                      </div>
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                        <img src="/free_stamp.png" alt="free" className="w-16 sm:w-20 -rotate-12 select-none" />
-                      </div>
-                    )}
-                  </>
+                {isUsed && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500 ml-1.5 shrink-0 shadow-[0_0_6px_rgba(14,165,233,0.8)]" />
+                )}
+                {!isUsed && isJobModeActive && isJobSlot(slot.label) && (
+                  <span className="ml-1 text-[8px] font-black uppercase tracking-wider px-1 py-0.2 rounded bg-slate-200/80 dark:bg-stone-800 text-slate-500 select-none pointer-events-none">
+                    JOB
+                  </span>
                 )}
               </div>
 
@@ -830,12 +835,12 @@ function DayColumn({
                   />
                   {isFirstSlotOfZone && (
                     <div
-                      className={`hidden sm:flex px-1.5 py-0.5 rounded text-[8.5px] font-black border items-center gap-1 whitespace-nowrap shadow-2xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
+                      className={`hidden sm:flex px-1.5 py-0.5 rounded-full text-[8.5px] font-black border items-center gap-1 whitespace-nowrap shadow-2xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
                     >
                       <span>{zone.emoji}</span>
                       <span>{zone.shortName}</span>
                       {zone.badgeText ? (
-                        <span className="text-[7.5px] px-1 py-0.1 rounded bg-stone-900/10 dark:bg-stone-100/10 font-black">
+                        <span className="text-[7.5px] px-1 py-0.1 rounded-full bg-stone-900/10 dark:bg-stone-100/10 font-black">
                           {zone.badgeText}
                         </span>
                       ) : zone.badgeSubText ? (
@@ -1356,11 +1361,8 @@ function TodayItem({
 
   return (
     <div
-      className={`group relative flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl border backdrop-blur-sm shadow-sm transition-all hover:shadow-md border-l-[4px] sm:border-l-[6px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-1 ring-amber-300 dark:ring-amber-700' : ''}`}
+      className={`group relative flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-2xl apple-card border-l-[5px] ${borderClass} ${bgClass} ${isFailed ? 'opacity-60 grayscale' : ''} ${isPending ? 'opacity-70 cursor-wait' : ''} ${isChallenging ? 'ring-2 ring-amber-400/70 dark:ring-amber-600 shadow-[0_4px_20px_rgba(245,158,11,0.15)]' : ''}`}
       // 過去分でなければドラッグ開始イベントを有効にする
-      // Long press triggers menu, but we also need to allow drag if it's not a long press?
-      // Actually, if we touch start, we start drag AND long press timer?
-      // If drag moves, we cancel long press.
       onMouseDown={(e) => {
         if (!isPreviousDay) {
           startPress();
@@ -1382,7 +1384,7 @@ function TodayItem({
       onTouchMove={cancelPress} // Cancel long press if moving (dragging)
     >
       <div
-        className={`shrink-0 cursor-grab text-muted-foreground/50 hover:text-foreground active:cursor-grabbing p-1 -ml-1 ${isPreviousDay ? 'hidden' : ''}`}
+        className={`shrink-0 cursor-grab text-slate-300 dark:text-stone-600 hover:text-slate-600 dark:hover:text-stone-300 active:cursor-grabbing p-1 -ml-1 transition-colors ${isPreviousDay ? 'hidden' : ''}`}
         onMouseDown={(e) => { e.stopPropagation(); onReorderStart && onReorderStart(e); }}
         onTouchStart={(e) => { e.stopPropagation(); onReorderStart && onReorderStart(e); }}
       >
@@ -1390,53 +1392,57 @@ function TodayItem({
       </div>
       <div
         onClick={(e) => { e.stopPropagation(); handleNext(); }}
-        className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-colors ${isCompleted ? 'bg-primary border-primary text-primary-foreground' :
-          isFailed ? 'bg-destructive border-destructive text-destructive-foreground' :
-            isChallenging ? 'border-amber-500 text-amber-600 bg-amber-100 dark:bg-amber-900/30' :
-              'border-muted-foreground/30 hover:border-primary'
-          } ${isPending ? 'pointer-events-none' : ''}`}
+        className={`w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all duration-200 shrink-0 hover:scale-110 active:scale-90 ${
+          isCompleted
+            ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.4)]'
+            : isFailed
+              ? 'bg-destructive border-destructive text-destructive-foreground'
+              : isChallenging
+                ? 'border-amber-500 text-amber-600 bg-amber-100 dark:bg-amber-900/40 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                : 'border-slate-300 dark:border-stone-600 bg-white/80 dark:bg-stone-800 hover:border-sky-500'
+        } ${isPending ? 'pointer-events-none' : ''}`}
       >
-        {isCompleted && <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
-        {isFailed && <XCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
-        {isChallenging && <PlayCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />}
+        {isCompleted && <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />}
+        {isFailed && <XCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+        {isChallenging && <PlayCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />}
       </div>
       <div className="flex-1 min-w-0 z-10">
-        <div className={`font-bold text-[11.5px] sm:text-[13px] leading-snug break-words ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-700 dark:text-amber-400' : ''}`}>
+        <div className={`font-bold text-[12px] sm:text-[13.5px] tracking-tight leading-snug break-words ${isCompleted ? 'text-slate-500 dark:text-stone-400' : 'text-slate-900 dark:text-stone-100'} ${isFailed ? 'line-through decoration-destructive' : ''} ${isChallenging ? 'text-amber-800 dark:text-amber-300' : ''}`}>
           {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
         </div>
         {(quest.note || template?.description) && (
-          <div className="w-full min-w-0 text-[10px] sm:text-xs text-foreground/85 dark:text-stone-200 leading-snug sm:leading-relaxed mt-1 sm:mt-1.5 break-words line-clamp-2 sm:line-clamp-none bg-muted/25 sm:bg-muted/40 dark:bg-stone-800/40 dark:sm:bg-stone-800/60 rounded-md sm:rounded-lg p-1 sm:p-2 border border-border/30 sm:border-border/40">
+          <div className="w-full min-w-0 text-[10.5px] sm:text-xs text-slate-600 dark:text-stone-300 leading-snug sm:leading-relaxed mt-1.5 break-words line-clamp-2 sm:line-clamp-none bg-slate-100/70 dark:bg-stone-800/50 rounded-xl p-1.5 sm:p-2 border border-slate-200/60 dark:border-stone-700/50">
             {quest.note && <div>{quest.note}</div>}
             {template?.description && template.description !== quest.note && (
-              <div className={`text-[9px] sm:text-[10px] text-muted-foreground ${quest.note ? 'mt-0.5 sm:mt-1 pt-0.5 sm:pt-1 border-t border-border/30' : ''}`}>
+              <div className={`text-[9.5px] sm:text-[10px] text-muted-foreground ${quest.note ? 'mt-1 pt-1 border-t border-border/30' : ''}`}>
                 {template.description}
               </div>
             )}
           </div>
         )}
-        <div className="text-[8.5px] sm:text-[9px] text-muted-foreground flex gap-1.5 items-center leading-none mt-1 sm:mt-1.5">
-          <span className="opacity-80 uppercase tracking-wider font-semibold">
+        <div className="text-[9px] sm:text-[9.5px] text-slate-400 dark:text-stone-400 flex flex-wrap gap-1.5 items-center leading-none mt-1.5">
+          <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-stone-800 text-slate-600 dark:text-stone-300 uppercase tracking-wider font-bold text-[8.5px]">
             {QUEST_TYPE_LABELS[quest.questType]}
           </span>
           {isMoai && (
-            <span className="text-amber-900 dark:text-amber-100 font-black bg-amber-500/25 border border-amber-500/40 px-1 py-0.2 rounded text-[8px] sm:text-[8.5px] select-none flex items-center gap-0.5 shadow-2xs">
+            <span className="text-amber-900 dark:text-amber-100 font-black bg-amber-500/20 border border-amber-500/35 px-1.5 py-0.5 rounded-full text-[8.5px] select-none flex items-center gap-0.5 shadow-2xs">
               🗿 MOAI
             </span>
           )}
           {isAdhoc && (
-            <span className="text-amber-700 dark:text-amber-300 font-bold bg-amber-500/15 border border-amber-500/25 px-1 py-0.2 rounded text-[8px] sm:text-[8.5px] select-none">
+            <span className="text-amber-700 dark:text-amber-300 font-bold bg-amber-500/15 border border-amber-500/25 px-1.5 py-0.5 rounded-full text-[8.5px] select-none">
               隙間
             </span>
           )}
           {isChallenging && (
-            <span className="text-amber-600 font-bold bg-amber-100 dark:bg-amber-900/40 px-1 sm:px-1.5 py-0.2 rounded text-[8.5px] sm:text-[9px] animate-pulse">
-              RUNNING
+            <span className="text-amber-700 dark:text-amber-300 font-black bg-amber-400/25 border border-amber-500/30 px-2 py-0.5 rounded-full text-[8.5px] animate-pulse">
+              ● RUNNING
             </span>
           )}
           {quest.targetCount > 1 && (
-            <span className="flex items-center gap-1 ml-1 font-bold text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400">
-              <span className="px-1 bg-emerald-100 dark:bg-emerald-900/40 rounded">
-                [{quest.currentCount}/{quest.targetCount}]
+            <span className="flex items-center gap-1 font-bold text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400">
+              <span className="px-1.5 py-0.5 bg-emerald-500/15 border border-emerald-500/25 rounded-full">
+                {quest.currentCount}/{quest.targetCount}
               </span>
             </span>
           )}
@@ -1444,21 +1450,22 @@ function TodayItem({
       </div>
 
       {isCompleted && (
-        <div className="absolute right-1.5 top-1.5 sm:right-2.5 sm:top-2 z-0 animate-in zoom-in-50 duration-300 pointer-events-none opacity-85 scale-80 sm:scale-100 origin-top-right">
-          <div className="border-[2px] border-red-500/80 rounded-sm px-1.5 py-0.2 -rotate-12 flex items-center justify-center shadow-sm bg-white/40 dark:bg-black/20 backdrop-blur-[1px]">
-            <span className="text-[10px] sm:text-[11px] font-black text-red-500/90 tracking-widest leading-none">CLEAR</span>
+        <div className="z-10 animate-in zoom-in-50 duration-300 pointer-events-none shrink-0">
+          <div className="rounded-full px-2 py-0.5 flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/35 shadow-2xs backdrop-blur-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="text-[9.5px] font-black text-emerald-600 dark:text-emerald-400 tracking-wider leading-none">DONE</span>
           </div>
         </div>
       )}
 
-      <div className={`flex gap-1 transition-opacity z-20 pointer-events-auto opacity-0 group-hover:opacity-100`}>
+      <div className={`flex gap-0.5 transition-opacity z-20 pointer-events-auto opacity-0 group-hover:opacity-100`}>
         {!isPreviousDay && (
-          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" title="Abort">
-            <XCircle className="w-3 h-3" />
+          <button onClick={(e) => { e.stopPropagation(); handleAbort(); }} className="p-1.5 text-slate-400 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors cursor-pointer" title="Abort">
+            <XCircle className="w-3.5 h-3.5" />
           </button>
         )}
-        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="p-1 text-muted-foreground hover:text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Delete">
-          <Trash2 className="w-3 h-3" />
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-500/10 rounded-full transition-colors cursor-pointer" title="Delete">
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
@@ -1840,48 +1847,48 @@ function FixItem({ quest, executedCount, onReceive }: { quest: any, executedCoun
   return (
     <div
       onClick={handleClick}
-      className={`relative cursor-pointer group flex items-center gap-3 p-2 rounded-lg border transition-all shadow-sm ${
+      className={`relative cursor-pointer group flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl transition-all ${
         isCompleted
-          ? 'border-sky-200 bg-white opacity-80'
+          ? 'apple-card opacity-65'
           : isTargetDay
-            ? 'border-sky-200 bg-white hover:bg-sky-50'
-            : 'border-dashed border-slate-300 bg-slate-50/70 hover:bg-slate-100/90 text-slate-600'
+            ? 'apple-card hover:border-sky-300/80'
+            : 'rounded-2xl border border-dashed border-slate-300/80 dark:border-stone-700 bg-white/45 dark:bg-stone-900/40 hover:bg-white/80 text-slate-600 transition-all'
       }`}
     >
       {isCompleted && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
-          <div className="text-2xl font-black text-sky-500/50 -rotate-12 border-4 border-sky-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
-            CLEAR
-          </div>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/35 text-[10px] font-black text-sky-600 dark:text-sky-400 tracking-wider">
+            ✓ CLEAR
+          </span>
         </div>
       )}
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 ${
           isCompleted
-            ? 'bg-sky-50 text-sky-300'
+            ? 'bg-sky-100/70 text-sky-400 dark:bg-sky-950/50'
             : isTargetDay
-              ? 'bg-sky-100 text-sky-600 group-hover:bg-sky-200'
-              : 'bg-slate-200/80 text-slate-400 group-hover:bg-slate-300 group-hover:text-slate-600'
+              ? 'bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-sm shadow-sky-500/25 group-hover:scale-105'
+              : 'bg-slate-200/70 dark:bg-stone-800 text-slate-400 group-hover:bg-slate-300 group-hover:text-slate-600'
         }`}
       >
-        {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+        {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4 stroke-[2.5]" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          <div className={`text-xs font-bold truncate ${isCompleted ? 'text-sky-700/60' : isTargetDay ? 'text-sky-900' : 'text-slate-700'}`}>
+          <div className={`text-[13px] font-bold tracking-tight truncate ${isCompleted ? 'text-slate-400 line-through' : isTargetDay ? 'text-slate-900 dark:text-stone-100' : 'text-slate-600 dark:text-stone-400'}`}>
             {quest.projectName ? `${quest.questName} -${quest.projectName}-` : quest.questName}
           </div>
           {!isTargetDay && quest.scheduleLabel && (
-            <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 border border-slate-300/60 leading-tight">
+            <span className="shrink-0 text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-200/80 dark:bg-stone-800 text-slate-600 dark:text-stone-300 leading-tight">
               {quest.scheduleLabel}指定
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <div className={`text-[10px] uppercase tracking-wider font-semibold ${isTargetDay ? 'text-sky-500' : 'text-slate-400'}`}>
+        <div className="flex items-center gap-2 mt-1">
+          <span className={`text-[9px] px-1.5 py-0.2 rounded-md uppercase tracking-wider font-bold ${isTargetDay ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400' : 'bg-slate-100 dark:bg-stone-800 text-slate-400'}`}>
             {QUEST_TYPE_LABELS[quest.questType]}
-          </div>
-          <div className="text-[9px] text-muted-foreground">達成回数: {executedCount}</div>
+          </span>
+          <span className="text-[10px] text-slate-400 dark:text-stone-500 font-medium">達成回数: {executedCount}</span>
         </div>
       </div>
     </div>
@@ -1910,49 +1917,82 @@ function NonFixItem({ template, history, onReceive, onDragStart }: { template: a
         if (target.closest('.drag-handle')) return;
         onReceive();
       }}
-      className={`relative group flex items-center gap-2 p-2 rounded-lg border transition-all shadow-sm cursor-pointer ${isExcellent ? 'border-amber-400 bg-amber-50/10' : isCompleted ? 'border-fuchsia-200 bg-fuchsia-50/5' : 'border-fuchsia-200 hover:bg-fuchsia-50'}`}
+      className={`relative group flex items-center gap-2.5 p-2.5 sm:p-3 rounded-2xl apple-card cursor-pointer ${
+        isExcellent
+          ? 'ring-1 ring-amber-400/60 bg-amber-50/40 dark:bg-amber-950/20'
+          : isCompleted
+            ? 'opacity-70'
+            : 'hover:border-fuchsia-300/80'
+      }`}
     >
       {isCompleted && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
+        <div className="absolute right-3 top-2.5 z-10 pointer-events-none">
           {isExcellent ? (
-            <div className="text-2xl font-black text-amber-500 -rotate-12 border-4 border-amber-500 rounded px-4 py-1 tracking-widest bg-white/90 backdrop-blur-sm shadow-xl uppercase">
-              EXCELLENT
-            </div>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-stone-950 text-[9px] font-black tracking-wider shadow-xs uppercase">
+              ★ EXCELLENT
+            </span>
           ) : (
-            <div className="text-2xl font-black text-fuchsia-500/50 -rotate-12 border-4 border-fuchsia-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
-              CLEAR
-            </div>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/35 text-[9.5px] font-black text-fuchsia-600 dark:text-fuchsia-400 tracking-wider">
+              ✓ CLEAR
+            </span>
           )}
         </div>
       )}
       {/* Drag handle */}
       <div
-        className="shrink-0 cursor-grab text-fuchsia-200 hover:text-fuchsia-400 p-1 -ml-1 touch-none drag-handle z-20"
+        className="shrink-0 cursor-grab text-slate-300 hover:text-fuchsia-500 p-1 -ml-1 touch-none drag-handle z-20 transition-colors"
         onMouseDown={(e) => { e.stopPropagation(); onDragStart && onDragStart(e); }}
         onTouchStart={(e) => { e.stopPropagation(); onDragStart && onDragStart(e); }}
       >
-        <GripVertical className="w-3 h-3" />
+        <GripVertical className="w-3.5 h-3.5" />
       </div>
       {/* Content area */}
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${isExcellent ? 'bg-amber-100 text-amber-600' : isCompleted ? 'bg-fuchsia-50 text-fuchsia-300' : 'bg-fuchsia-100 text-fuchsia-600 group-hover:bg-fuchsia-200'}`}>
-          {isCompleted ? <CheckCircle2 className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 ${
+          isExcellent
+            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/25'
+            : isCompleted
+              ? 'bg-fuchsia-100/70 text-fuchsia-400 dark:bg-fuchsia-950/50'
+              : 'bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white shadow-sm shadow-fuchsia-500/25 group-hover:scale-105'
+        }`}>
+          {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4 stroke-[2.5]" />}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex justify-between items-center mb-0.5">
-            <div className={`text-xs font-bold truncate ${isExcellent ? 'text-amber-700' : isCompleted ? 'text-fuchsia-700/60' : 'text-fuchsia-900'}`}>
+          <div className="flex justify-between items-center mb-1">
+            <div className={`text-[13px] font-bold tracking-tight truncate ${isExcellent ? 'text-amber-900 dark:text-amber-200' : isCompleted ? 'text-slate-500 dark:text-stone-400' : 'text-slate-900 dark:text-stone-100'}`}>
               {template.projectName ? `${template.questName} -${template.projectName}-` : template.questName}
             </div>
-            <span className={`text-[9px] font-bold ml-1 shrink-0 ${isExcellent ? 'text-amber-500' : isCompleted ? 'text-fuchsia-300' : 'text-fuchsia-400'}`}>{doneCount}/{quota}</span>
+            <span className={`text-[10px] font-mono font-bold ml-2 shrink-0 px-1.5 py-0.2 rounded-full ${
+              isExcellent
+                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                : isCompleted
+                  ? 'bg-emerald-500/15 text-emerald-600'
+                  : 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400'
+            }`}>
+              {doneCount}/{quota}
+            </span>
           </div>
-          <div className="flex justify-between items-end">
-            <div className="flex flex-col gap-0.5">
-              <div className="text-[10px] text-fuchsia-500 uppercase tracking-wider">{QUEST_TYPE_LABELS[template.questType]}</div>
-              <div className="text-[9px] text-muted-foreground">達成回数: {template.executedCount || 0}</div>
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 uppercase tracking-wider font-bold">
+                {QUEST_TYPE_LABELS[template.questType]}
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-stone-500 font-medium">達成回数: {template.executedCount || 0}</span>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center">
               {Array.from({ length: quota }).map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full border border-fuchsia-200 ${i < doneCount ? 'bg-green-500 border-green-600' : (isExcellent ? 'bg-amber-200' : 'bg-gray-100')}`} />
+                <div
+                  key={i}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    quota > 6 ? 'w-2' : 'w-3'
+                  } ${
+                    i < doneCount
+                      ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]'
+                      : isExcellent
+                        ? 'bg-amber-300'
+                        : 'bg-slate-200/80 dark:bg-stone-700'
+                  }`}
+                />
               ))}
             </div>
           </div>
@@ -2014,7 +2054,7 @@ function OneOffTemplateItem({
   return (
     <>
       <div
-        className={`relative group flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-white transition-all shadow-sm ${isCompleted ? 'opacity-80' : 'hover:bg-orange-50'}`}
+        className={`relative group flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl apple-card ${isCompleted ? 'opacity-65' : 'hover:border-orange-300/80'}`}
         onMouseDown={(e) => { startPress(); }}
         onTouchStart={(e) => {
           const target = e.target as HTMLElement;
@@ -2027,32 +2067,45 @@ function OneOffTemplateItem({
         onTouchMove={cancelPress}
       >
         {isCompleted && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden rounded-lg">
-            <div className="text-2xl font-black text-orange-500/50 -rotate-12 border-4 border-orange-500/50 rounded px-4 py-1 tracking-widest bg-white/60 backdrop-blur-[1px]">
-              CLEAR
-            </div>
+          <div className="absolute right-3 top-2.5 z-10 pointer-events-none">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black text-orange-600 dark:text-orange-400 tracking-wider">
+              ✓ CLEAR
+            </span>
           </div>
         )}
         <div
           onClick={handleNext}
-          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 cursor-pointer z-20 pointer-events-auto transition-colors ${isCompleted ? 'bg-orange-50 text-orange-300' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'}`}
+          className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 cursor-pointer z-20 pointer-events-auto transition-all duration-200 ${
+            isCompleted
+              ? 'bg-orange-100/70 text-orange-400 dark:bg-orange-950/50'
+              : 'bg-gradient-to-br from-orange-400 to-amber-600 text-white shadow-sm shadow-orange-500/25 hover:scale-105 active:scale-95'
+          }`}
         >
-          {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4 stroke-[2.5]" />}
         </div>
         <div className="flex-1 min-w-0 pointer-events-none">
-          <div className="flex justify-between items-center mb-0.5">
-            <div className={`text-xs font-bold truncate ${isCompleted ? 'text-orange-700/60' : 'text-orange-900'}`}>
+          <div className="flex justify-between items-center mb-1">
+            <div className={`text-[13px] font-bold tracking-tight truncate ${isCompleted ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-stone-100'}`}>
               {template.projectName ? `${template.questName} -${template.projectName}-` : template.questName}
             </div>
-            <span className={`text-[9px] font-bold ${isCompleted ? 'text-orange-300' : 'text-orange-400'}`}>{doneCount}/{quota}</span>
+            <span className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full ${isCompleted ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400'}`}>
+              {doneCount}/{quota}
+            </span>
           </div>
-          <div className="flex justify-between items-end">
-            <div className="flex flex-col gap-0.5">
-              <div className="text-[10px] text-orange-500 uppercase tracking-wider">{QUEST_TYPE_LABELS["Free"] || "ONE-OFF"}</div>
-            </div>
-            <div className="flex gap-1" style={{ pointerEvents: 'auto' }}>
+          <div className="flex justify-between items-center">
+            <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 uppercase tracking-wider font-bold">
+              {QUEST_TYPE_LABELS["Free"] || "ONE-OFF"}
+            </span>
+            <div className="flex gap-1 items-center" style={{ pointerEvents: 'auto' }}>
               {Array.from({ length: quota }).map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full border border-orange-200 ${i < doneCount ? 'bg-orange-500 border-orange-600' : 'bg-gray-100'}`} />
+                <div
+                  key={i}
+                  className={`h-2 w-3 rounded-full transition-all duration-300 ${
+                    i < doneCount
+                      ? 'bg-gradient-to-r from-orange-400 to-amber-500 shadow-[0_0_6px_rgba(249,115,22,0.5)]'
+                      : 'bg-slate-200/80 dark:bg-stone-700'
+                  }`}
+                />
               ))}
             </div>
           </div>
@@ -2060,7 +2113,7 @@ function OneOffTemplateItem({
       </div>
 
       <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-        <DialogContent className="sm:max-w-md p-6">
+        <DialogContent className="sm:max-w-md p-6 rounded-3xl">
           <DialogHeader>
             <DialogTitle className="text-center text-lg font-bold truncate">
               {template.questName}
@@ -2071,7 +2124,7 @@ function OneOffTemplateItem({
               variant="outline"
               size="lg"
               onClick={handleDelete}
-              className="w-full text-red-600 border-red-200 hover:bg-red-50 justify-start h-14 text-lg"
+              className="w-full text-red-600 border-red-200 hover:bg-red-50 justify-start h-14 text-lg rounded-2xl"
             >
               <Trash2 className="w-6 h-6 mr-3" />
               Delete Permanently
@@ -2085,18 +2138,18 @@ function OneOffTemplateItem({
 
 function ProjectTemplateItem({ template, onReceive }: { template: any, onReceive: () => void }) {
   return (
-    <div onClick={onReceive} className="cursor-pointer group flex items-center gap-3 p-2 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 transition-all shadow-sm">
-      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
-        <Plus className="w-4 h-4" />
+    <div onClick={onReceive} className="cursor-pointer group flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl apple-card hover:border-indigo-300/80">
+      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-500/25 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+        <Plus className="w-4 h-4 stroke-[2.5]" />
       </div>
-      <div className="flex-1">
-        <div className="text-xs font-bold text-indigo-900">
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-bold tracking-tight text-slate-900 dark:text-stone-100 truncate">
           {template.parentProjectName ? `${template.questName} -${template.parentProjectName}-` : template.questName}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="text-[10px] text-indigo-500 uppercase tracking-wider">PROJECT</div>
-          <div className="text-[9px] text-muted-foreground">達成回数: {template.executedCount || 0}</div>
-          {template.endDate && <div className="text-[9px] text-muted-foreground">期間: {format(new Date(template.startDate || new Date()), "MM/dd")} - {format(new Date(template.endDate), "MM/dd")}</div>}
+        <div className="flex items-center gap-2 flex-wrap mt-1">
+          <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 uppercase tracking-wider font-bold">PROJECT</span>
+          <span className="text-[10px] text-slate-400 font-medium">達成回数: {template.executedCount || 0}</span>
+          {template.endDate && <span className="text-[10px] text-slate-400 font-mono">期間: {format(new Date(template.startDate || new Date()), "MM/dd")} - {format(new Date(template.endDate), "MM/dd")}</span>}
         </div>
       </div>
     </div>
@@ -2187,20 +2240,22 @@ function ConnectionLines({
     <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
       {paths.map(p => (
         <React.Fragment key={p.id}>
-          <path d={p.d} fill="none" stroke="white" strokeWidth="5" strokeLinecap="round" className="opacity-50 dark:opacity-20" />
+          {/* Soft Luminous Outer Glow */}
+          <path d={p.d} fill="none" stroke={p.color} strokeWidth="7" strokeLinecap="round" className="opacity-15" />
+          <path d={p.d} fill="none" stroke="white" strokeWidth="4.5" strokeLinecap="round" className="opacity-70 dark:opacity-20" />
           <path d={p.d} fill="none" stroke={p.color} strokeWidth="2.5" strokeLinecap="round" />
           <path
             d={p.d}
             fill="none"
             stroke="transparent"
             strokeWidth="20"
-            className="pointer-events-auto cursor-pointer hover:stroke-red-500/20"
+            className="pointer-events-auto cursor-pointer hover:stroke-red-500/25 transition-all"
             onClick={() => onUnlink(p.questId, p.slotId)}
           >
-            <title>Click to Unlink</title>
+            <title>クリックして時間の紐付けを解除</title>
           </path>
-          <circle cx={p.x1} cy={p.y1} r="3.5" fill={p.color} stroke="white" strokeWidth="1" />
-          <circle cx={p.x2} cy={p.y2} r="3.5" fill={p.color} stroke="white" strokeWidth="1" />
+          <circle cx={p.x1} cy={p.y1} r="4.5" fill="white" stroke={p.color} strokeWidth="2.5" />
+          <circle cx={p.x2} cy={p.y2} r="4.5" fill={p.color} stroke="white" strokeWidth="1.5" />
         </React.Fragment>
       ))}
     </svg>
@@ -3699,122 +3754,183 @@ export default function Home() {
   if (authLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground" onClick={() => setIsRelaxOpen(false)}>
-      <main className={`${planningViewMode === 'weekly' ? 'w-full max-w-none px-2.5 sm:px-8 py-3 sm:py-8' : 'max-w-7xl px-2.5 sm:px-6 py-3 sm:py-8'} mx-auto overflow-x-hidden`}>
-        {/* Top Header */}
-        <div className="flex flex-col gap-2.5 sm:gap-4 mb-4 sm:mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Quest Log</h1>
-              {(progression?.currentStreak ?? 0) > 0 && (
-                <div className="flex items-center gap-1 text-orange-500 font-bold text-xs sm:text-sm">
-                  <Flame className="fill-orange-500 w-4 h-4 sm:w-5 sm:h-5" /> {progression?.currentStreak}
+    <div className="min-h-screen bg-background text-foreground relative selection:bg-sky-500/20" onClick={() => setIsRelaxOpen(false)}>
+      {/* Ambient Apple Sonoma / iOS Mesh Gradient Background */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute -top-[18%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-sky-400/[0.07] dark:bg-sky-500/[0.05] blur-[110px]" />
+        <div className="absolute top-[15%] -right-[12%] w-[45vw] h-[45vw] rounded-full bg-indigo-400/[0.06] dark:bg-indigo-500/[0.05] blur-[120px]" />
+        <div className="absolute -bottom-[15%] left-[20%] w-[50vw] h-[50vw] rounded-full bg-amber-300/[0.06] dark:bg-amber-500/[0.04] blur-[120px]" />
+      </div>
+
+      <main className={`relative z-10 ${planningViewMode === 'weekly' ? 'w-full max-w-none px-2.5 sm:px-8 py-3 sm:py-6' : 'max-w-[1600px] 2xl:max-w-[1720px] px-2.5 sm:px-6 lg:px-10 py-3 sm:py-6'} mx-auto overflow-x-hidden`}>
+        {/* Top Floating Apple Glass Header Bar */}
+        <div className="apple-glass rounded-3xl p-3 sm:px-5 sm:py-3.5 mb-4 sm:mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 dark:from-white dark:to-stone-300 text-white dark:text-stone-950 flex items-center justify-center shadow-md shadow-slate-900/10 font-black text-base tracking-tighter select-none">
+                Q
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">Quest Log</h1>
+                  {(progression?.currentStreak ?? 0) > 0 && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-600 dark:text-orange-400 font-bold text-xs shadow-2xs">
+                      <Flame className="fill-orange-500 text-orange-500 w-3.5 h-3.5" />
+                      <span>{progression?.currentStreak}日連続</span>
+                    </div>
+                  )}
                 </div>
-              )}
+                <p className="text-[10.5px] text-slate-400 dark:text-stone-400 font-medium mt-0.5 hidden sm:block">
+                  Personal Mission & Life Rhythm OS
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <QuestCreateDialog onCreated={refreshAll} planningDayOffset={planningDayOffset} />
+
+            <div className="flex items-center gap-2 lg:hidden">
+              <QuestCreateDialog
+                onCreated={refreshAll}
+                planningDayOffset={planningDayOffset}
+                trigger={
+                  <button className="h-8 px-3 rounded-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-stone-200 text-white dark:text-stone-950 text-xs font-bold flex items-center gap-1 shadow-sm transition-all active:scale-95 cursor-pointer">
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>作成</span>
+                  </button>
+                }
+              />
             </div>
           </div>
 
-          {/* Sub Navigation Bar - Horizontal Scroll on mobile, flex on desktop */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1 text-xs">
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/rhythm"} className="text-amber-500 dark:text-amber-400 font-semibold shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
-              <Activity className="w-3.5 h-3.5 mr-1 text-amber-500" /> 生活リズム
+          {/* Sub Navigation Bar - Apple Pill Buttons */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 lg:pb-0 text-xs">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/rhythm"} className="rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold shrink-0 text-xs h-8 px-3.5 transition-all">
+              <Activity className="w-3.5 h-3.5 mr-1.5 text-amber-500" /> 生活リズム
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/history"} className="shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
-              <History className="w-3.5 h-3.5 mr-1" /> 履歴
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/awareness"} className="rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold shrink-0 text-xs h-8 px-3.5 transition-all">
+              <Lightbulb className="w-3.5 h-3.5 mr-1.5 fill-amber-500/30 text-amber-500" /> 意識を育てる
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"} className="shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"} className="rounded-full hover:bg-slate-200/60 dark:hover:bg-stone-800 text-slate-600 dark:text-stone-300 font-semibold shrink-0 text-xs h-8 px-3">
               Templates
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"} className="shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"} className="rounded-full hover:bg-slate-200/60 dark:hover:bg-stone-800 text-slate-600 dark:text-stone-300 font-semibold shrink-0 text-xs h-8 px-3">
               Projects
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/awareness"} className="text-amber-600 dark:text-amber-400 font-semibold shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
-              <Lightbulb className="w-3.5 h-3.5 mr-1 fill-amber-500/20" /> 意識を育てる
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/history"} className="rounded-full hover:bg-slate-200/60 dark:hover:bg-stone-800 text-slate-600 dark:text-stone-300 font-semibold shrink-0 text-xs h-8 px-3">
+              <History className="w-3.5 h-3.5 mr-1" /> 履歴
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"} className="shrink-0 text-xs h-7 sm:h-8 px-2 sm:px-3">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"} className="rounded-full hover:bg-slate-200/60 dark:hover:bg-stone-800 text-slate-500 dark:text-stone-400 font-semibold shrink-0 text-xs h-8 px-3">
               <Database className="w-3.5 h-3.5 mr-1" /> DB
             </Button>
+            <div className="hidden lg:block pl-1">
+              <QuestCreateDialog
+                onCreated={refreshAll}
+                planningDayOffset={planningDayOffset}
+                trigger={
+                  <button className="h-8 px-4 rounded-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-stone-200 text-white dark:text-stone-950 text-xs font-bold flex items-center gap-1.5 shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer">
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>新規ミッション</span>
+                  </button>
+                }
+              />
+            </div>
           </div>
         </div>
 
         <Tabs defaultValue="today" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="today">Today</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="today" className="space-y-6 animate-fade-in">
-
+          {/* Mode & Tab Switcher Row */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-5">
             {/* SLIDE NAVIGATION BAR: [ 📋 今日の計画 (TODAY PLANNING) | 🗿 集中モード (脳みその画面) | 🗿 MOAI活動ログ ] */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 bg-stone-100/80 dark:bg-stone-900/80 p-1 sm:p-2 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-2xs">
-              <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-white/70 dark:bg-stone-800/70 rounded-xl border border-stone-200/50 dark:border-stone-700/50 shadow-2xs overflow-x-auto no-scrollbar">
-                <button
-                  type="button"
-                  onClick={() => handleSubViewChange('planning')}
-                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
-                    todaySubView === 'planning'
-                      ? 'bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 shadow-xs font-black'
-                      : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
-                  }`}
-                >
-                  <span>📋</span>
-                  <span>TODAY PLANNING</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-stone-200 dark:bg-stone-700 font-mono">
-                    {todayQuests.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSubViewChange('focus')}
-                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
-                    todaySubView === 'focus'
-                      ? 'bg-amber-500 text-stone-950 shadow-xs font-black'
-                      : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
-                  }`}
-                >
-                  <span>🗿</span>
-                  <span>脳みその画面 (FOCUS)</span>
-                  {activeRunningQuest && (
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSubViewChange('moai')}
-                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
-                    todaySubView === 'moai'
-                      ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-950 shadow-xs font-black'
-                      : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
-                  }`}
-                >
-                  <span>🗿</span>
-                  <span>MOAI活動ログ</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-200 font-mono font-bold">
-                    今週 {moaiWeekCount}
-                  </span>
-                </button>
-              </div>
+            <div className="flex items-center gap-1 apple-segmented overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("today");
+                  handleSubViewChange('planning');
+                }}
+                className={`px-3.5 py-1.5 rounded-[10px] text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
+                  activeTab === 'today' && todaySubView === 'planning'
+                    ? 'apple-segmented-item-active font-black'
+                    : 'text-slate-600 dark:text-stone-400 hover:text-slate-900 dark:hover:text-stone-100'
+                }`}
+              >
+                <span>📋</span>
+                <span>TODAY PLANNING</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  activeTab === 'today' && todaySubView === 'planning'
+                    ? 'bg-slate-900/10 dark:bg-white/20 text-slate-900 dark:text-white font-bold'
+                    : 'bg-slate-200/70 dark:bg-stone-700'
+                }`}>
+                  {todayQuests.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("today");
+                  handleSubViewChange('focus');
+                }}
+                className={`px-3.5 py-1.5 rounded-[10px] text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
+                  activeTab === 'today' && todaySubView === 'focus'
+                    ? 'bg-amber-500 text-stone-950 shadow-sm font-black'
+                    : 'text-slate-600 dark:text-stone-400 hover:text-slate-900 dark:hover:text-stone-100'
+                }`}
+              >
+                <span>🗿</span>
+                <span>脳みその画面 (FOCUS)</span>
+                {activeRunningQuest && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("today");
+                  handleSubViewChange('moai');
+                }}
+                className={`px-3.5 py-1.5 rounded-[10px] text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
+                  activeTab === 'today' && todaySubView === 'moai'
+                    ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-950 shadow-sm font-black'
+                    : 'text-slate-600 dark:text-stone-400 hover:text-slate-900 dark:hover:text-stone-100'
+                }`}
+              >
+                <span>🗿</span>
+                <span>MOAI活動ログ</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200 font-mono font-bold">
+                  今週 {moaiWeekCount}
+                </span>
+              </button>
+            </div>
 
+            <div className="flex items-center justify-between md:justify-end gap-2.5">
               {/* Quick banner if a quest is RUNNING */}
               {activeRunningQuest && (
                 <button
                   type="button"
-                  onClick={() => handleSubViewChange(todaySubView === 'focus' ? 'planning' : 'focus')}
-                  className="flex items-center justify-between sm:justify-end gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer group"
+                  onClick={() => {
+                    setActiveTab("today");
+                    handleSubViewChange(todaySubView === 'focus' ? 'planning' : 'focus');
+                  }}
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer group shadow-2xs"
                 >
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
-                    <span className="truncate max-w-[220px]">⚡ 実行中: {activeRunningQuest.questName}</span>
-                  </div>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+                  <span className="truncate max-w-[180px] sm:max-w-[240px]">⚡ 実行中: {activeRunningQuest.questName}</span>
                   <span className="shrink-0 text-[11px] underline font-extrabold group-hover:translate-x-0.5 transition-transform">
-                    {todaySubView === 'focus' ? '◀ 計画へスライド' : '集中画面へスライド ▶'}
+                    {todaySubView === 'focus' ? '◀ 計画へ' : '集中画面へ ▶'}
                   </span>
                 </button>
               )}
+
+              <TabsList className="apple-segmented h-auto p-1 shrink-0">
+                <TabsTrigger value="today" className="rounded-[9px] px-3.5 py-1 text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-xs">
+                  Today
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="rounded-[9px] px-3.5 py-1 text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-xs">
+                  Calendar
+                </TabsTrigger>
+              </TabsList>
             </div>
+          </div>
+
+          <TabsContent value="today" className="space-y-6 animate-fade-in">
 
             {/* SLIDING HORIZONTAL CONTAINER */}
             <div className="relative w-full overflow-hidden">
@@ -3835,52 +3951,105 @@ export default function Home() {
                     todaySubView === 'planning' ? 'opacity-100 h-auto' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
                   }`}
                 >
-                  {/* SHELF 1: TODAY / WEEKLY PLANNING */}
-                  <section className="space-y-4">
-              {/* Header and Toggle Controls */}
-              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-1 select-none">
+                  {/* SHELF 1: TODAY / WEEKLY PLANNING (Apple Glass Bento Stage) */}
+                  <section className="apple-glass rounded-3xl p-4 sm:p-6 lg:p-8 space-y-6">
+              {/* Header and iOS Control Center Bar */}
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-slate-200/60 dark:border-stone-800/80 select-none">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                    {planningViewMode === 'today'
-                      ? (planningDayOffset === 0 ? "Today" : "Tomorrow") + " Planning"
-                      : "1-Week Planning & Insights"
-                    }
-                  </h2>
+                  {/* Apple Watch-style Mini Activity Ring */}
+                  {(() => {
+                    const totalCount = todayQuests.length;
+                    const clearedCount = todayQuests.filter(q => q.status === 'cleared').length;
+                    const pct = totalCount > 0 ? Math.round((clearedCount / totalCount) * 100) : 0;
+                    const radius = 15;
+                    const circumference = 2 * Math.PI * radius;
+                    const strokeDashoffset = circumference - (pct / 100) * circumference;
+                    return (
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                          <svg className="w-10 h-10 -rotate-90" viewBox="0 0 38 38">
+                            <circle cx="19" cy="19" r={radius} fill="none" stroke="currentColor" strokeWidth="4" className="text-slate-200/80 dark:text-stone-800" />
+                            <circle
+                              cx="19"
+                              cy="19"
+                              r={radius}
+                              fill="none"
+                              stroke="url(#appleRingGrad)"
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                              strokeDasharray={circumference}
+                              strokeDashoffset={strokeDashoffset}
+                              className="transition-all duration-500 ease-out"
+                            />
+                            <defs>
+                              <linearGradient id="appleRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#0ea5e9" />
+                                <stop offset="100%" stopColor="#10b981" />
+                              </linearGradient>
+                            </defs>
+                          </svg>
+                          <span className="absolute text-[9px] font-black font-mono text-slate-700 dark:text-stone-200">
+                            {pct}%
+                          </span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-none">
+                              {planningViewMode === 'today'
+                                ? (planningDayOffset === 0 ? "Today Planning" : "Tomorrow Planning")
+                                : "1-Week Planning & Insights"
+                              }
+                            </h2>
+                            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
+                              {format(targetDate, "M/d (E)")}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 dark:text-stone-400 font-medium mt-1 flex items-center gap-2">
+                            <span>完了 {clearedCount}/{totalCount}</span>
+                            <span>•</span>
+                            <span>タスクをドラッグして右の時間枠へ接続</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {planningViewMode === 'today' && (
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex items-center gap-1 apple-segmented ml-1">
                       <button
                         onClick={() => setPlanningDayOffset(Math.max(0, planningDayOffset - 1))}
                         disabled={planningDayOffset === 0}
-                        className="p-0.5 rounded hover:bg-muted disabled:opacity-20 transition-colors"
+                        className="p-1 rounded-lg hover:bg-white/80 disabled:opacity-25 transition-all cursor-pointer"
+                        title="今日"
                       >
-                        <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                        <ChevronLeft className="w-4 h-4 text-slate-700 dark:text-stone-200" />
                       </button>
                       <button
                         onClick={() => setPlanningDayOffset(Math.min(1, planningDayOffset + 1))}
                         disabled={planningDayOffset === 1}
-                        className="p-0.5 rounded hover:bg-muted disabled:opacity-20 transition-colors"
+                        className="p-1 rounded-lg hover:bg-white/80 disabled:opacity-25 transition-all cursor-pointer"
+                        title="明日"
                       >
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        <ChevronRight className="w-4 h-4 text-slate-700 dark:text-stone-200" />
                       </button>
                     </div>
                   )}
 
                   {planningViewMode === 'weekly' && (
-                    <div className="flex items-center gap-1 bg-muted/50 p-0.5 rounded-lg text-xs">
+                    <div className="flex items-center gap-1 apple-segmented text-xs">
                       <button
                         onClick={() => setWeeklyActiveDate(prev => {
                           const d = new Date(prev);
                           d.setDate(d.getDate() - 7);
                           return d;
                         })}
-                        className="p-1 hover:bg-background rounded transition-colors"
+                        className="p-1 hover:bg-white/80 rounded-lg transition-colors cursor-pointer"
                       >
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setWeeklyActiveDate(startOfWeek(new Date(), { weekStartsOn: 1 }))}
-                        className="px-2 py-0.5 hover:bg-background rounded transition-colors font-bold text-[10px]"
+                        className="px-2.5 py-1 bg-white dark:bg-stone-800 rounded-lg shadow-2xs transition-colors font-bold text-[10.5px] cursor-pointer"
                       >
                         今週
                       </button>
@@ -3890,22 +4059,22 @@ export default function Home() {
                           d.setDate(d.getDate() + 7);
                           return d;
                         })}
-                        className="p-1 hover:bg-background rounded transition-colors"
+                        className="p-1 hover:bg-white/80 rounded-lg transition-colors cursor-pointer"
                       >
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
-                      <span className="text-[10px] text-muted-foreground px-1 font-mono">
-                        {format(weeklyActiveDate, "yyyy/MM/dd")} - {format(new Date(weeklyActiveDate.getTime() + 6 * 24 * 60 * 60 * 1000), "yyyy/MM/dd")}
+                      <span className="text-[10.5px] text-slate-500 px-2 font-mono font-semibold">
+                        {format(weeklyActiveDate, "MM/dd")} - {format(new Date(weeklyActiveDate.getTime() + 6 * 24 * 60 * 60 * 1000), "MM/dd")}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Granularity, Spacing & View controls */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                {/* Granularity, Spacing & View controls (iOS Control Center Pills) */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                   {/* Card Width Slider (Hidden on mobile where width auto-fits screen) */}
-                  <div className="hidden sm:flex items-center gap-2 text-xs bg-muted px-2.5 py-1.5 rounded-lg shadow-inner">
-                    <span className="font-bold text-muted-foreground">横幅:</span>
+                  <div className="hidden sm:flex items-center gap-2 text-xs apple-segmented px-3 py-1.5">
+                    <span className="font-bold text-slate-500 dark:text-stone-300 text-[11px]">横幅</span>
                     <input
                       type="range"
                       min="220"
@@ -3921,22 +4090,22 @@ export default function Home() {
                         } catch {}
                         setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
                       }}
-                      className="w-24 sm:w-28 accent-primary cursor-ew-resize h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none"
+                      className="w-20 sm:w-24 accent-sky-500 cursor-ew-resize h-1.5 bg-slate-300/80 dark:bg-slate-700 rounded-lg appearance-none"
                     />
-                    <span className="font-mono text-[10px] text-muted-foreground w-10">{cardWidth}px</span>
+                    <span className="font-mono text-[10px] text-slate-500 w-9 text-right">{cardWidth}px</span>
                   </div>
 
                   {/* Granularity Toggle */}
-                  <div className="flex bg-muted p-0.5 rounded-lg text-xs shadow-inner">
+                  <div className="flex apple-segmented text-xs">
                     <button
                       onClick={() => {
                         setTimelineInterval(30);
                         try { localStorage.setItem('timeline_interval', '30'); } catch {}
                       }}
-                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                      className={`px-3 py-1 rounded-[9px] font-bold transition-all cursor-pointer ${
                         timelineInterval === 30
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
+                          ? 'apple-segmented-item-active'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-stone-400'
                       }`}
                     >
                       30分
@@ -3946,10 +4115,10 @@ export default function Home() {
                         setTimelineInterval(60);
                         try { localStorage.setItem('timeline_interval', '60'); } catch {}
                       }}
-                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                      className={`px-3 py-1 rounded-[9px] font-bold transition-all cursor-pointer ${
                         timelineInterval === 60
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
+                          ? 'apple-segmented-item-active'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-stone-400'
                       }`}
                     >
                       1時間
@@ -3957,32 +4126,32 @@ export default function Home() {
                   </div>
 
                   {/* Main View Toggle Buttons */}
-                  <div className="flex bg-muted p-0.5 rounded-lg text-xs shadow-inner font-sans">
+                  <div className="flex apple-segmented text-xs">
                     <button
                       onClick={() => {
                         setPlanningViewMode('today');
                         try { localStorage.setItem('planning_view_mode', 'today'); } catch {}
                       }}
-                      className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${
+                      className={`px-3 py-1 rounded-[9px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                         planningViewMode === 'today'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
+                          ? 'apple-segmented-item-active'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-stone-400'
                       }`}
                     >
-                      🎯 今日集中表示 (Day)
+                      🎯 今日集中 (Day)
                     </button>
                     <button
                       onClick={() => {
                         setPlanningViewMode('weekly');
                         try { localStorage.setItem('planning_view_mode', 'weekly'); } catch {}
                       }}
-                      className={`px-3 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 ${
+                      className={`px-3 py-1 rounded-[9px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                         planningViewMode === 'weekly'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
+                          ? 'apple-segmented-item-active'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-stone-400'
                       }`}
                     >
-                      📅 1週間表示 (7 Days)
+                      📅 1週間 (7 Days)
                     </button>
                   </div>
 
@@ -3990,10 +4159,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setIsMoaiBoardFilter(prev => !prev)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                       isMoaiBoardFilter
                         ? 'bg-amber-500 text-stone-950 border-amber-600 font-black shadow-xs ring-2 ring-amber-500/40'
-                        : 'bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground border-stone-200/60 dark:border-stone-700/60'
+                        : 'bg-white/70 dark:bg-stone-800/70 hover:bg-white text-slate-600 dark:text-stone-300 border-slate-200/80 dark:border-stone-700'
                     }`}
                     title="MOAI活動のミッションのみ絞り込み表示します"
                   >
@@ -4005,7 +4174,7 @@ export default function Home() {
                   </button>
 
                   {/* Moai Weekend Rhythm Toggle */}
-                  <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-xs shadow-inner">
+                  <div className="flex items-center gap-1 apple-segmented text-xs">
                     <button
                       type="button"
                       onClick={() => {
@@ -4015,10 +4184,10 @@ export default function Home() {
                         toast.success(next ? "🗿 土日モアイリズム表示をONにしました（土日のみ自動適用）" : "モアイリズム表示をOFFにしました");
                         setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
                       }}
-                      className={`px-2.5 py-1.5 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      className={`px-3 py-1 rounded-[9px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                         isMoaiRhythmActive
                           ? 'bg-amber-500 text-stone-950 shadow-xs font-black'
-                          : 'text-muted-foreground hover:text-foreground'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-stone-400'
                       }`}
                       title="土日のみモアイの1日リズム（ゴールデンタイム・だれ注意・夜モード等の暗示）を表示します（テスト切り替え）"
                     >
@@ -4035,10 +4204,10 @@ export default function Home() {
                           toast.info(next ? "👀 平日でもテストプレビュー表示中（本来は土日限定）" : "土日のみ表示に戻しました");
                           setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
                         }}
-                        className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        className={`px-2 py-1 rounded-[8px] text-[10px] font-bold transition-all cursor-pointer ${
                           isForceRhythmPreview
                             ? 'bg-amber-200 dark:bg-amber-900/60 text-amber-950 dark:text-amber-100 ring-1 ring-amber-400 font-black'
-                            : 'text-muted-foreground hover:text-foreground'
+                            : 'text-slate-500 hover:text-slate-900'
                         }`}
                         title="本来は土日限定ですが、平日（月〜金）でも今すぐ画面で確認できるテストプレビューモードです"
                       >
@@ -4050,9 +4219,9 @@ export default function Home() {
               </div>
 
               {planningViewMode === 'today' ? (
-                /* TODAY VIEW (Original Layout, but dynamic slots) */
-                <div className="relative w-full max-w-full">
-                  <div ref={containerRef} className="flex justify-center gap-2 sm:gap-8 md:gap-12 items-start relative min-h-[500px] w-full max-w-full">
+                /* TODAY VIEW (Apple Glass Stage with Sweeping Bezier Curves) */
+                <div className="relative w-full max-w-full pt-1">
+                  <div ref={containerRef} className="flex justify-center gap-3 sm:gap-12 md:gap-20 items-start relative min-h-[500px] w-full max-w-full">
                     <ConnectionLines
                       quests={todayQuests}
                       parentRef={containerRef as React.RefObject<HTMLDivElement>}
@@ -4062,22 +4231,25 @@ export default function Home() {
                     />
 
                     <div
-                      className="flex flex-col gap-1.5 sm:gap-3 rounded-lg sm:rounded-xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150 flex-1 sm:flex-initial min-w-0"
+                      className="flex flex-col gap-2 sm:gap-3 rounded-2xl p-0.5 sm:p-2 z-20 min-h-[300px] shrink-0 transition-all duration-150 flex-1 sm:flex-initial min-w-0"
                       style={{
                         width: isMobile ? 'calc(100% - 76px)' : `${cardWidth}px`,
                         maxWidth: isMobile ? 'calc(100% - 76px)' : 'calc(100% - 76px)',
                       }}
                     >
-                      {todayQuests.length > 0 && (
-                        <div className="flex items-center justify-between px-1 pb-1">
-                          <span className="text-[10px] font-bold text-muted-foreground">
-                            {todayQuests.length} tasks
+                      <div className="flex items-center justify-between px-1.5 pb-1">
+                        <span className="text-[11px] font-bold text-slate-400 dark:text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>MISSIONS</span>
+                          <span className="px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-stone-800 text-slate-600 dark:text-stone-300 font-mono text-[10px]">
+                            {todayQuests.length}
                           </span>
+                        </span>
+                        <div className="flex items-center gap-1.5">
                           {todayQuests.length > 1 && (
                             <button
                               type="button"
                               onClick={() => handleSortByTime(targetDateStr)}
-                              className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 px-1.5 py-0.5 rounded flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95"
+                              className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95"
                               title="時間枠の早い順に並び替えて保存"
                             >
                               <Clock className="w-2.5 h-2.5" />
@@ -4085,7 +4257,20 @@ export default function Home() {
                             </button>
                           )}
                         </div>
-                      )}
+                      </div>
+
+                      {/* Quick Create Button inside Mission Column */}
+                      <QuestCreateDialog
+                        onCreated={refreshAll}
+                        defaultDate={targetDate}
+                        trigger={
+                          <button className="w-full py-2 text-xs font-bold border border-dashed border-slate-300/90 dark:border-stone-700 rounded-2xl text-slate-400 hover:text-sky-600 hover:border-sky-300 hover:bg-white/80 dark:hover:bg-stone-800/60 transition-all select-none flex items-center justify-center gap-1 cursor-pointer active:scale-[0.99]">
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>新規タスクを追加</span>
+                          </button>
+                        }
+                      />
+
                       {todayQuests.map(q => {
                         const isDraggingCurrent = dragState.itemId === q.id && dragState.mode === 'sort';
                         const effectiveAdhoc = isDraggingCurrent
@@ -4098,12 +4283,12 @@ export default function Home() {
                             key={q.id}
                             data-sort-id={q.id}
                             data-sort-date={targetDateStr}
-                            className={`cursor-default relative bg-background rounded-xl z-20 transition-all duration-150 ${
+                            className={`cursor-default relative rounded-2xl z-20 transition-all duration-150 ${
                               effectiveAdhoc ? 'ml-4 sm:ml-5 w-[calc(100%-1rem)] sm:w-[calc(100%-1.25rem)]' : 'ml-0 w-full'
                             } ${
                               isDraggingCurrent
-                                ? 'shadow-2xl scale-105 z-50 ring-2 ring-primary'
-                                : 'hover:scale-[1.01]'
+                                ? 'shadow-2xl scale-105 z-50 ring-2 ring-sky-500'
+                                : ''
                             }`}
                           >
                             <TodayItem
@@ -4125,15 +4310,15 @@ export default function Home() {
                       })}
                     </div>
 
-                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${showMoaiRhythmToday ? 'w-auto sm:min-w-[140px] sm:max-w-[280px]' : TIME_SLOT_WIDTH}`}>
+                    <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${showMoaiRhythmToday ? 'w-auto sm:min-w-[150px] sm:max-w-[290px]' : TIME_SLOT_WIDTH}`}>
                       <div className="flex flex-col gap-2 w-full pb-10">
-                        <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground/70 mb-1 px-1">
-                          <span>Log</span>
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 dark:text-stone-400 uppercase tracking-wider mb-1 px-1.5">
+                          <span>TIMELINE</span>
                           {showMoaiRhythmToday && (
                             <button
                               type="button"
                               onClick={() => setIsMoaiRhythmGuideOpen(true)}
-                              className="hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/20 transition-all cursor-pointer"
+                              className="hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/20 transition-all cursor-pointer"
                               title="モアイの1日リズム図を表示"
                             >
                               <span>🗿</span>
@@ -4154,29 +4339,44 @@ export default function Home() {
                             }
                           });
 
+                          // Highlight current hour slot when viewing Today
+                          const nowHour = new Date().getHours();
+                          const slotStartHour = parseInt(slot.label.split(":")[0], 10);
+                          const isCurrentHourSlot = planningDayOffset === 0 && nowHour === slotStartHour;
+
                           return (
-                            <div key={slot.id} className="flex items-center gap-1 sm:gap-2 w-full group/slot-row relative">
+                            <div key={slot.id} className="flex items-center gap-1.5 sm:gap-2 w-full group/slot-row relative">
                               <div
                                 data-slot-id={slot.id}
                                 data-slot-date={format(targetDate, "yyyy-MM-dd")}
                                 title={showMoaiRhythmToday ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
-                                className={`w-[66px] sm:w-28 md:w-32 shrink-0 rounded-lg border border-border/80 bg-card/90 px-1 py-1 min-h-[28px] sm:min-h-[30px] flex items-center justify-center transition-all hover:bg-accent/10 hover:border-accent/60 group relative shadow-2xs overflow-hidden ${showMoaiRhythmToday ? zone.slotClass : ''}`}
+                                className={`w-[68px] sm:w-32 md:w-36 shrink-0 rounded-xl px-2 py-1.5 min-h-[30px] sm:min-h-[33px] flex items-center justify-center transition-all duration-200 group relative overflow-hidden ${
+                                  isUsed
+                                    ? 'bg-white dark:bg-stone-800 border border-sky-400/70 shadow-xs ring-2 ring-sky-500/10'
+                                    : isCurrentHourSlot
+                                      ? 'bg-rose-50/70 dark:bg-rose-950/30 border border-rose-300/80 dark:border-rose-700/60 shadow-2xs'
+                                      : 'bg-white/55 dark:bg-stone-900/50 border border-slate-200/70 dark:border-stone-800/80 hover:bg-white/95 hover:border-sky-300/70 hover:shadow-xs'
+                                } ${showMoaiRhythmToday ? zone.slotClass : ''}`}
                               >
-                                <span className="z-10 font-mono text-[10.5px] sm:text-[12.5px] font-black text-neutral-950 dark:text-neutral-950 tracking-tight select-none pointer-events-none drop-shadow-[0_0_2px_rgba(255,255,255,0.9)] [text-shadow:_0_0_4px_#fff,_0_0_2px_#fff]">
+                                {isCurrentHourSlot && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5 shrink-0 animate-pulse" title="現在時刻" />
+                                )}
+                                <span className={`z-10 font-mono text-[10.5px] sm:text-[12px] tracking-tight select-none pointer-events-none transition-colors ${
+                                  isUsed
+                                    ? 'font-black text-slate-900 dark:text-white'
+                                    : isCurrentHourSlot
+                                      ? 'font-bold text-rose-700 dark:text-rose-300'
+                                      : 'font-semibold text-slate-500 dark:text-stone-400 group-hover:text-slate-800 dark:group-hover:text-stone-200'
+                                }`}>
                                   {slot.label}
                                 </span>
-                                {!isUsed && (
-                                  <>
-                                    {isJobModeActive && isJobSlot(slot.label) ? (
-                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                                        <img src="/job_stamp.png" alt="job" className="w-12 sm:w-16 md:w-20 -rotate-12 select-none" />
-                                      </div>
-                                    ) : (
-                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-75 transition-opacity z-0">
-                                        <img src="/free_stamp.png" alt="free" className="w-12 sm:w-16 md:w-20 -rotate-12 select-none" />
-                                      </div>
-                                    )}
-                                  </>
+                                {isUsed && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500 ml-1.5 shrink-0 shadow-[0_0_6px_rgba(14,165,233,0.8)]" />
+                                )}
+                                {!isUsed && isJobModeActive && isJobSlot(slot.label) && (
+                                  <span className="ml-1.5 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-slate-200/80 dark:bg-stone-800 text-slate-500 select-none pointer-events-none">
+                                    JOB
+                                  </span>
                                 )}
                               </div>
 
@@ -4190,7 +4390,7 @@ export default function Home() {
                                   />
                                   {isFirstSlotOfZone && (
                                     <div
-                                      className={`hidden sm:flex px-2 py-0.5 rounded-md text-[9.5px] font-black border items-center gap-1.5 whitespace-nowrap shadow-xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
+                                      className={`hidden sm:flex px-2.5 py-0.5 rounded-full text-[9.5px] font-black border items-center gap-1.5 whitespace-nowrap shadow-xs animate-in fade-in-50 duration-200 ${zone.headerBorderClass}`}
                                     >
                                       <span>{zone.emoji}</span>
                                       <span>{zone.shortName}</span>
@@ -4218,7 +4418,7 @@ export default function Home() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full text-[10px] h-6 border-dashed"
+                            className="w-full text-[10px] h-7 rounded-full border-dashed bg-white/70 hover:bg-white"
                             onClick={handleDisableJobMode}
                           >
                             Job Mode 解除
@@ -4347,19 +4547,17 @@ export default function Home() {
               )
             }
 
-            <div className="h-px bg-border/50 my-6" />
-
-            {/* In weekly mode, wrap all lower shelves in max-w-7xl so only the 7-day schedule is full-width */}
-            <div className={planningViewMode === 'weekly' ? 'max-w-7xl mx-auto w-full' : 'w-full'}>
+            {/* In weekly mode, wrap all lower shelves in max-w-[1600px] so only the 7-day schedule is full-width */}
+            <div className={planningViewMode === 'weekly' ? 'max-w-[1600px] mx-auto w-full pt-2' : 'w-full pt-2'}>
               {/* Mobile Column Quick Switch Tabs (Visible only on mobile) */}
               <div className="flex items-center justify-between lg:hidden mb-3 px-1">
-                <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/50 text-xs font-semibold">
+                <div className="flex items-center gap-1 apple-segmented text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => scrollToMobileColumn('left')}
-                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                    className={`px-3.5 py-1.5 rounded-[9px] transition-all flex items-center gap-1.5 ${
                       mobileActiveCol === 'left'
-                        ? 'bg-background text-foreground shadow-sm font-bold'
+                        ? 'apple-segmented-item-active font-bold'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -4368,28 +4566,28 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => scrollToMobileColumn('right')}
-                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                    className={`px-3.5 py-1.5 rounded-[9px] transition-all flex items-center gap-1.5 ${
                       mobileActiveCol === 'right'
-                        ? 'bg-background text-foreground shadow-sm font-bold'
+                        ? 'apple-segmented-item-active font-bold'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <span>📋</span> タスク一覧
                   </button>
                 </div>
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium bg-muted/30 px-2.5 py-1 rounded-full border border-border/30">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium bg-white/60 dark:bg-stone-800/60 px-2.5 py-1 rounded-full border border-border/40">
                   <span className="text-sm leading-none">↔</span> 横スワイプ切替
                 </span>
               </div>
 
-              {/* SIDE-BY-SIDE 2 COLUMNS: Horizontal swipe on mobile, 2-column grid on desktop */}
+              {/* SIDE-BY-SIDE 2 COLUMNS: Horizontal swipe on mobile, 2-column Bento grid on desktop */}
               <div
                 ref={mobileColumnsContainerRef}
                 onScroll={handleMobileColumnsScroll}
-                className="flex lg:grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 items-start overflow-x-auto lg:overflow-visible snap-x snap-mandatory scroll-smooth pb-4 lg:pb-0 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 custom-scrollbar mb-8"
+                className="flex lg:grid lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-7 items-start overflow-x-auto lg:overflow-visible snap-x snap-mandatory scroll-smooth pb-4 lg:pb-0 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 custom-scrollbar mb-8"
               >
-                {/* LEFT COLUMN: Goals & Bulletin Diary */}
-                <div className="w-[88vw] sm:w-[500px] lg:w-auto shrink-0 lg:shrink min-w-0 snap-start space-y-6">
+                {/* LEFT COLUMN: Goals & Bulletin Diary (7 cols on 12-col grid for generous reading/writing comfort) */}
+                <div className="w-[88vw] sm:w-[500px] lg:w-auto lg:col-span-7 shrink-0 lg:shrink min-w-0 snap-start space-y-6">
                   {/* MONTHLY GOALS */}
                   <MonthlyGoalBoard />
 
@@ -4397,17 +4595,23 @@ export default function Home() {
                   <BulletinBoard />
                 </div>
 
-                {/* RIGHT COLUMN: Task Shelves (FIX, Non-FIX, One-Off, Project, Relax, History, Kaizen Memo) */}
-                <div className="w-[88vw] sm:w-[500px] lg:w-auto shrink-0 lg:shrink min-w-0 snap-start space-y-6">
+                {/* RIGHT COLUMN: Task Shelves (5 cols on 12-col grid, styled as iOS Widget Bento Cards) */}
+                <div className="w-[88vw] sm:w-[500px] lg:w-auto lg:col-span-5 shrink-0 lg:shrink min-w-0 snap-start space-y-5">
 
             {/* SHELF 2: FIX (Scheduled) */}
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-xs font-bold text-sky-500 uppercase tracking-wider">FIX (Scheduled)</h2>
+            <section className="apple-glass rounded-3xl p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3.5 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.6)]" />
+                  <h2 className="text-xs font-black text-slate-800 dark:text-stone-100 uppercase tracking-wider">FIX (Scheduled)</h2>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                  {fixShelfQuests.length}
+                </span>
               </div>
               {
                 fixShelfQuests.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No scheduled tasks.</div> : (
-                  <div className="space-y-2">{fixShelfQuests.map(q => {
+                  <div className="space-y-2.5">{fixShelfQuests.map(q => {
                     const t = templates?.find(tp => tp.id === q.templateId);
                     return <FixItem key={q.id} quest={q} executedCount={t?.executedCount || 0} onReceive={() => handleReceiveFix(q.id)} />;
                   })}</div>
@@ -4415,17 +4619,21 @@ export default function Home() {
               }
             </section>
 
-            <div className="h-px bg-border/50 my-6" />
-
             {/* SHELF 3: NON-FIX (Pool) */}
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-xs font-bold text-fuchsia-500 uppercase tracking-wider">Non-FIX (Pool)</h2>
+            <section className="apple-glass rounded-3xl p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3.5 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-fuchsia-500 shadow-[0_0_8px_rgba(217,70,239,0.6)]" />
+                  <h2 className="text-xs font-black text-slate-800 dark:text-stone-100 uppercase tracking-wider">Non-FIX (Pool)</h2>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400">
+                  {orderedNonFix.length}
+                </span>
               </div>
               {orderedNonFix.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No pool templates.</div> : (
                 <div
                   id="nonfix-list"
-                  className="space-y-2"
+                  className="space-y-2.5"
                   onMouseMove={(e) => handleNonFixDragMove(e.clientY)}
                   onTouchMove={(e) => handleNonFixDragMove(e.touches[0].clientY)}
                   onMouseUp={handleNonFixDragEnd}
@@ -4449,15 +4657,19 @@ export default function Home() {
               )}
             </section>
 
-            <div className="h-px bg-border/50 my-6" />
-
             {/* SHELF 3.5: ONE-OFF (IN PROGRESS) */}
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-xs font-bold text-orange-500 uppercase tracking-wider">ONE-OFF (IN PROGRESS)</h2>
+            <section className="apple-glass rounded-3xl p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3.5 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
+                  <h2 className="text-xs font-black text-slate-800 dark:text-stone-100 uppercase tracking-wider">ONE-OFF (IN PROGRESS)</h2>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                  {oneOffTemplates.length}
+                </span>
               </div>
               {oneOffTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active one-off missions.</div> : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {oneOffTemplates.map(t => (
                     <OneOffTemplateItem
                       key={t.id}
@@ -4470,33 +4682,36 @@ export default function Home() {
               )}
             </section>
 
-            <div className="h-px bg-border/50 my-6" />
-
             {/* SHELF 4: PROJECT */}
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h2 className="text-xs font-bold text-indigo-500 uppercase tracking-wider">PROJECT</h2>
+            <section className="apple-glass rounded-3xl p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3.5 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+                  <h2 className="text-xs font-black text-slate-800 dark:text-stone-100 uppercase tracking-wider">PROJECT</h2>
+                </div>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                  {projectTemplates.length}
+                </span>
               </div>
               {projectTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No active projects.</div> : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {projectTemplates.map(t => <ProjectTemplateItem key={t.id} template={t} onReceive={() => handleReceiveProject(t)} />)}
                 </div>
               )}
             </section>
 
-            <div className="h-px bg-border/50 my-6" />
-
             {/* SHELF 5: RELAX (Collapsible) */}
-            <section>
+            <section className="apple-glass rounded-3xl p-4 sm:p-5">
               <div
                 onClick={(e) => { e.stopPropagation(); setIsRelaxOpen(!isRelaxOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors"
+                className="flex items-center justify-between px-1 cursor-pointer hover:opacity-80 rounded-xl py-0.5 transition-opacity"
               >
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                  <h2 className="text-xs font-black text-slate-800 dark:text-stone-100 uppercase tracking-wider flex items-center gap-1">
                     <span>🌱</span> RELAX
                   </h2>
-                  <span className="text-[10px] text-muted-foreground bg-emerald-50 px-1.5 rounded-sm">Recover</span>
+                  <span className="text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-0.2 rounded-full font-bold">Recover</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -4506,7 +4721,7 @@ export default function Home() {
                       e.stopPropagation();
                       setIsMovieStockOpen(true);
                     }}
-                    className="h-6 px-2 text-[10px] font-bold text-rose-600 bg-rose-50/90 hover:bg-rose-100 hover:text-rose-700 rounded border border-rose-200/80 flex items-center gap-1 shadow-2xs"
+                    className="h-6 px-2.5 text-[10px] font-bold text-rose-600 bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-700 rounded-full border border-rose-500/20 flex items-center gap-1 shadow-2xs"
                   >
                     <span>🎬</span>
                     <span>映画ストック</span>
@@ -4516,37 +4731,37 @@ export default function Home() {
                       </span>
                     )}
                   </Button>
-                  <div className="text-emerald-400">
+                  <div className="text-slate-400 text-xs">
                     {isRelaxOpen ? "▼" : "▶"}
                   </div>
                 </div>
               </div>
 
               {isRelaxOpen && (
-                <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200 mt-3.5">
                   {relaxTemplates.length === 0 ? <div className="text-xs text-muted-foreground px-1 italic">No relax missions.</div> : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {relaxTemplates.map(t => {
                         const isMovie = t.questName?.includes("映画");
                         return (
                           <div
                             key={t.id}
                             onClick={() => handleReceiveRelax(t)}
-                            className="cursor-pointer group relative flex flex-col justify-between p-2 rounded-lg border border-emerald-200 bg-white hover:scale-[1.02] hover:shadow-sm transition-all shadow-sm min-h-[58px]"
+                            className="cursor-pointer group relative flex flex-col justify-between p-2.5 rounded-2xl apple-card hover:border-emerald-300/80 min-h-[62px]"
                           >
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors shrink-0">
-                                <Plus className="w-4 h-4" />
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-sm shadow-emerald-500/25 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                                <Plus className="w-4 h-4 stroke-[2.5]" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-xs font-bold text-emerald-900 truncate">{t.questName}</div>
-                                <div className="text-[9px] text-emerald-500">Recovery</div>
+                                <div className="text-xs font-bold text-slate-900 dark:text-stone-100 truncate">{t.questName}</div>
+                                <div className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-medium">Recovery</div>
                               </div>
                             </div>
 
                             {/* If movie template, show quick stock button */}
                             {isMovie && (
-                              <div className="mt-1.5 pt-1.5 border-t border-emerald-100/70 flex items-center justify-between">
+                              <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-stone-800 flex items-center justify-between">
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -4563,7 +4778,7 @@ export default function Home() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="w-6 h-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100/50 text-emerald-400"
+                              className="w-6 h-6 rounded-full absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-100/50 text-emerald-500"
                               onClick={(e) => { e.stopPropagation(); setEditingRelaxTemplate(t); }}
                             >
                               <Pencil className="w-3 h-3" />
@@ -4577,41 +4792,40 @@ export default function Home() {
               )}
             </section>
 
-            <div className="h-px bg-border/50 my-6" />
-
             {/* SHELF 6: HISTORY (Collapsible) */}
-            <section>
+            <section className="apple-glass rounded-3xl p-4 sm:p-5">
               <div
                 onClick={(e) => { e.stopPropagation(); setIsHistoryOpen(!isHistoryOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-slate-50/50 rounded-md py-1 transition-colors"
+                className="flex items-center justify-between px-1 cursor-pointer hover:opacity-80 rounded-xl py-0.5 transition-opacity"
               >
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                    <History className="w-3 h-3" /> HISTORY
+                  <History className="w-3.5 h-3.5 text-slate-500" />
+                  <h2 className="text-xs font-black text-slate-700 dark:text-stone-200 uppercase tracking-wider">
+                    HISTORY
                   </h2>
-                  <span className="text-[10px] text-muted-foreground bg-slate-100 px-1.5 rounded-sm">One-off</span>
+                  <span className="text-[10px] text-slate-500 bg-slate-200/70 dark:bg-stone-800 px-2 py-0.2 rounded-full font-semibold">One-off</span>
                 </div>
-                <div className="text-slate-400">
+                <div className="text-slate-400 text-xs">
                   {isHistoryOpen ? "▼" : "▶"}
                 </div>
               </div>
 
               {isHistoryOpen && (
-                <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200 mt-3.5">
                   {!historyItems?.length ? <div className="text-xs text-muted-foreground px-1 italic">No history available.</div> : (
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       {historyItems.map((item: any) => (
                         <div
                           key={item.id}
                           onClick={() => setRestoringHistoryItem(item)}
-                          className="cursor-pointer group flex items-center justify-between p-2 rounded-lg border border-slate-100 bg-white hover:bg-slate-50 transition-all shadow-sm"
+                          className="cursor-pointer group flex items-center justify-between p-2.5 rounded-2xl apple-card"
                         >
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs font-medium text-slate-700 truncate">{item.questName}</div>
+                            <div className="text-xs font-bold text-slate-700 dark:text-stone-200 truncate">{item.questName}</div>
                             {item.note && <div className="text-[10px] text-slate-400 truncate">{item.note}</div>}
                           </div>
-                          <Button size="icon" variant="ghost" className="w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-400">
-                            <Plus className="w-3 h-3" />
+                          <Button size="icon" variant="ghost" className="w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 text-slate-400">
+                            <Plus className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       ))}
@@ -4628,34 +4842,33 @@ export default function Home() {
               />
             </section>
 
-            <div className="h-px bg-border/50 my-6" />
-
             {/* SHELF 7: KAIZEN MEMO (Collapsible) - 気付き＆アクション */}
-            <section>
+            <section className="apple-glass rounded-3xl p-4 sm:p-5">
               <div
                 onClick={(e) => { e.stopPropagation(); setIsMemoOpen(!isMemoOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-amber-50/50 rounded-md py-1 transition-colors"
+                className="flex items-center justify-between px-1 cursor-pointer hover:opacity-80 rounded-xl py-0.5 transition-opacity"
               >
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
-                    <MessageSquarePlus className="w-3 h-3" /> KAIZEN MEMO
+                  <MessageSquarePlus className="w-3.5 h-3.5 text-amber-500" />
+                  <h2 className="text-xs font-black text-slate-800 dark:text-stone-100 uppercase tracking-wider">
+                    KAIZEN MEMO
                   </h2>
-                  <span className="text-[10px] text-muted-foreground bg-amber-50 px-1.5 rounded-sm">気付き＆アクション</span>
+                  <span className="text-[10px] text-amber-700 bg-amber-500/10 px-2 py-0.2 rounded-full font-semibold">気付き＆アクション</span>
                 </div>
-                <div className="text-amber-400">
+                <div className="text-slate-400 text-xs">
                   {isMemoOpen ? "▼" : "▶"}
                 </div>
               </div>
 
               {isMemoOpen && (
-                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3">
-                  <div className="flex flex-col gap-2 p-2 border border-amber-100 rounded-lg bg-white/50">
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3 mt-3.5">
+                  <div className="flex flex-col gap-2 p-2.5 border border-slate-200/80 dark:border-stone-800 rounded-2xl bg-white/70 dark:bg-stone-900/50">
                     <div className="flex gap-2">
                       <Input
                         value={memoInput}
                         onChange={(e) => setMemoInput(e.target.value)}
                         placeholder="💡 気付きを入力... (必須)"
-                        className="text-xs flex-1 border-amber-100 focus-visible:ring-amber-300"
+                        className="text-xs flex-1 rounded-xl border-slate-200/80 focus-visible:ring-amber-400"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -4663,10 +4876,10 @@ export default function Home() {
                         value={memoActionInput}
                         onChange={(e) => setMemoActionInput(e.target.value)}
                         placeholder="▶ アクション... (任意)"
-                        className="text-xs flex-1 border-amber-100 focus-visible:ring-amber-300"
+                        className="text-xs flex-1 rounded-xl border-slate-200/80 focus-visible:ring-amber-400"
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveMemo(); } }}
                       />
-                      <Button size="sm" onClick={handleSaveMemo} disabled={createMemo.isPending || !memoInput.trim()} className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3">
+                      <Button size="sm" onClick={handleSaveMemo} disabled={createMemo.isPending || !memoInput.trim()} className="bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs px-4 rounded-xl">
                         Save
                       </Button>
                     </div>
@@ -4674,17 +4887,17 @@ export default function Home() {
                   {!memoList?.length ? <div className="text-xs text-muted-foreground px-1 italic">No insights yet.</div> : (
                     <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                       {memoList.map((memo: any) => (
-                        <div key={memo.id} className={`group flex items-start gap-2 p-3 rounded-lg border ${memo.done ? 'border-emerald-100 bg-emerald-50/30' : 'border-amber-100 bg-white'} text-xs relative`}>
+                        <div key={memo.id} className={`group flex items-start gap-2.5 p-3 rounded-2xl apple-card ${memo.done ? 'opacity-75' : ''} text-xs relative`}>
                           <button
                             onClick={() => handleToggleMemo(memo.id, memo.done)}
                             title={memo.done ? "アクション済み" : "アクションを実行する"}
-                            className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${memo.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-amber-400'}`}
+                            className={`mt-0.5 shrink-0 w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-colors ${memo.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-amber-400'}`}
                           >
-                            {memo.done && <CheckCircle2 className="w-3 h-3" />}
+                            {memo.done && <Check className="w-3 h-3 stroke-[3]" />}
                           </button>
 
                           <div className="min-w-0 flex-1 space-y-1">
-                            <div className={`font-medium text-slate-700 whitespace-pre-wrap ${memo.done ? 'opacity-70' : ''}`}>
+                            <div className={`font-medium text-slate-800 dark:text-stone-200 whitespace-pre-wrap ${memo.done ? 'opacity-70' : ''}`}>
                               {memo.content}
                             </div>
                             {memo.action && (
@@ -4694,7 +4907,7 @@ export default function Home() {
                               </div>
                             )}
                             <div className="flex items-center gap-3 pt-1">
-                              <div className="text-[9px] text-slate-300">{new Date(memo.createdAt).toLocaleDateString()}</div>
+                              <div className="text-[9px] text-slate-400">{new Date(memo.createdAt).toLocaleDateString()}</div>
                               <button
                                 onClick={() => handleLikeMemo(memo.id)}
                                 className="flex items-center gap-0.5 text-slate-300 hover:text-rose-400 transition-colors"
@@ -4727,7 +4940,7 @@ export default function Home() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-destructive shrink-0"
+                            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 text-slate-300 hover:text-destructive shrink-0"
                             onClick={() => handleDeleteMemo(memo.id)}
                           >
                             <Trash2 className="w-3 h-3" />
@@ -4744,23 +4957,22 @@ export default function Home() {
                 <div className="w-2 shrink-0 lg:hidden" aria-hidden="true" />
               </div>
 
-              <div className="h-px bg-border/50 my-8" />
-
               {/* LOWER FULL-WIDTH SECTION: Counters, Activity, Insights, Media, Investment */}
-              <div className="space-y-6">
+              <div className="space-y-6 mt-8">
                 {/* YASUDA YOGURT COUNTER */}
-                <section className="p-4 rounded-xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 shadow-sm relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none grayscale">
+                <section className="apple-glass p-5 rounded-3xl relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 opacity-[0.04] pointer-events-none grayscale">
                     <img src="/yasuda.png" alt="Yasuda Yogurt" className="w-48 h-auto object-contain" />
                   </div>
                   <div
                     className="flex items-center justify-between mb-3 cursor-pointer group"
                     onClick={() => setIsLunchCounterOpen(!isLunchCounterOpen)}
                   >
-                    <h2 className="text-sm font-black text-sky-800 flex items-center gap-1.5 transition-transform group-active:scale-95">
-                      <span className="text-lg">🍱</span> 平日お昼自炊カウンター
+                    <h2 className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2 transition-transform group-active:scale-95">
+                      <span className="w-7 h-7 rounded-xl bg-sky-100 flex items-center justify-center text-base shadow-inner">🍱</span>
+                      平日お昼自炊カウンター
                     </h2>
-                    <div className="text-sky-600 bg-white/50 px-2 py-0.5 rounded-full group-hover:bg-sky-100 transition-colors text-[10px] font-bold">
+                    <div className="text-sky-600 bg-sky-50/80 px-3 py-1 rounded-full group-hover:bg-sky-100 transition-colors text-[10px] font-bold">
                       {isLunchCounterOpen ? '▲ とじる' : '▼ ひらく'}
                     </div>
                   </div>
@@ -4774,9 +4986,9 @@ export default function Home() {
                           <div className="flex flex-col items-end gap-1">
                             <button
                               onClick={handleAddLunch}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-all font-bold shadow-sm active:scale-95"
+                              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-b from-sky-400 to-sky-500 text-white hover:from-sky-500 hover:to-sky-600 transition-all font-bold text-xs shadow-sm shadow-sky-200 active:scale-95"
                             >
-                              <span className="text-lg leading-none">+</span>
+                              <span className="text-base leading-none">+</span>
                               自炊を追加
                             </button>
                             {todayLunchCount > 0 && (
@@ -4786,7 +4998,7 @@ export default function Home() {
                             )}
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm bg-white p-2 rounded-lg border border-sky-100 shadow-sm">
+                        <div className="grid grid-cols-2 gap-3 text-sm bg-white/80 p-3 rounded-2xl border border-slate-200/60 shadow-sm">
                           <div>
                             <div className="text-[10px] text-muted-foreground font-bold">今月</div>
                             <div className="text-slate-700">自炊回数 <span className="font-black text-lg text-sky-600">{thisMonthLunchCount}</span><span className="text-xs font-bold ml-0.5">回</span></div>
@@ -4799,8 +5011,8 @@ export default function Home() {
                       </div>
 
                       {/* Right: Yogurt UI */}
-                      <div className="flex flex-col justify-center bg-white p-3 rounded-lg border border-sky-100 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] relative">
-                        <div className="text-[10px] font-bold text-sky-400 mb-1 flex items-center justify-between">
+                      <div className="flex flex-col justify-center bg-white/80 p-3.5 rounded-2xl border border-slate-200/60 shadow-sm relative">
+                        <div className="text-[10px] font-bold text-sky-500 mb-1 flex items-center justify-between">
                           <span>ヤスダヨーグルト換算 (603円/本)</span>
                           <img src="/yasuda.png" alt="icon" className="w-7 h-7 object-contain drop-shadow-sm" />
                         </div>
@@ -4818,7 +5030,7 @@ export default function Home() {
                           ))}
                         </div>
 
-                        <div className="text-xs font-bold text-emerald-600 bg-emerald-50 p-1.5 rounded text-center">
+                        <div className="text-xs font-bold text-emerald-600 bg-emerald-50/80 p-1.5 rounded-xl text-center">
                           {getYogurtComment(yogurtCount)}
                         </div>
                       </div>
@@ -4826,31 +5038,29 @@ export default function Home() {
                   )}
                 </section>
 
-                <div className="h-px bg-border/50 my-6" />
-
             {/* SHELF 7.5: MOAI ACTIVITY (Collapsible) */}
             <MoaiActivityBoard targetDateStr={targetDateStr} />
 
             {/* SHELF 8: DAILY INSIGHT (Collapsible) */}
-            <section>
+            <section className="apple-glass rounded-3xl p-4 sm:p-5">
               <div
                 onClick={(e) => { e.stopPropagation(); setIsInsightOpen(!isInsightOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-sky-50/50 rounded-md py-1 transition-colors"
+                className="flex items-center justify-between cursor-pointer hover:bg-sky-50/50 rounded-xl px-2 py-1 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center gap-1">
-                    <Lightbulb className="w-3 h-3" /> DAILY INSIGHT
+                  <h2 className="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <Lightbulb className="w-3.5 h-3.5" /> DAILY INSIGHT
                   </h2>
-                  <span className="text-[10px] text-muted-foreground bg-sky-50 px-1.5 rounded-sm">Reflections & Actions</span>
+                  <span className="text-[10px] font-semibold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded-full">Reflections & Actions</span>
                 </div>
-                <div className="text-sky-400">
+                <div className="text-sky-400 text-xs">
                   {isInsightOpen ? "▼" : "▶"}
                 </div>
               </div>
 
               {isInsightOpen && (
-                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3">
-                  <div className="flex flex-col gap-2 p-2 border border-sky-100 rounded-lg bg-white/50">
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3 mt-3">
+                  <div className="flex flex-col gap-2 p-2.5 border border-sky-100 rounded-2xl bg-white/70">
                     <div className="flex gap-2">
                       <Input
                         value={insightInput}
@@ -4867,7 +5077,7 @@ export default function Home() {
                         className="text-xs flex-1"
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveInsight(); } }}
                       />
-                      <Button size="sm" onClick={handleSaveInsight} disabled={createInsight.isPending || !insightInput.trim()} className="bg-sky-500 hover:bg-sky-600 text-white text-xs px-3">
+                      <Button size="sm" onClick={handleSaveInsight} disabled={createInsight.isPending || !insightInput.trim()} className="bg-sky-500 hover:bg-sky-600 text-white text-xs px-4 rounded-xl">
                         Save
                       </Button>
                     </div>
@@ -4876,11 +5086,11 @@ export default function Home() {
                   {!generalInsights?.length ? <div className="text-xs text-muted-foreground px-1 italic">No insights yet.</div> : (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                       {generalInsights.map((insight: any) => (
-                        <div key={insight.id} className={`group flex items-start gap-2 p-3 rounded-lg border ${insight.applied ? 'border-sky-100 bg-sky-50/30' : 'border-slate-100 bg-white'} text-xs relative`}>
+                        <div key={insight.id} className={`group flex items-start gap-2 p-3 rounded-2xl border ${insight.applied ? 'border-sky-100 bg-sky-50/40' : 'border-slate-200/60 bg-white/90'} text-xs relative shadow-sm`}>
                           <button
                             onClick={() => handleToggleInsight(insight.id, insight.applied)}
                             title={insight.applied ? "仕組み化済み" : "仕組み・ルールに反映する"}
-                            className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${insight.applied ? 'bg-sky-500 border-sky-500 text-white' : 'border-slate-300 hover:border-sky-400'}`}
+                            className={`mt-0.5 shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${insight.applied ? 'bg-sky-500 border-sky-500 text-white' : 'border-slate-300 hover:border-sky-400'}`}
                           >
                             {insight.applied && <CheckCircle2 className="w-3 h-3" />}
                           </button>
@@ -4927,117 +5137,115 @@ export default function Home() {
               )}
             </section>
 
-            {/* SHELF 9: READING (読書) */}
-            <div className="h-px bg-border/50 my-6" />
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-fuchsia-600 uppercase tracking-wider flex items-center gap-1">
-                    📚 READING
-                  </h2>
+            {/* SHELF 9 & 10: READING & WATCHING */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <section className="apple-glass rounded-3xl p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-bold text-fuchsia-600 uppercase tracking-wider flex items-center gap-1.5">
+                      📚 READING
+                    </h2>
+                  </div>
                 </div>
-              </div>
 
-              {!books?.length ? <div className="text-xs text-muted-foreground px-1 italic">No reading records.</div> : (
-                <div className="space-y-2">
-                  {books.map((book: any) => (
-                    <MediaItem
-                      key={book.id}
-                      item={book}
-                      type="book"
-                      color="fuchsia"
-                      onStatusToggle={async (item: any) => {
-                        await updateBookStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'reading' : 'completed' });
-                        refetchBooks();
-                      }}
-                      onDelete={async (item: any) => {
-                        if (confirm("Delete this book record?")) {
-                          await deleteBook.mutateAsync({ id: item.id });
+                {!books?.length ? <div className="text-xs text-muted-foreground px-1 italic">No reading records.</div> : (
+                  <div className="space-y-2">
+                    {books.map((book: any) => (
+                      <MediaItem
+                        key={book.id}
+                        item={book}
+                        type="book"
+                        color="fuchsia"
+                        onStatusToggle={async (item: any) => {
+                          await updateBookStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'reading' : 'completed' });
                           refetchBooks();
-                        }
-                      }}
-                      onLongPress={openReviewDialog}
-                      renderStars={renderStars}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
+                        }}
+                        onDelete={async (item: any) => {
+                          if (confirm("Delete this book record?")) {
+                            await deleteBook.mutateAsync({ id: item.id });
+                            refetchBooks();
+                          }
+                        }}
+                        onLongPress={openReviewDialog}
+                        renderStars={renderStars}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
 
-            {/* SHELF 10: WATCHING (映画) */}
-            <div className="h-px bg-border/50 my-6" />
-            <section>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1">
-                    🎬 WATCHING
-                  </h2>
+              <section className="apple-glass rounded-3xl p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1.5">
+                      🎬 WATCHING
+                    </h2>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsMovieStockOpen(true)}
+                    className="h-7 rounded-full text-xs font-bold text-rose-600 border-rose-200/90 hover:bg-rose-50 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>映画をストック</span>
+                    {stockMovieCount > 0 && (
+                      <span className="ml-1 bg-rose-500 text-white rounded-full px-1.5 py-0 text-[10px] font-bold">
+                        {stockMovieCount}
+                      </span>
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsMovieStockOpen(true)}
-                  className="h-7 text-xs font-bold text-rose-600 border-rose-200/90 hover:bg-rose-50 flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>映画をストック</span>
-                  {stockMovieCount > 0 && (
-                    <span className="ml-1 bg-rose-500 text-white rounded-full px-1.5 py-0 text-[10px] font-bold">
-                      {stockMovieCount}
-                    </span>
-                  )}
-                </Button>
-              </div>
 
-              {!movies?.length ? <div className="text-xs text-muted-foreground px-1 italic">No watching records.</div> : (
-                <div className="space-y-2">
-                  {movies.map((movie: any) => (
-                    <MediaItem
-                      key={movie.id}
-                      item={movie}
-                      type="movie"
-                      color="rose"
-                      onStatusToggle={async (item: any) => {
-                        await updateMovieStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'watching' : 'completed' });
-                        refetchMovies();
-                      }}
-                      onDelete={async (item: any) => {
-                        if (confirm("Delete this movie record?")) {
-                          await deleteMovie.mutateAsync({ id: item.id });
+                {!movies?.length ? <div className="text-xs text-muted-foreground px-1 italic">No watching records.</div> : (
+                  <div className="space-y-2">
+                    {movies.map((movie: any) => (
+                      <MediaItem
+                        key={movie.id}
+                        item={movie}
+                        type="movie"
+                        color="rose"
+                        onStatusToggle={async (item: any) => {
+                          await updateMovieStatus.mutateAsync({ id: item.id, status: item.status === 'completed' ? 'watching' : 'completed' });
                           refetchMovies();
-                        }
-                      }}
-                      onLongPress={openReviewDialog}
-                      renderStars={renderStars}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
+                        }}
+                        onDelete={async (item: any) => {
+                          if (confirm("Delete this movie record?")) {
+                            await deleteMovie.mutateAsync({ id: item.id });
+                            refetchMovies();
+                          }
+                        }}
+                        onLongPress={openReviewDialog}
+                        renderStars={renderStars}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
 
             {/* SHELF 11: INVESTMENT (投資) */}
-            <div className="h-px bg-border/50 my-6" />
             <InvestmentBoard />
 
-            <section className="mt-4">
+            <section className="apple-glass rounded-3xl p-4 sm:p-5 mt-4">
               <div
                 onClick={(e) => { e.stopPropagation(); setIsInvInsightOpen(!isInvInsightOpen); }}
-                className="flex items-center justify-between mb-3 px-1 cursor-pointer hover:bg-emerald-50/50 rounded-md py-1 transition-colors"
+                className="flex items-center justify-between cursor-pointer hover:bg-emerald-50/50 rounded-xl px-2 py-1 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                    <Lightbulb className="w-3 h-3" /> INVESTMENT INSIGHT
+                  <h2 className="text-xs font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Lightbulb className="w-3.5 h-3.5" /> INVESTMENT INSIGHT
                   </h2>
-                  <span className="text-[10px] text-emerald-600/70 bg-emerald-50 px-1.5 rounded-sm">投資の気づきとアクション</span>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">投資の気づきとアクション</span>
                 </div>
-                <div className="text-emerald-500">
+                <div className="text-emerald-500 text-xs">
                   {isInvInsightOpen ? "▼" : "▶"}
                 </div>
               </div>
 
               {isInvInsightOpen && (
-                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3">
-                  <div className="flex flex-col gap-2 p-2 border border-emerald-100 rounded-lg bg-white/50">
+                <div className="animate-in slide-in-from-top-2 fade-in duration-200 space-y-3 mt-3">
+                  <div className="flex flex-col gap-2 p-2.5 border border-emerald-100 rounded-2xl bg-white/70">
                     <div className="flex gap-2">
                       <Input
                         value={invInsightInput}
@@ -5054,7 +5262,7 @@ export default function Home() {
                         className="text-xs flex-1"
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveInvInsight(); } }}
                       />
-                      <Button size="sm" onClick={handleSaveInvInsight} disabled={createInsight.isPending || !invInsightInput.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3">
+                      <Button size="sm" onClick={handleSaveInvInsight} disabled={createInsight.isPending || !invInsightInput.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-4 rounded-xl">
                         Save
                       </Button>
                     </div>
@@ -5063,11 +5271,11 @@ export default function Home() {
                   {!invInsights?.length ? <div className="text-xs text-muted-foreground px-1 italic">No investment insights yet.</div> : (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                       {invInsights.map((insight: any) => (
-                        <div key={insight.id} className={`group flex items-start gap-2 p-3 rounded-lg border ${insight.applied ? 'border-emerald-100 bg-emerald-50/30' : 'border-slate-100 bg-white'} text-xs relative`}>
+                        <div key={insight.id} className={`group flex items-start gap-2 p-3 rounded-2xl border ${insight.applied ? 'border-emerald-100 bg-emerald-50/40' : 'border-slate-200/60 bg-white/90'} text-xs relative shadow-sm`}>
                           <button
                             onClick={() => handleToggleInsight(insight.id, insight.applied)}
                             title={insight.applied ? "ルール化済み" : "ルールとして適用する"}
-                            className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${insight.applied ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-400'}`}
+                            className={`mt-0.5 shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${insight.applied ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-400'}`}
                           >
                             {insight.applied && <CheckCircle2 className="w-3 h-3" />}
                           </button>
@@ -5115,7 +5323,6 @@ export default function Home() {
             </section>
 
             {/* SHELF 12: INVESTMENT FLOW TRACKER */}
-            <div className="h-px bg-border/50 my-6" />
             <InvestmentFlowTracker />
 
               </div>
@@ -5477,27 +5684,29 @@ function BulletinBoard() {
   const displaySelectedDateStr = `${selectedDateObj.getMonth() + 1}/${selectedDateObj.getDate()}(${weekdays[selectedDateObj.getDay()]})`;
 
   return (
-    <section className="mb-6 p-0 rounded-xl border border-stone-300 bg-[#fefdfb] shadow-sm relative overflow-hidden">
+    <section className="apple-glass mb-6 p-0 rounded-3xl relative overflow-hidden">
       {/* Header */}
-      <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-stone-200">
-        <h2 className="text-sm font-bold flex items-center gap-1.5 text-stone-700">
-          <span className="text-lg text-rose-500">📌</span>
-          掲示板 (Notice Board) <span className="ml-1 text-base">{displaySelectedDateStr}</span>
+      <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-slate-200/60 bg-white/50">
+        <h2 className="text-sm font-black tracking-tight flex items-center gap-2 text-slate-800">
+          <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-sm shadow-inner">📌</span>
+          <span>掲示板</span>
+          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Notice Board</span>
+          <span className="ml-1 px-2.5 py-0.5 rounded-full bg-slate-900/5 text-slate-700 text-xs font-bold">{displaySelectedDateStr}</span>
           {isSaving ? (
-            <span className="text-[11px] text-amber-600 ml-2 font-mono flex items-center gap-1">
+            <span className="text-[11px] text-amber-600 ml-2 font-mono flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full">
               <span className="animate-spin inline-block">⏳</span> 保存中...
             </span>
           ) : lastSavedTime ? (
-            <span className="text-[10px] text-emerald-600 ml-2 font-mono flex items-center gap-0.5">
+            <span className="text-[10px] text-emerald-600 ml-2 font-semibold flex items-center gap-0.5 bg-emerald-50 px-2 py-0.5 rounded-full">
               <span>✓</span> 保存完了
             </span>
           ) : null}
         </h2>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={handleReset}
-          className="h-7 text-xs bg-stone-50 hover:bg-red-50 hover:text-red-600 text-stone-500"
+          className="h-7 rounded-full px-3 text-xs text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
         >
           <Trash2 className="w-3 h-3 mr-1" /> リセット
         </Button>
@@ -5505,7 +5714,7 @@ function BulletinBoard() {
 
       {/* Unsaved Draft Recovery Banner (案A) */}
       {pendingDraft && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="bg-amber-50/90 border-b border-amber-200/80 px-5 py-2.5 flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="flex items-center gap-2 text-amber-900 font-medium">
             <span className="text-base">⚠️</span>
             <span>
@@ -5516,7 +5725,7 @@ function BulletinBoard() {
             <Button
               size="sm"
               onClick={handleRestoreDraft}
-              className="h-7 px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-xs cursor-pointer"
+              className="h-7 px-3 rounded-full text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-xs cursor-pointer"
             >
               下書きを復元する
             </Button>
@@ -5524,7 +5733,7 @@ function BulletinBoard() {
               variant="outline"
               size="sm"
               onClick={handleDiscardDraft}
-              className="h-7 px-3 text-xs border-amber-300 text-amber-800 hover:bg-amber-100 hover:text-amber-900 cursor-pointer"
+              className="h-7 px-3 rounded-full text-xs border-amber-300 text-amber-800 hover:bg-amber-100 hover:text-amber-900 cursor-pointer"
             >
               破棄
             </Button>
@@ -5532,42 +5741,53 @@ function BulletinBoard() {
         </div>
       )}
 
-      {/* Text areas stacked */}
-      <div className="flex flex-col divide-y divide-stone-200">
-        <div className="p-3 flex flex-col gap-1 bg-stone-50/50">
-          <div className="text-[11px] font-bold text-stone-500 mb-1">📅 月間掲示板 {format(selectedDateObj, "yyyy年M月")}</div>
-          <RichDocEditor
-            value={monthContent}
-            onChange={(val) => {
-              setMonthContent(val);
-              monthRefVal.current = val;
-              if (monthTimeout.current) clearTimeout(monthTimeout.current);
-              monthTimeout.current = setTimeout(() => triggerSaveMonth(monthRefVal.current), 400);
-            }}
-            placeholder="今月の目標、領収書のメモ、忘れたくないこと..."
-            textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
-            minHeight={50}
-            theme="stone"
-          />
+      {/* Text areas: Month & Week side-by-side on desktop, Day full width */}
+      <div className="flex flex-col divide-y divide-slate-200/50">
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/50">
+          <div className="p-4 flex flex-col gap-1.5 bg-white/30">
+            <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              月間掲示板 ({format(selectedDateObj, "yyyy年M月")})
+            </div>
+            <RichDocEditor
+              value={monthContent}
+              onChange={(val) => {
+                setMonthContent(val);
+                monthRefVal.current = val;
+                if (monthTimeout.current) clearTimeout(monthTimeout.current);
+                monthTimeout.current = setTimeout(() => triggerSaveMonth(monthRefVal.current), 400);
+              }}
+              placeholder="今月の目標、領収書のメモ、忘れたくないこと..."
+              textAreaClassName="text-slate-700 text-sm leading-6 placeholder:text-slate-300"
+              minHeight={50}
+              theme="stone"
+            />
+          </div>
+          <div className="p-4 flex flex-col gap-1.5 bg-white/20">
+            <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-sky-400" />
+              週間掲示板 ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)
+            </div>
+            <RichDocEditor
+              value={weekContent}
+              onChange={(val) => {
+                setWeekContent(val);
+                weekRefVal.current = val;
+                if (weekTimeout.current) clearTimeout(weekTimeout.current);
+                weekTimeout.current = setTimeout(() => triggerSaveWeek(weekRefVal.current), 400);
+              }}
+              placeholder="今週の予定、メモ..."
+              textAreaClassName="text-slate-700 text-sm leading-6 placeholder:text-slate-300"
+              minHeight={50}
+              theme="stone"
+            />
+          </div>
         </div>
-        <div className="p-3 flex flex-col gap-1 bg-stone-50/30">
-          <div className="text-[11px] font-bold text-stone-500 mb-1">📆 週間掲示板 ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)</div>
-          <RichDocEditor
-            value={weekContent}
-            onChange={(val) => {
-              setWeekContent(val);
-              weekRefVal.current = val;
-              if (weekTimeout.current) clearTimeout(weekTimeout.current);
-              weekTimeout.current = setTimeout(() => triggerSaveWeek(weekRefVal.current), 400);
-            }}
-            placeholder="今週の予定、メモ..."
-            textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
-            minHeight={50}
-            theme="stone"
-          />
-        </div>
-        <div className="p-3 flex flex-col gap-1">
-          <div className="text-[11px] font-bold text-stone-500 mb-1">📝 日間掲示板 (自由欄)</div>
+        <div className="p-4 flex flex-col gap-1.5 bg-white/40">
+          <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            日間掲示板 (自由欄)
+          </div>
           <RichDocEditor
             value={content}
             onChange={(val) => {
@@ -5579,7 +5799,7 @@ function BulletinBoard() {
               contentTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
             }}
             placeholder="今日の自由に書き込めるメモ..."
-            textAreaClassName="text-stone-700 text-sm leading-6 placeholder:text-stone-300"
+            textAreaClassName="text-slate-700 text-sm leading-6 placeholder:text-slate-300"
             minHeight={60}
             theme="stone"
           />
@@ -5594,33 +5814,43 @@ function BulletinBoard() {
         />
       </div>
 
-      {/* Date picker */}
-      <div className="flex border-t border-stone-300 bg-white">
-        <button onClick={handlePrevDays} className="px-3 bg-[#4a72aa] hover:bg-[#345b91] text-white transition flex items-center justify-center shrink-0">
-          <span className="text-lg">◀</span>
+      {/* iOS Calendar Week Pill Strip */}
+      <div className="flex items-center gap-1.5 px-3 py-2.5 border-t border-slate-200/60 bg-slate-100/60 backdrop-blur-md">
+        <button
+          onClick={handlePrevDays}
+          className="w-8 h-8 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-xs transition-all flex items-center justify-center shrink-0 active:scale-90"
+        >
+          <span className="text-xs">◀</span>
         </button>
-        <div className="flex-1 grid grid-cols-7 divide-x divide-stone-200 text-center">
+        <div className="flex-1 grid grid-cols-7 gap-1 text-center">
           {days.map(d => {
             const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
             const isSelected = selectedDate === dateStr;
+            const isSun = d.getDay() === 0;
+            const isSat = d.getDay() === 6;
             return (
               <button
                 key={dateStr}
                 onClick={() => setSelectedDate(dateStr)}
-                className={`flex flex-col items-center justify-center py-2 transition-colors ${
+                className={`flex flex-col items-center justify-center py-1.5 rounded-2xl transition-all duration-200 ${
                   isSelected
-                    ? 'bg-amber-50 font-bold text-amber-900 shadow-[inset_0_-3px_0_theme(colors.amber.500)]'
-                    : 'text-stone-500 hover:bg-stone-50'
+                    ? 'bg-slate-900 text-white font-bold shadow-md scale-[1.02]'
+                    : 'text-slate-600 hover:bg-white/70'
                 }`}
               >
-                <div className="text-[11px] leading-tight">{d.getMonth() + 1}/{d.getDate()}</div>
-                <div className="text-[10px] leading-tight">{weekdays[d.getDay()]}</div>
+                <div className={`text-[10px] leading-tight ${isSelected ? 'text-slate-300' : isSun ? 'text-rose-500' : isSat ? 'text-sky-500' : 'text-slate-400'}`}>
+                  {weekdays[d.getDay()]}
+                </div>
+                <div className="text-xs font-bold leading-tight mt-0.5">{d.getMonth() + 1}/{d.getDate()}</div>
               </button>
             );
           })}
         </div>
-        <button onClick={handleNextDays} className="px-3 bg-[#4a72aa] hover:bg-[#345b91] text-white transition flex items-center justify-center shrink-0">
-          <span className="text-lg">▶</span>
+        <button
+          onClick={handleNextDays}
+          className="w-8 h-8 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-xs transition-all flex items-center justify-center shrink-0 active:scale-90"
+        >
+          <span className="text-xs">▶</span>
         </button>
       </div>
     </section>
@@ -5772,99 +6002,127 @@ function InvestmentBoard() {
   const displaySelectedDateStr = `${selectedDateObj.getMonth() + 1}/${selectedDateObj.getDate()}(${weekdays[selectedDateObj.getDay()]})`;
 
   return (
-    <section className="mb-6 p-0 rounded-xl border border-teal-300 bg-[#f4fbf9] shadow-sm relative overflow-hidden">
+    <section className="apple-glass mb-6 p-0 rounded-3xl relative overflow-hidden">
       {/* Header */}
-      <div className="px-4 pt-3 pb-2 flex items-center justify-between border-b border-teal-200">
-        <h2 className="text-sm font-bold flex items-center gap-1.5 text-teal-800">
-          <span className="text-lg">📈</span>
-          投資掲示板 (Investment) <span className="ml-1 text-base">{displaySelectedDateStr}</span>
+      <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-slate-200/60 bg-white/50">
+        <h2 className="text-sm font-black tracking-tight flex items-center gap-2 text-slate-800">
+          <span className="w-7 h-7 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center text-sm shadow-inner">📈</span>
+          <span>投資掲示板</span>
+          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Investment</span>
+          <span className="ml-1 px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-800 text-xs font-bold">{displaySelectedDateStr}</span>
           {isSaving && <span className="text-[10px] text-teal-600/70 ml-2 italic">Saving...</span>}
         </h2>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={handleReset}
-          className="h-7 text-xs bg-teal-50 hover:bg-red-50 hover:text-red-600 text-teal-700 border-teal-200"
+          className="h-7 rounded-full px-3 text-xs text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
         >
           <Trash2 className="w-3 h-3 mr-1" /> リセット
         </Button>
       </div>
 
-      {/* Text areas stacked */}
-      <div className="flex flex-col divide-y divide-teal-200">
-        <div className="p-3 flex flex-col gap-1 bg-teal-50/50">
-          <div className="text-[11px] font-bold text-teal-700 mb-1">📅 月間投資目標 / 総資産メモ {format(selectedDateObj, "yyyy年M月")}</div>
-          <RichDocEditor
-            value={monthContent}
-            onChange={handleMonthChange}
-            placeholder="今月の投資方針、目標利益、資産の変動など..."
-            textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-300"
-            minHeight={50}
-            theme="teal"
-          />
+      {/* Text areas */}
+      <div className="flex flex-col divide-y divide-slate-200/50">
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/50">
+          <div className="p-4 flex flex-col gap-1.5 bg-white/30">
+            <div className="text-[11px] font-bold text-teal-700 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-teal-400" />
+              月間投資目標 / 総資産メモ ({format(selectedDateObj, "yyyy年M月")})
+            </div>
+            <RichDocEditor
+              value={monthContent}
+              onChange={handleMonthChange}
+              placeholder="今月の投資方針、目標利益、資産の変動など..."
+              textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-300"
+              minHeight={50}
+              theme="teal"
+            />
+          </div>
+          <div className="p-4 flex flex-col gap-1.5 bg-white/20">
+            <div className="text-[11px] font-bold text-teal-700 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
+              週間相場観 / ウォッチリスト ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)
+            </div>
+            <RichDocEditor
+              value={weekContent}
+              onChange={handleWeekChange}
+              placeholder="今週注目している銘柄、予想されるイベントなど..."
+              textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-300"
+              minHeight={50}
+              theme="teal"
+            />
+          </div>
         </div>
-        <div className="p-3 flex flex-col gap-1 bg-teal-50/30">
-          <div className="text-[11px] font-bold text-teal-700 mb-1">📆 週間相場観 / ウォッチリスト ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)</div>
-          <RichDocEditor
-            value={weekContent}
-            onChange={handleWeekChange}
-            placeholder="今週注目している銘柄、予想されるイベントなど..."
-            textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-300"
-            minHeight={50}
-            theme="teal"
-          />
-        </div>
-        <div className="p-3 flex flex-col gap-1">
-          <div className="text-[11px] font-bold text-teal-700 mb-1">📝 今日のトレード記録 (自由欄)</div>
-          <RichDocEditor
-            value={content}
-            onChange={handleContentChange}
-            placeholder="今日のトレード内容、決済の理由など..."
-            textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-400"
-            minHeight={60}
-            theme="teal"
-          />
-        </div>
-        <div className="p-3 flex flex-col gap-1">
-          <div className="text-[11px] font-bold text-emerald-700 mb-1">📔 今日の所感 (日記欄)</div>
-          <RichDocEditor
-            value={diary}
-            onChange={handleDiaryChange}
-            placeholder="相場の熱量、メンタルの状況など..."
-            textAreaClassName="text-emerald-900 text-sm leading-6 placeholder:text-emerald-400/70"
-            minHeight={60}
-            theme="emerald"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/50">
+          <div className="p-4 flex flex-col gap-1.5 bg-white/40">
+            <div className="text-[11px] font-bold text-teal-700 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              今日のトレード記録 (自由欄)
+            </div>
+            <RichDocEditor
+              value={content}
+              onChange={handleContentChange}
+              placeholder="今日のトレード内容、決済の理由など..."
+              textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-400"
+              minHeight={60}
+              theme="teal"
+            />
+          </div>
+          <div className="p-4 flex flex-col gap-1.5 bg-white/40">
+            <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-lime-400" />
+              今日の所感 (日記欄)
+            </div>
+            <RichDocEditor
+              value={diary}
+              onChange={handleDiaryChange}
+              placeholder="相場の熱量、メンタルの状況など..."
+              textAreaClassName="text-emerald-900 text-sm leading-6 placeholder:text-emerald-400/70"
+              minHeight={60}
+              theme="emerald"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Date picker */}
-      <div className="flex border-t border-teal-300 bg-white">
-        <button onClick={handlePrevDays} className="px-3 bg-teal-600 hover:bg-teal-700 text-white transition flex items-center justify-center shrink-0">
-          <span className="text-lg">◀</span>
+      {/* iOS Calendar Week Pill Strip */}
+      <div className="flex items-center gap-1.5 px-3 py-2.5 border-t border-slate-200/60 bg-slate-100/60 backdrop-blur-md">
+        <button
+          onClick={handlePrevDays}
+          className="w-8 h-8 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-xs transition-all flex items-center justify-center shrink-0 active:scale-90"
+        >
+          <span className="text-xs">◀</span>
         </button>
-        <div className="flex-1 grid grid-cols-7 divide-x divide-teal-100 text-center">
+        <div className="flex-1 grid grid-cols-7 gap-1 text-center">
           {days.map(d => {
             const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
             const isSelected = selectedDate === dateStr;
+            const isSun = d.getDay() === 0;
+            const isSat = d.getDay() === 6;
             return (
               <button
                 key={dateStr}
                 onClick={() => setSelectedDate(dateStr)}
-                className={`flex flex-col items-center justify-center py-2 transition-colors ${
+                className={`flex flex-col items-center justify-center py-1.5 rounded-2xl transition-all duration-200 ${
                   isSelected
-                    ? 'bg-teal-50 font-bold text-teal-900 shadow-[inset_0_-3px_0_theme(colors.teal.500)]'
-                    : 'text-teal-600/70 hover:bg-teal-50/50'
+                    ? 'bg-teal-600 text-white font-bold shadow-md scale-[1.02]'
+                    : 'text-slate-600 hover:bg-white/70'
                 }`}
               >
-                <div className="text-[11px] leading-tight">{d.getMonth() + 1}/{d.getDate()}</div>
-                <div className="text-[10px] leading-tight">{weekdays[d.getDay()]}</div>
+                <div className={`text-[10px] leading-tight ${isSelected ? 'text-teal-100' : isSun ? 'text-rose-500' : isSat ? 'text-sky-500' : 'text-slate-400'}`}>
+                  {weekdays[d.getDay()]}
+                </div>
+                <div className="text-xs font-bold leading-tight mt-0.5">{d.getMonth() + 1}/{d.getDate()}</div>
               </button>
             );
           })}
         </div>
-        <button onClick={handleNextDays} className="px-3 bg-teal-600 hover:bg-teal-700 text-white transition flex items-center justify-center shrink-0">
-          <span className="text-lg">▶</span>
+        <button
+          onClick={handleNextDays}
+          className="w-8 h-8 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-xs transition-all flex items-center justify-center shrink-0 active:scale-90"
+        >
+          <span className="text-xs">▶</span>
         </button>
       </div>
     </section>
@@ -5939,46 +6197,53 @@ function MonthlyGoalBoard() {
   };
 
   return (
-    <section className="mb-4 rounded-xl border border-emerald-200 bg-[#f4fffa] shadow-sm relative overflow-hidden">
-      <div className="flex items-center justify-between p-3 border-b border-emerald-100 bg-emerald-50">
-        <button onClick={handlePrevMonth} className="px-3 py-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 rounded transition font-bold shrink-0">
+    <section className="apple-glass mb-5 rounded-3xl relative overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200/60 bg-white/50">
+        <button
+          onClick={handlePrevMonth}
+          className="w-8 h-8 rounded-full bg-slate-900/5 hover:bg-slate-900/10 text-slate-600 transition-all flex items-center justify-center text-xs shrink-0 active:scale-90"
+        >
           ◀
         </button>
-        <h2 className="text-sm font-bold flex flex-col sm:flex-row items-center justify-center gap-1.5 text-emerald-800">
-          <span className="flex items-center gap-1.5">
-            <span className="text-lg">🎯</span>
-            <span>{selectedMonthDate.getFullYear()}年{selectedMonthDate.getMonth() + 1}月の目標</span>
-          </span>
-          {isSaving && <span className="text-[10px] text-emerald-600/60 sm:ml-2 italic">Saving...</span>}
+        <h2 className="text-sm font-black tracking-tight flex items-center justify-center gap-2 text-slate-800">
+          <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm shadow-inner">🎯</span>
+          <span>{selectedMonthDate.getFullYear()}年{selectedMonthDate.getMonth() + 1}月の目標</span>
+          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Monthly Focus</span>
+          {isSaving && <span className="text-[10px] text-emerald-600/70 sm:ml-2 italic">Saving...</span>}
         </h2>
-        <button onClick={handleNextMonth} className="px-3 py-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 rounded transition font-bold shrink-0">
+        <button
+          onClick={handleNextMonth}
+          className="w-8 h-8 rounded-full bg-slate-900/5 hover:bg-slate-900/10 text-slate-600 transition-all flex items-center justify-center text-xs shrink-0 active:scale-90"
+        >
           ▶
         </button>
       </div>
-      <div className="flex flex-col divide-y divide-emerald-100">
-        <div className="p-3 flex flex-col gap-1">
-          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 mb-1">
-            <span>🏃</span> 行動
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/50">
+        <div className="p-4 flex flex-col gap-1.5 bg-white/30">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700">
+            <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-xs">🏃</span>
+            行動 (Action)
           </div>
           <RichDocEditor
             value={content}
             onChange={handleContentChange}
             placeholder="今月やること、取り組む行動..."
-            textAreaClassName="text-emerald-900 text-sm leading-6 placeholder:text-emerald-800/30"
-            minHeight={60}
+            textAreaClassName="text-slate-800 text-sm leading-6 placeholder:text-slate-300"
+            minHeight={56}
             theme="emerald"
           />
         </div>
-        <div className="p-3 flex flex-col gap-1">
-          <div className="flex items-center gap-1 text-[11px] font-bold text-teal-700 mb-1">
-            <span>🧠</span> 意識
+        <div className="p-4 flex flex-col gap-1.5 bg-white/20">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-teal-700">
+            <span className="w-5 h-5 rounded-full bg-teal-100 flex items-center justify-center text-xs">🧠</span>
+            意識 (Mindset)
           </div>
           <RichDocEditor
             value={awareness}
             onChange={handleAwarenessChange}
             placeholder="意識したいこと、マインド..."
-            textAreaClassName="text-teal-900 text-sm leading-6 placeholder:text-teal-800/30"
-            minHeight={60}
+            textAreaClassName="text-slate-800 text-sm leading-6 placeholder:text-slate-300"
+            minHeight={56}
             theme="emerald"
           />
         </div>

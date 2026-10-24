@@ -29,45 +29,44 @@
 }
 
 :root {
-  /* Apple-like Soft Theme */
-  --background: oklch(0.98 0 0);
-  /* #F9F9F9 - Very light gray/white */
-  --foreground: oklch(0.20 0 0);
-  /* #333333 - Soft Black */
+  /* Apple iOS / macOS Sonoma & Sequoia Inspired Soft Theme */
+  --background: oklch(0.968 0.003 264);
+  /* #F2F2F7 - Apple iOS System Grouped Background */
+  --foreground: oklch(0.18 0.01 264);
+  /* #1C1C1E - Apple System Label */
 
   --card: oklch(1 0 0);
-  /* White */
-  --card-foreground: oklch(0.20 0 0);
+  /* Pure White */
+  --card-foreground: oklch(0.18 0.01 264);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.20 0 0);
+  --popover-foreground: oklch(0.18 0.01 264);
 
-  --primary: oklch(0.20 0 0);
-  /* Black */
+  --primary: oklch(0.18 0.01 264);
+  /* Apple Deep Label */
   --primary-foreground: oklch(1 0 0);
-  /* White */
 
-  --secondary: oklch(0.96 0 0);
-  /* #F2F2F2 */
-  --secondary-foreground: oklch(0.40 0 0);
-  /* Muted Text */
+  --secondary: oklch(0.95 0.004 264);
+  /* #E5E5EA - iOS Secondary Fill */
+  --secondary-foreground: oklch(0.35 0.01 264);
 
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.55 0 0);
+  --muted: oklch(0.95 0.004 264);
+  --muted-foreground: oklch(0.52 0.01 264);
 
-  --accent: oklch(0.6 0.15 250);
-  /* Subtle Blue/Purple if needed, mostly unused */
+  --accent: oklch(0.58 0.19 255);
+  /* #007AFF - Apple SF Blue */
   --accent-foreground: oklch(1 0 0);
 
-  --destructive: oklch(0.6 0.15 20);
+  --destructive: oklch(0.62 0.22 25);
+  /* #FF3B30 - Apple SF Red */
   --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.85 0 0);
+  --border: oklch(0.91 0.004 264);
+  --input: oklch(0.91 0.004 264);
+  --ring: oklch(0.58 0.19 255);
 
-  --radius: 0.75rem;
-  /* 12px for soft feel */
+  --radius: 1rem;
+  /* 16px Apple squircle feel */
 }
 
 @layer base {
@@ -78,9 +77,10 @@
   html,
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
     overflow-x: hidden;
     max-width: 100vw;
     width: 100%;
@@ -91,6 +91,85 @@
     width: 100%;
     max-width: 100vw;
   }
+}
+
+/* Apple Glassmorphism & Bento Surfaces */
+.apple-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 10px 35px -10px rgba(15, 23, 42, 0.05),
+    0 2px 6px -1px rgba(15, 23, 42, 0.025),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+.dark .apple-glass {
+  background: rgba(28, 28, 30, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 12px 40px -10px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.apple-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  box-shadow:
+    0 2px 10px -2px rgba(15, 23, 42, 0.04),
+    0 1px 2px 0 rgba(15, 23, 42, 0.02),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.apple-card:hover {
+  transform: translateY(-1.5px) scale(1.006);
+  box-shadow:
+    0 10px 24px -6px rgba(15, 23, 42, 0.08),
+    0 2px 6px -1px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 1);
+}
+
+.apple-card:active {
+  transform: scale(0.985);
+}
+
+.dark .apple-card {
+  background: rgba(44, 44, 46, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.4);
+}
+
+.apple-segmented {
+  background: rgba(118, 118, 128, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 3px;
+  border-radius: 12px;
+}
+
+.dark .apple-segmented {
+  background: rgba(118, 118, 128, 0.24);
+}
+
+.apple-segmented-item-active {
+  background: #ffffff;
+  color: #1c1c1e;
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.12),
+    0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.dark .apple-segmented-item-active {
+  background: #636366;
+  color: #ffffff;
 }
 
 .no-scrollbar::-webkit-scrollbar {

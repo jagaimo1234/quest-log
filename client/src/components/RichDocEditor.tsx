@@ -332,6 +332,8 @@ export function RichDocEditor({
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [isMarkerMenuOpen, setIsMarkerMenuOpen] = useState(false);
   const [isTextColorMenuOpen, setIsTextColorMenuOpen] = useState(false);
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
+  const [isToolbarHovered, setIsToolbarHovered] = useState(false);
 
   const [internalHideDone, setInternalHideDone] = useState<boolean>(() => {
     try {
@@ -1075,47 +1077,62 @@ export function RichDocEditor({
 
   const themeStyles = {
     amber: {
-      cardBorder: "border-amber-900/30",
-      border: "border-amber-900/15",
-      btn: "bg-amber-100/70 hover:bg-amber-200/80 border-amber-800/30 text-amber-900",
-      icon: "text-amber-700",
-      hint: "text-amber-900/60",
+      cardBorder: "border-amber-500/20",
+      border: "border-amber-500/15",
+      btn: "bg-white/80 hover:bg-white border border-amber-200/70 text-amber-900 shadow-2xs backdrop-blur-md",
+      icon: "text-amber-600",
+      hint: "text-amber-800/50",
     },
     emerald: {
-      cardBorder: "border-emerald-600/30",
-      border: "border-emerald-200",
-      btn: "bg-emerald-100/70 hover:bg-emerald-200/80 border-emerald-300 text-emerald-900",
-      icon: "text-emerald-700",
-      hint: "text-emerald-800/60",
+      cardBorder: "border-emerald-500/20",
+      border: "border-emerald-500/15",
+      btn: "bg-white/85 hover:bg-white border border-emerald-200/70 text-emerald-900 shadow-2xs backdrop-blur-md",
+      icon: "text-emerald-600",
+      hint: "text-emerald-800/50",
     },
     teal: {
-      cardBorder: "border-teal-600/30",
-      border: "border-teal-200",
-      btn: "bg-teal-100/70 hover:bg-teal-200/80 border-teal-300 text-teal-900",
-      icon: "text-teal-700",
-      hint: "text-teal-800/60",
+      cardBorder: "border-teal-500/20",
+      border: "border-teal-500/15",
+      btn: "bg-white/85 hover:bg-white border border-teal-200/70 text-teal-900 shadow-2xs backdrop-blur-md",
+      icon: "text-teal-600",
+      hint: "text-teal-800/50",
     },
     stone: {
-      cardBorder: "border-stone-400/30",
-      border: "border-stone-200",
-      btn: "bg-stone-100 hover:bg-stone-200/80 border-stone-300 text-stone-700",
-      icon: "text-stone-600",
-      hint: "text-stone-500/70",
+      cardBorder: "border-slate-200/80",
+      border: "border-slate-200/60",
+      btn: "bg-white/85 hover:bg-white border border-slate-200/80 text-slate-700 shadow-2xs backdrop-blur-md",
+      icon: "text-slate-500",
+      hint: "text-slate-400",
     },
     default: {
-      cardBorder: "border-stone-400/30",
-      border: "border-stone-200",
-      btn: "bg-stone-100 hover:bg-stone-200/80 border-stone-300 text-stone-700",
-      icon: "text-stone-600",
-      hint: "text-stone-500/70",
+      cardBorder: "border-slate-200/80",
+      border: "border-slate-200/60",
+      btn: "bg-white/85 hover:bg-white border border-slate-200/80 text-slate-700 shadow-2xs backdrop-blur-md",
+      icon: "text-slate-500",
+      hint: "text-slate-400",
     },
   }[theme];
+
+  const isToolbarExpanded =
+    isEditorFocused ||
+    isToolbarHovered ||
+    isMarkerMenuOpen ||
+    isTextColorMenuOpen ||
+    isLegendOpen ||
+    isRefining ||
+    isUploading;
 
   return (
     <div
       ref={containerRef}
       data-rich-doc-editor="true"
-      className={`relative flex flex-col ${effectiveHideDone ? "hide-done-active" : ""} ${className}`}
+      className={`group/editor relative flex flex-col ${effectiveHideDone ? "hide-done-active" : ""} ${className}`}
+      onFocusCapture={() => setIsEditorFocused(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsEditorFocused(false);
+        }
+      }}
       onPointerMove={(e) => {
         if (e.pointerType === "mouse") {
           updateHoverHintFromTarget(e.target, false);
@@ -1532,410 +1549,443 @@ export function RichDocEditor({
         })}
       </div>
 
-      {/* Permanent Bottom Toolbar (案B) */}
+      {/* Apple-style Progressive Disclosure Bottom Toolbar */}
       {showToolbar && (
-        <div className={`pt-2 mt-1 border-t ${themeStyles.border} flex flex-wrap items-center justify-between gap-2 text-xs`}>
-          <div className="flex items-center gap-1.5">
-            {/* Camera Photo Insert Button */}
-            <button
-              type="button"
-              disabled={isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              className={`flex items-center gap-1.5 px-2 py-1 ${themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
-              title="カーソル位置に写真を差し込みます"
-            >
-              {isUploading ? (
-                <Loader2 className={`w-3.5 h-3.5 animate-spin ${themeStyles.icon}`} />
-              ) : (
-                <Camera className={`w-3.5 h-3.5 ${themeStyles.icon}`} />
-              )}
-              <span>{isUploading ? "圧縮中..." : "📷 写真"}</span>
-            </button>
-
-            {/* Marker Palette Toggle Button */}
-            <div className="relative">
+        <div
+          onMouseEnter={() => setIsToolbarHovered(true)}
+          onMouseLeave={() => setIsToolbarHovered(false)}
+          className={`pt-1.5 mt-1 border-t ${themeStyles.border} transition-all duration-200`}
+        >
+          {!isToolbarExpanded ? (
+            <div className="flex items-center justify-between gap-2 min-h-[22px] text-[10px] select-none">
               <button
                 type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  setIsMarkerMenuOpen(!isMarkerMenuOpen);
-                  setIsTextColorMenuOpen(false);
-                }}
-                className={`flex items-center gap-1 px-2 py-1 ${isMarkerMenuOpen ? "bg-amber-200/90 text-amber-950 font-bold" : themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
-                title="マーカー（蛍光ペン）パレットを開く"
+                onClick={() => setIsToolbarHovered(true)}
+                className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300 transition-colors cursor-pointer py-0.5"
               >
-                <Highlighter className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span>🖍️ マーカー</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100/70 dark:bg-stone-800/60 border border-slate-200/60 dark:border-stone-700/50 text-[10px] font-medium">
+                  <span>✨ 装飾・写真・AI整理</span>
+                </span>
               </button>
-
-              {/* Marker Popover */}
-              {isMarkerMenuOpen && (
-                <div
-                  onMouseDown={(e) => e.preventDefault()}
-                  className="absolute bottom-full mb-1.5 left-0 z-40 flex flex-col p-2 bg-white dark:bg-stone-900 rounded-xl shadow-xl border border-stone-200 dark:border-stone-700 animate-in fade-in zoom-in-95 duration-150 min-w-[190px]"
-                >
-                  <div className="flex items-center gap-1.5">
-                    {MARKER_PALETTE.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onMouseEnter={() => setActivePalettePreview(m)}
-                        onMouseLeave={() => setActivePalettePreview(null)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => applyFormatting("marker", m.id)}
-                        title={`マーカー: ${m.label}【${m.ruleTitle}】${m.ruleDesc}`}
-                        className="w-5 h-5 rounded-full hover:scale-120 transition-transform cursor-pointer shadow-xs"
-                        style={{ backgroundColor: m.hex, border: `1.5px solid ${m.border}` }}
-                      />
-                    ))}
-                    <div className="w-px h-4 bg-stone-200 dark:bg-stone-700 mx-0.5" />
-                    <button
-                      type="button"
-                      onMouseEnter={() =>
-                        setActivePalettePreview({
-                          id: "clear",
-                          label: "解除",
-                          ruleTitle: "装飾解除",
-                          ruleDesc: "マーカーを解除",
-                          hex: "#ffffff",
-                        })
-                      }
-                      onMouseLeave={() => setActivePalettePreview(null)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => applyFormatting("clear")}
-                      title="マーカーを解除"
-                      className="px-1.5 py-0.5 text-[10px] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded font-bold cursor-pointer"
-                    >
-                      解除
-                    </button>
-                  </div>
-
-                  {activePalettePreview && (
-                    <div className="mt-1.5 pt-1 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5 text-[10px] text-stone-700 dark:text-stone-300 animate-in fade-in duration-100">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{
-                          backgroundColor: activePalettePreview.hex,
-                          border: activePalettePreview.border ? `1px solid ${activePalettePreview.border}` : undefined,
-                        }}
-                      />
-                      <span className="font-bold text-amber-600 dark:text-amber-400 shrink-0">{activePalettePreview.ruleTitle}</span>
-                      <span className="text-[9px] text-stone-500 dark:text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Text Color Palette Toggle Button */}
-            <div className="relative">
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  setIsTextColorMenuOpen(!isTextColorMenuOpen);
-                  setIsMarkerMenuOpen(false);
-                }}
-                className={`flex items-center gap-1 px-2 py-1 ${isTextColorMenuOpen ? "bg-rose-200/90 text-rose-950 font-bold" : themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
-                title="文字色パレットを開く"
-              >
-                <Palette className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                <span>🎨 文字色</span>
-              </button>
-
-              {/* Text Color Popover */}
-              {isTextColorMenuOpen && (
-                <div
-                  onMouseDown={(e) => e.preventDefault()}
-                  className="absolute bottom-full mb-1.5 left-0 z-40 flex flex-col p-2 bg-white dark:bg-stone-900 rounded-xl shadow-xl border border-stone-200 dark:border-stone-700 animate-in fade-in zoom-in-95 duration-150 min-w-[210px]"
-                >
-                  <div className="flex items-center gap-1.5">
-                    {TEXT_COLOR_PALETTE.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onMouseEnter={() => setActivePalettePreview(c)}
-                        onMouseLeave={() => setActivePalettePreview(null)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => applyFormatting("color", c.id)}
-                        title={`文字色: ${c.label}【${c.ruleTitle}】${c.ruleDesc}`}
-                        className="w-5 h-5 rounded-full hover:scale-120 transition-transform cursor-pointer shadow-xs border border-white/40"
-                        style={{ backgroundColor: c.hex }}
-                      />
-                    ))}
-                    <div className="w-px h-4 bg-stone-200 dark:bg-stone-700 mx-0.5" />
-                    <button
-                      type="button"
-                      onMouseEnter={() =>
-                        setActivePalettePreview({
-                          id: "clear",
-                          label: "解除",
-                          ruleTitle: "装飾解除",
-                          ruleDesc: "文字色を解除",
-                          hex: "#ffffff",
-                        })
-                      }
-                      onMouseLeave={() => setActivePalettePreview(null)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => applyFormatting("clear")}
-                      title="文字色を解除"
-                      className="px-1.5 py-0.5 text-[10px] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded font-bold cursor-pointer"
-                    >
-                      解除
-                    </button>
-                  </div>
-
-                  {activePalettePreview && (
-                    <div className="mt-1.5 pt-1 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5 text-[10px] text-stone-700 dark:text-stone-300 animate-in fade-in duration-100">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0 border border-white/30"
-                        style={{ backgroundColor: activePalettePreview.hex }}
-                      />
-                      <span className="font-bold text-amber-600 dark:text-amber-400 shrink-0">{activePalettePreview.ruleTitle}</span>
-                      <span className="text-[9px] text-stone-500 dark:text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Done Toggle Button */}
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => applyFormatting("done")}
-              className={`flex items-center gap-1 px-2 py-1 ${themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
-              title="選択箇所を「済（完了）」にする / 解除する"
-            >
-              <CheckSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>☑️ 済</span>
-            </button>
-
-            {/* AI Refine button in static toolbar */}
-            <div className="flex items-center rounded-md border border-purple-500/40 bg-purple-950/20 shadow-2xs">
-              <button
-                type="button"
-                disabled={isRefining}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  const range = savedSelectionRangeRef.current;
-                  if (!range || !range.toString().trim()) {
-                    toast.info("整理したいテキストをドラッグして選択してください");
-                    return;
-                  }
-                  handleAiRefine("organize");
-                }}
-                className={`flex items-center gap-1 px-2 py-1 text-purple-600 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white hover:bg-purple-500/20 text-[11px] font-semibold transition-all cursor-pointer`}
-                title="選択したテキストをAIで整理する（ChatGPT/Gemini）"
-              >
-                {isRefining ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-purple-400 fill-purple-400/20" />
+              <div className="flex items-center gap-1.5">
+                {(effectiveHideDone || doneCount > 0) && (
+                  <button
+                    type="button"
+                    onClick={toggleHideDone}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer ${
+                      effectiveHideDone
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                        : "bg-slate-100 dark:bg-stone-800 text-slate-500 border border-slate-200/60"
+                    }`}
+                  >
+                    {effectiveHideDone ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}
+                    <span>{effectiveHideDone ? "完了非表示中" : "完了表示"}</span>
+                    {doneCount > 0 && <span className="font-mono font-bold">({doneCount})</span>}
+                  </button>
                 )}
-                <span>{isRefining ? "整理中..." : "✨ 整理"}</span>
-              </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs animate-in fade-in duration-150">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {/* Camera Photo Insert Button */}
+                <button
+                  type="button"
+                  disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex items-center gap-1 px-2.5 py-1 ${themeStyles.btn} text-[11px] font-semibold rounded-full transition-all cursor-pointer active:scale-95`}
+                  title="カーソル位置に写真を差し込みます"
+                >
+                  {isUploading ? (
+                    <Loader2 className={`w-3 h-3 animate-spin ${themeStyles.icon}`} />
+                  ) : (
+                    <Camera className={`w-3 h-3 ${themeStyles.icon}`} />
+                  )}
+                  <span>{isUploading ? "圧縮中..." : "写真"}</span>
+                </button>
 
-              <Popover>
-                <PopoverTrigger asChild>
+                {/* Marker Palette Toggle Button */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setIsMarkerMenuOpen(!isMarkerMenuOpen);
+                      setIsTextColorMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1 ${isMarkerMenuOpen ? "bg-amber-200/90 text-amber-950 font-bold border border-amber-300" : themeStyles.btn} text-[11px] font-semibold rounded-full transition-all cursor-pointer active:scale-95`}
+                    title="マーカー（蛍光ペン）パレットを開く"
+                  >
+                    <Highlighter className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                    <span>マーカー</span>
+                  </button>
+
+                  {/* Marker Popover */}
+                  {isMarkerMenuOpen && (
+                    <div
+                      onMouseDown={(e) => e.preventDefault()}
+                      className="absolute bottom-full mb-1.5 left-0 z-40 flex flex-col p-2.5 bg-white/95 dark:bg-stone-900/95 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/80 dark:border-stone-700 animate-in fade-in zoom-in-95 duration-150 min-w-[190px]"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {MARKER_PALETTE.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onMouseEnter={() => setActivePalettePreview(m)}
+                            onMouseLeave={() => setActivePalettePreview(null)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => applyFormatting("marker", m.id)}
+                            title={`マーカー: ${m.label}【${m.ruleTitle}】${m.ruleDesc}`}
+                            className="w-5 h-5 rounded-full hover:scale-120 transition-transform cursor-pointer shadow-xs"
+                            style={{ backgroundColor: m.hex, border: `1.5px solid ${m.border}` }}
+                          />
+                        ))}
+                        <div className="w-px h-4 bg-stone-200 dark:bg-stone-700 mx-0.5" />
+                        <button
+                          type="button"
+                          onMouseEnter={() =>
+                            setActivePalettePreview({
+                              id: "clear",
+                              label: "解除",
+                              ruleTitle: "装飾解除",
+                              ruleDesc: "マーカーを解除",
+                              hex: "#ffffff",
+                            })
+                          }
+                          onMouseLeave={() => setActivePalettePreview(null)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => applyFormatting("clear")}
+                          title="マーカーを解除"
+                          className="px-1.5 py-0.5 text-[10px] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded font-bold cursor-pointer"
+                        >
+                          解除
+                        </button>
+                      </div>
+
+                      {activePalettePreview && (
+                        <div className="mt-1.5 pt-1 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5 text-[10px] text-stone-700 dark:text-stone-300 animate-in fade-in duration-100">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{
+                              backgroundColor: activePalettePreview.hex,
+                              border: activePalettePreview.border ? `1px solid ${activePalettePreview.border}` : undefined,
+                            }}
+                          />
+                          <span className="font-bold text-amber-600 dark:text-amber-400 shrink-0">{activePalettePreview.ruleTitle}</span>
+                          <span className="text-[9px] text-stone-500 dark:text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Text Color Palette Toggle Button */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setIsTextColorMenuOpen(!isTextColorMenuOpen);
+                      setIsMarkerMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1 ${isTextColorMenuOpen ? "bg-rose-200/90 text-rose-950 font-bold border border-rose-300" : themeStyles.btn} text-[11px] font-semibold rounded-full transition-all cursor-pointer active:scale-95`}
+                    title="文字色パレットを開く"
+                  >
+                    <Palette className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                    <span>文字色</span>
+                  </button>
+
+                  {/* Text Color Popover */}
+                  {isTextColorMenuOpen && (
+                    <div
+                      onMouseDown={(e) => e.preventDefault()}
+                      className="absolute bottom-full mb-1.5 left-0 z-40 flex flex-col p-2.5 bg-white/95 dark:bg-stone-900/95 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/80 dark:border-stone-700 animate-in fade-in zoom-in-95 duration-150 min-w-[210px]"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {TEXT_COLOR_PALETTE.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onMouseEnter={() => setActivePalettePreview(c)}
+                            onMouseLeave={() => setActivePalettePreview(null)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => applyFormatting("color", c.id)}
+                            title={`文字色: ${c.label}【${c.ruleTitle}】${c.ruleDesc}`}
+                            className="w-5 h-5 rounded-full hover:scale-120 transition-transform cursor-pointer shadow-xs border border-white/40"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                        ))}
+                        <div className="w-px h-4 bg-stone-200 dark:bg-stone-700 mx-0.5" />
+                        <button
+                          type="button"
+                          onMouseEnter={() =>
+                            setActivePalettePreview({
+                              id: "clear",
+                              label: "解除",
+                              ruleTitle: "装飾解除",
+                              ruleDesc: "文字色を解除",
+                              hex: "#ffffff",
+                            })
+                          }
+                          onMouseLeave={() => setActivePalettePreview(null)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => applyFormatting("clear")}
+                          title="文字色を解除"
+                          className="px-1.5 py-0.5 text-[10px] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded font-bold cursor-pointer"
+                        >
+                          解除
+                        </button>
+                      </div>
+
+                      {activePalettePreview && (
+                        <div className="mt-1.5 pt-1 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5 text-[10px] text-stone-700 dark:text-stone-300 animate-in fade-in duration-100">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0 border border-white/30"
+                            style={{ backgroundColor: activePalettePreview.hex }}
+                          />
+                          <span className="font-bold text-amber-600 dark:text-amber-400 shrink-0">{activePalettePreview.ruleTitle}</span>
+                          <span className="text-[9px] text-stone-500 dark:text-stone-400 truncate">{activePalettePreview.ruleDesc}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Done Toggle Button */}
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyFormatting("done")}
+                  className={`flex items-center gap-1 px-2.5 py-1 ${themeStyles.btn} text-[11px] font-semibold rounded-full transition-all cursor-pointer active:scale-95`}
+                  title="選択箇所を「済（完了）」にする / 解除する"
+                >
+                  <CheckSquare className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                  <span>済</span>
+                </button>
+
+                {/* AI Refine button in static toolbar */}
+                <div className="flex items-center rounded-full border border-purple-300/70 dark:border-purple-500/40 bg-purple-50/80 dark:bg-purple-950/30 shadow-2xs overflow-hidden">
                   <button
                     type="button"
                     disabled={isRefining}
                     onMouseDown={(e) => e.preventDefault()}
-                    className="px-1 py-1 text-purple-600 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white hover:bg-purple-500/20 border-l border-purple-500/40 transition cursor-pointer"
-                    title="整理モードを選択"
+                    onClick={() => {
+                      const range = savedSelectionRangeRef.current;
+                      if (!range || !range.toString().trim()) {
+                        toast.info("整理したいテキストをドラッグして選択してください");
+                        return;
+                      }
+                      handleAiRefine("organize");
+                    }}
+                    className={`flex items-center gap-1 pl-2.5 pr-2 py-1 text-purple-700 dark:text-purple-300 hover:bg-purple-500/15 text-[11px] font-semibold transition-all cursor-pointer`}
+                    title="選択したテキストをAIで整理する（ChatGPT/Gemini）"
                   >
-                    <ChevronDown className="w-2.5 h-2.5" />
+                    {isRefining ? (
+                      <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-purple-500 fill-purple-400/20" />
+                    )}
+                    <span>{isRefining ? "整理中..." : "AI整理"}</span>
                   </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  side="bottom"
-                  align="start"
-                  sideOffset={6}
-                  className="w-48 p-1.5 bg-stone-900 border border-purple-800/60 text-stone-200 text-xs shadow-2xl rounded-xl z-[9999]"
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                >
-                  <div className="space-y-0.5">
-                    <div className="px-2 py-1 text-[10px] font-bold text-purple-400 uppercase tracking-wider border-b border-stone-800">
-                      AI整理（下に挿入して比較）
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAiRefine("organize", false)}
-                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
-                    >
-                      <span>✨</span>
-                      <div>
-                        <div className="font-bold text-[11px]">箇条書き・構造化</div>
-                        <div className="text-[9px] text-stone-400">下に挿入して前後比較（おすすめ）</div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAiRefine("fix", false)}
-                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
-                    >
-                      <span>📝</span>
-                      <div>
-                        <div className="font-bold text-[11px]">自然な文章に清書</div>
-                        <div className="text-[9px] text-stone-400">誤字脱字を直し下に挿入</div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAiRefine("summarize", false)}
-                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
-                    >
-                      <span>✂️</span>
-                      <div>
-                        <div className="font-bold text-[11px]">要点だけ要約</div>
-                        <div className="text-[9px] text-stone-400">短くまとめて下に挿入</div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAiRefine("todo", false)}
-                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
-                    >
-                      <span>☑️</span>
-                      <div>
-                        <div className="font-bold text-[11px]">TODO・タスク抽出</div>
-                        <div className="text-[9px] text-stone-400">やることリストにして下に挿入</div>
-                      </div>
-                    </button>
-                    <div className="border-t border-stone-800 my-1 pt-1">
+
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <button
                         type="button"
-                        onClick={() => handleAiRefine("organize", true)}
-                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-stone-800 text-stone-300 hover:text-white flex items-center gap-2 transition"
+                        disabled={isRefining}
+                        onMouseDown={(e) => e.preventDefault()}
+                        className="pr-2 pl-1 py-1 text-purple-600 dark:text-purple-300 hover:bg-purple-500/15 border-l border-purple-300/60 dark:border-purple-500/40 transition cursor-pointer"
+                        title="整理モードを選択"
                       >
-                        <span>🔄</span>
-                        <div>
-                          <div className="font-bold text-[11px]">元の文章を直接置換</div>
-                          <div className="text-[9px] text-stone-400">上書きして置き換える</div>
-                        </div>
+                        <ChevronDown className="w-2.5 h-2.5" />
                       </button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="bottom"
+                      align="start"
+                      sideOffset={6}
+                      className="w-48 p-1.5 bg-stone-900 border border-purple-800/60 text-stone-200 text-xs shadow-2xl rounded-xl z-[9999]"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <div className="space-y-0.5">
+                        <div className="px-2 py-1 text-[10px] font-bold text-purple-400 uppercase tracking-wider border-b border-stone-800">
+                          AI整理（下に挿入して比較）
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAiRefine("organize", false)}
+                          className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                        >
+                          <span>✨</span>
+                          <div>
+                            <div className="font-bold text-[11px]">箇条書き・構造化</div>
+                            <div className="text-[9px] text-stone-400">下に挿入して前後比較（おすすめ）</div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAiRefine("fix", false)}
+                          className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                        >
+                          <span>📝</span>
+                          <div>
+                            <div className="font-bold text-[11px]">自然な文章に清書</div>
+                            <div className="text-[9px] text-stone-400">誤字脱字を直し下に挿入</div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAiRefine("summarize", false)}
+                          className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                        >
+                          <span>✂️</span>
+                          <div>
+                            <div className="font-bold text-[11px]">要点だけ要約</div>
+                            <div className="text-[9px] text-stone-400">短くまとめて下に挿入</div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAiRefine("todo", false)}
+                          className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-950/60 hover:text-purple-200 flex items-center gap-2 transition"
+                        >
+                          <span>☑️</span>
+                          <div>
+                            <div className="font-bold text-[11px]">TODO・タスク抽出</div>
+                            <div className="text-[9px] text-stone-400">やることリストにして下に挿入</div>
+                          </div>
+                        </button>
+                        <div className="border-t border-stone-800 my-1 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleAiRefine("organize", true)}
+                            className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-stone-800 text-stone-300 hover:text-white flex items-center gap-2 transition"
+                          >
+                            <span>🔄</span>
+                            <div>
+                              <div className="font-bold text-[11px]">元の文章を直接置換</div>
+                              <div className="text-[9px] text-stone-400">上書きして置き換える</div>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
 
-          <div className="flex items-center gap-2">
-            {/* Toggle Hide Done Items */}
-            <button
-              type="button"
-              onClick={toggleHideDone}
-              className={`flex items-center gap-1.5 px-2 py-1 ${
-                effectiveHideDone
-                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-bold"
-                  : themeStyles.btn
-              } text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
-              title={effectiveHideDone ? "完了項目を表示する" : "完了項目を非表示（ステルス）にする"}
-            >
-              {effectiveHideDone ? (
-                <EyeOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              ) : (
-                <Eye className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
-              )}
-              <span>{effectiveHideDone ? "非表示中" : "完了表示"}</span>
-              {doneCount > 0 && (
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                    effectiveHideDone
-                      ? "bg-amber-500/30 text-amber-800 dark:text-amber-200"
-                      : "bg-stone-200 dark:bg-stone-700 text-stone-600 dark:text-stone-300"
-                  }`}
-                >
-                  {doneCount}
-                </span>
-              )}
-            </button>
-
-            {/* Color Rules Legend Popover */}
-            <Popover open={isLegendOpen} onOpenChange={setIsLegendOpen}>
-              <PopoverTrigger asChild>
+              <div className="flex items-center gap-1.5">
+                {/* Toggle Hide Done Items */}
                 <button
                   type="button"
-                  className={`flex items-center gap-1 px-2 py-1 ${isLegendOpen ? "bg-amber-200/90 text-amber-950 font-bold" : themeStyles.btn} text-[11px] font-semibold rounded-md transition-all cursor-pointer shadow-2xs`}
-                  title="色分けルール一覧を確認"
+                  onClick={toggleHideDone}
+                  className={`flex items-center gap-1 px-2.5 py-1 ${
+                    effectiveHideDone
+                      ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/35 font-bold"
+                      : themeStyles.btn
+                  } text-[11px] font-semibold rounded-full transition-all cursor-pointer active:scale-95`}
+                  title={effectiveHideDone ? "完了項目を表示する" : "完了項目を非表示（ステルス）にする"}
                 >
-                  <HelpCircle className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
-                  <span>色の心得</span>
+                  {effectiveHideDone ? (
+                    <EyeOff className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                  ) : (
+                    <Eye className="w-3 h-3 text-slate-400" />
+                  )}
+                  <span>{effectiveHideDone ? "非表示中" : "完了表示"}</span>
+                  {doneCount > 0 && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        effectiveHideDone
+                          ? "bg-amber-500/25 text-amber-900 dark:text-amber-200"
+                          : "bg-slate-200/80 dark:bg-stone-700 text-slate-600 dark:text-stone-300"
+                      }`}
+                    >
+                      {doneCount}
+                    </span>
+                  )}
                 </button>
-              </PopoverTrigger>
 
-              <PopoverContent
-                side="top"
-                align="start"
-                sideOffset={8}
-                collisionPadding={12}
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                className="w-80 max-w-[calc(100vw-24px)] p-3 bg-stone-900/95 text-stone-100 backdrop-blur-md rounded-xl shadow-2xl border border-amber-500/40 text-xs select-none z-[9999]"
-              >
-                <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-stone-800">
-                  <span className="font-bold text-amber-300 flex items-center gap-1">
-                    <span>📜</span> 冒険の手帳：色分けの心得
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsLegendOpen(false)}
-                    className="text-stone-400 hover:text-white p-0.5 cursor-pointer"
+                {/* Color Rules Legend Popover */}
+                <Popover open={isLegendOpen} onOpenChange={setIsLegendOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className={`flex items-center gap-1 px-2.5 py-1 ${isLegendOpen ? "bg-amber-200/90 text-amber-950 font-bold" : themeStyles.btn} text-[11px] font-semibold rounded-full transition-all cursor-pointer active:scale-95`}
+                      title="色分けルール一覧を確認"
+                    >
+                      <HelpCircle className="w-3 h-3 text-slate-400" />
+                      <span>色の心得</span>
+                    </button>
+                  </PopoverTrigger>
+
+                  <PopoverContent
+                    side="top"
+                    align="start"
+                    sideOffset={8}
+                    collisionPadding={12}
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    className="w-80 max-w-[calc(100vw-24px)] p-3 bg-stone-900/95 text-stone-100 backdrop-blur-md rounded-2xl shadow-2xl border border-amber-500/40 text-xs select-none z-[9999]"
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                    <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-stone-800">
+                      <span className="font-bold text-amber-300 flex items-center gap-1">
+                        <span>📜</span> 冒険の手帳：色分けの心得
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsLegendOpen(false)}
+                        className="text-stone-400 hover:text-white p-0.5 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
-                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-                  <div>
-                    <div className="text-[10px] font-bold text-amber-400/90 mb-1">🖍️ マーカー（強調）</div>
-                    <div className="space-y-1">
-                      {MARKER_PALETTE.map((m) => (
-                        <div key={m.id} className="flex items-center gap-1.5 text-[11px]">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: m.hex, border: `1px solid ${m.border}` }}
-                          />
-                          <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{m.ruleTitle}</span>
-                          <span className="text-[10px] text-stone-400 truncate">{m.ruleDesc}</span>
+                    <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                      <div>
+                        <div className="text-[10px] font-bold text-amber-400/90 mb-1">🖍️ マーカー（強調）</div>
+                        <div className="space-y-1">
+                          {MARKER_PALETTE.map((m) => (
+                            <div key={m.id} className="flex items-center gap-1.5 text-[11px]">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: m.hex, border: `1px solid ${m.border}` }}
+                              />
+                              <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{m.ruleTitle}</span>
+                              <span className="text-[10px] text-stone-400 truncate">{m.ruleDesc}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  <div className="pt-1.5 border-t border-stone-800">
-                    <div className="text-[10px] font-bold text-amber-400/90 mb-1">🎨 文字色</div>
-                    <div className="space-y-1">
-                      {TEXT_COLOR_PALETTE.map((c) => (
-                        <div key={c.id} className="flex items-center gap-1.5 text-[11px]">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
-                            style={{ backgroundColor: c.hex }}
-                          />
-                          <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{c.ruleTitle}</span>
-                          <span className="text-[10px] text-stone-400 truncate">{c.ruleDesc}</span>
+                      <div className="pt-1.5 border-t border-stone-800">
+                        <div className="text-[10px] font-bold text-amber-400/90 mb-1">🎨 文字色</div>
+                        <div className="space-y-1">
+                          {TEXT_COLOR_PALETTE.map((c) => (
+                            <div key={c.id} className="flex items-center gap-1.5 text-[11px]">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
+                                style={{ backgroundColor: c.hex }}
+                              />
+                              <span className="font-bold text-stone-200 w-28 shrink-0 truncate">{c.ruleTitle}</span>
+                              <span className="text-[10px] text-stone-400 truncate">{c.ruleDesc}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  <div className="pt-1.5 border-t border-stone-800">
-                    <div className="text-[10px] font-bold text-emerald-400/90 mb-1">☑️ 完了・ステルス保管</div>
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="w-2.5 h-2.5 rounded-xs shrink-0 bg-emerald-500 border border-emerald-400" />
-                      <span className="font-bold text-stone-200 w-28 shrink-0">済（完了）</span>
-                      <span className="text-[10px] text-stone-400 truncate">消さずに非表示トグルで非表示化</span>
+                      <div className="pt-1.5 border-t border-stone-800">
+                        <div className="text-[10px] font-bold text-emerald-400/90 mb-1">☑️ 完了・ステルス保管</div>
+                        <div className="flex items-center gap-1.5 text-[11px]">
+                          <span className="w-2.5 h-2.5 rounded-xs shrink-0 bg-emerald-500 border border-emerald-400" />
+                          <span className="font-bold text-stone-200 w-28 shrink-0">済（完了）</span>
+                          <span className="text-[10px] text-stone-400 truncate">消さずに非表示トグルで非表示化</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <span className={`text-[10px] ${themeStyles.hint} font-mono hidden sm:inline select-none`}>
-              💡 文字を選択するとNotion風パレットが出現
-            </span>
-          </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
