@@ -31,6 +31,406 @@ const QUEST_TYPE_LABELS: Record<string, string> = {
 const SHORT_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 const SHORT_WEEKS = ["第1週", "第2週", "第3週", "第4週", "第5週"];
 
+// Custom UI Color Theme System (Persisted in localStorage)
+interface CustomUiColors {
+  pageBg: string;
+  goalBg: string;
+  goalText: string;
+  bulletinBg: string;
+  bulletinText: string;
+  glassBg: string;
+}
+
+const UI_COLORS_STORAGE_KEY = "questlog_ui_colors_v1";
+const UI_COLORS_EVENT = "questlog-ui-colors-changed";
+
+const DEFAULT_UI_COLORS: CustomUiColors = {
+  pageBg: "#F4F6FA",
+  goalBg: "#F2FDF7",
+  goalText: "#0F291E",
+  bulletinBg: "#FFFDF7",
+  bulletinText: "#1C1917",
+  glassBg: "#FFFFFF",
+};
+
+const UI_COLOR_PRESETS: { id: string; label: string; desc: string; colors: CustomUiColors }[] = [
+  {
+    id: "standard",
+    label: "🌿 標準（ミント＆生成り）",
+    desc: "目標は爽やかなミント、掲示板は温かみのある生成り",
+    colors: DEFAULT_UI_COLORS,
+  },
+  {
+    id: "pure-white",
+    label: "☀️ ピュアホワイト（くっきり高視認性）",
+    desc: "純白の背景に漆黒の文字でコントラストを最大化",
+    colors: {
+      pageBg: "#EEF2F6",
+      goalBg: "#FFFFFF",
+      goalText: "#0F172A",
+      bulletinBg: "#FFFFFF",
+      bulletinText: "#0F172A",
+      glassBg: "#FFFFFF",
+    },
+  },
+  {
+    id: "warm-paper",
+    label: "📜 ウォームペーパー（目に優しいノート）",
+    desc: "上質な紙のようなクリーム色で長時間の作業でも疲れにくい",
+    colors: {
+      pageBg: "#F5F2EB",
+      goalBg: "#FCF9F2",
+      goalText: "#1C1917",
+      bulletinBg: "#FFFBF2",
+      bulletinText: "#1C1917",
+      glassBg: "#FDFBF7",
+    },
+  },
+  {
+    id: "cool-sky",
+    label: "💠 クールスカイ（澄んだブルー）",
+    desc: "透明感のあるスカイブルー基調で頭が冴える配色",
+    colors: {
+      pageBg: "#EAF2FA",
+      goalBg: "#F0F9FF",
+      goalText: "#0C4A6E",
+      bulletinBg: "#F8FAFC",
+      bulletinText: "#0F172A",
+      glassBg: "#FFFFFF",
+    },
+  },
+  {
+    id: "sakura",
+    label: "🌸 サクラブロッサム（華やかピンク）",
+    desc: "明るく優しい桜色トーンで気分が上がる配色",
+    colors: {
+      pageBg: "#FDF2F6",
+      goalBg: "#FFF5F7",
+      goalText: "#4C0519",
+      bulletinBg: "#FFFAFC",
+      bulletinText: "#1C1917",
+      glassBg: "#FFFFFF",
+    },
+  },
+  {
+    id: "dark-slate",
+    label: "🌙 ダークガラス（夜モード）",
+    desc: "深いネイビー背景に白文字で夜間の眩しさを軽減",
+    colors: {
+      pageBg: "#0F172A",
+      goalBg: "#1E293B",
+      goalText: "#F8FAFC",
+      bulletinBg: "#1E293B",
+      bulletinText: "#F8FAFC",
+      glassBg: "#1E293B",
+    },
+  },
+];
+
+function loadSavedUiColors(): CustomUiColors {
+  try {
+    const raw = localStorage.getItem(UI_COLORS_STORAGE_KEY);
+    if (raw) {
+      return { ...DEFAULT_UI_COLORS, ...JSON.parse(raw) };
+    }
+  } catch {}
+  return DEFAULT_UI_COLORS;
+}
+
+function useCustomUiColors() {
+  const [colors, setColorsState] = useState<CustomUiColors>(() => loadSavedUiColors());
+
+  useEffect(() => {
+    const syncHandler = () => {
+      setColorsState(loadSavedUiColors());
+    };
+    window.addEventListener(UI_COLORS_EVENT, syncHandler);
+    return () => window.removeEventListener(UI_COLORS_EVENT, syncHandler);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--custom-page-bg", colors.pageBg);
+    root.style.setProperty("--custom-goal-bg", colors.goalBg);
+    root.style.setProperty("--custom-goal-text", colors.goalText);
+    root.style.setProperty("--custom-bulletin-bg", colors.bulletinBg);
+    root.style.setProperty("--custom-bulletin-text", colors.bulletinText);
+    root.style.setProperty("--custom-glass-bg", colors.glassBg);
+  }, [colors]);
+
+  const updateColors = (partial: Partial<CustomUiColors>) => {
+    const next = { ...loadSavedUiColors(), ...partial };
+    try {
+      localStorage.setItem(UI_COLORS_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+    setColorsState(next);
+    window.dispatchEvent(new CustomEvent(UI_COLORS_EVENT));
+  };
+
+  const resetColors = () => {
+    try {
+      localStorage.removeItem(UI_COLORS_STORAGE_KEY);
+    } catch {}
+    setColorsState(DEFAULT_UI_COLORS);
+    window.dispatchEvent(new CustomEvent(UI_COLORS_EVENT));
+  };
+
+  return { colors, updateColors, resetColors };
+}
+
+function ColorStudioButton({ compact = false }: { compact?: boolean }) {
+  const { colors, updateColors, resetColors } = useCustomUiColors();
+  const [open, setOpen] = useState(false);
+
+  const bgSwatches = ["#FFFFFF", "#FFFDF7", "#F2FDF7", "#F0F9FF", "#FFF5F7", "#FCF9F2", "#EEF2F6", "#1E293B"];
+  const textSwatches = ["#0F172A", "#1C1917", "#0F291E", "#0C4A6E", "#334155", "#4C0519", "#F8FAFC", "#E2E8F0"];
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {compact ? (
+          <button
+            type="button"
+            className="h-7 px-2.5 rounded-full bg-white/80 hover:bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900 text-[11px] font-bold flex items-center gap-1 shadow-2xs transition-all active:scale-95 cursor-pointer"
+            title="背景色・文字色をカスタマイズ"
+          >
+            <span>🎨</span>
+            <span>色設定</span>
+          </button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full bg-white/80 hover:bg-white border border-slate-200/80 text-slate-700 font-bold shrink-0 text-xs h-8 px-3.5 shadow-2xs transition-all cursor-pointer"
+          >
+            <span className="mr-1.5">🎨</span> 背景・文字色
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto bg-white text-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-base sm:text-lg font-black flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-2xl bg-slate-100 flex items-center justify-center text-base">🎨</span>
+              <span>背景色・文字色カスタム設定</span>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                resetColors();
+                toast.success("標準の色設定に戻しました");
+              }}
+              className="h-7 rounded-full text-xs text-slate-600"
+            >
+              初期値に戻す
+            </Button>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 pt-2 text-xs">
+          {/* Presets */}
+          <div className="space-y-2">
+            <div className="font-bold text-slate-700">✨ ワンタップ・テーマプリセット</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {UI_COLOR_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => updateColors(p.colors)}
+                  className="flex items-center justify-between p-2.5 rounded-2xl border border-slate-200 hover:border-sky-400 hover:bg-sky-50/40 text-left transition-all cursor-pointer group"
+                >
+                  <div className="min-w-0 pr-2">
+                    <div className="font-bold text-slate-800 group-hover:text-sky-700">{p.label}</div>
+                    <div className="text-[10px] text-slate-400 truncate mt-0.5">{p.desc}</div>
+                  </div>
+                  <div className="flex items-center -space-x-1 shrink-0">
+                    <span className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs" style={{ backgroundColor: p.colors.pageBg }} />
+                    <span className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs" style={{ backgroundColor: p.colors.goalBg }} />
+                    <span className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs" style={{ backgroundColor: p.colors.bulletinBg }} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Goal Board Colors */}
+          <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-black text-slate-800 flex items-center gap-1.5">🎯 月間目標ボード（背景色 ＆ 文字色）</span>
+              <span
+                className="px-2.5 py-1 rounded-lg text-[11px] font-bold border border-black/10 shadow-2xs"
+                style={{ backgroundColor: colors.goalBg, color: colors.goalText }}
+              >
+                プレビュー文字 Aa
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 flex items-center justify-between">
+                  <span>背景色</span>
+                  <span className="font-mono text-[10px] text-slate-400">{colors.goalBg}</span>
+                </label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <input
+                    type="color"
+                    value={colors.goalBg}
+                    onChange={(e) => updateColors({ goalBg: e.target.value })}
+                    className="w-7 h-7 rounded-lg cursor-pointer border border-slate-300 bg-white p-0.5"
+                  />
+                  {bgSwatches.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => updateColors({ goalBg: hex })}
+                      className={`w-5 h-5 rounded-full border ${colors.goalBg.toLowerCase() === hex.toLowerCase() ? "ring-2 ring-sky-500 border-white" : "border-slate-300"}`}
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 flex items-center justify-between">
+                  <span>文字色</span>
+                  <span className="font-mono text-[10px] text-slate-400">{colors.goalText}</span>
+                </label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <input
+                    type="color"
+                    value={colors.goalText}
+                    onChange={(e) => updateColors({ goalText: e.target.value })}
+                    className="w-7 h-7 rounded-lg cursor-pointer border border-slate-300 bg-white p-0.5"
+                  />
+                  {textSwatches.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => updateColors({ goalText: hex })}
+                      className={`w-5 h-5 rounded-full border ${colors.goalText.toLowerCase() === hex.toLowerCase() ? "ring-2 ring-sky-500 border-white" : "border-slate-300"}`}
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bulletin Board Colors */}
+          <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-black text-slate-800 flex items-center gap-1.5">📌 掲示板（背景色 ＆ 文字色）</span>
+              <span
+                className="px-2.5 py-1 rounded-lg text-[11px] font-bold border border-black/10 shadow-2xs"
+                style={{ backgroundColor: colors.bulletinBg, color: colors.bulletinText }}
+              >
+                プレビュー文字 Aa
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 flex items-center justify-between">
+                  <span>背景色</span>
+                  <span className="font-mono text-[10px] text-slate-400">{colors.bulletinBg}</span>
+                </label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <input
+                    type="color"
+                    value={colors.bulletinBg}
+                    onChange={(e) => updateColors({ bulletinBg: e.target.value })}
+                    className="w-7 h-7 rounded-lg cursor-pointer border border-slate-300 bg-white p-0.5"
+                  />
+                  {bgSwatches.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => updateColors({ bulletinBg: hex })}
+                      className={`w-5 h-5 rounded-full border ${colors.bulletinBg.toLowerCase() === hex.toLowerCase() ? "ring-2 ring-sky-500 border-white" : "border-slate-300"}`}
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 flex items-center justify-between">
+                  <span>文字色</span>
+                  <span className="font-mono text-[10px] text-slate-400">{colors.bulletinText}</span>
+                </label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <input
+                    type="color"
+                    value={colors.bulletinText}
+                    onChange={(e) => updateColors({ bulletinText: e.target.value })}
+                    className="w-7 h-7 rounded-lg cursor-pointer border border-slate-300 bg-white p-0.5"
+                  />
+                  {textSwatches.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => updateColors({ bulletinText: hex })}
+                      className={`w-5 h-5 rounded-full border ${colors.bulletinText.toLowerCase() === hex.toLowerCase() ? "ring-2 ring-sky-500 border-white" : "border-slate-300"}`}
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Page & Mission Stage Background */}
+          <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <span>🖼️ ページ全体の背景色</span>
+                <span className="font-mono text-[10px] text-slate-400">{colors.pageBg}</span>
+              </label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <input
+                  type="color"
+                  value={colors.pageBg}
+                  onChange={(e) => updateColors({ pageBg: e.target.value })}
+                  className="w-7 h-7 rounded-lg cursor-pointer border border-slate-300 bg-white p-0.5"
+                />
+                {["#F4F6FA", "#FFFFFF", "#F5F2EB", "#EAF2FA", "#FDF2F6", "#ECFDF5", "#E2E8F0", "#0F172A"].map((hex) => (
+                  <button
+                    key={hex}
+                    type="button"
+                    onClick={() => updateColors({ pageBg: hex })}
+                    className={`w-5 h-5 rounded-full border ${colors.pageBg.toLowerCase() === hex.toLowerCase() ? "ring-2 ring-sky-500 border-white" : "border-slate-300"}`}
+                    style={{ backgroundColor: hex }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <span>⚡ ミッション棚・枠の背景色</span>
+                <span className="font-mono text-[10px] text-slate-400">{colors.glassBg}</span>
+              </label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <input
+                  type="color"
+                  value={colors.glassBg}
+                  onChange={(e) => updateColors({ glassBg: e.target.value })}
+                  className="w-7 h-7 rounded-lg cursor-pointer border border-slate-300 bg-white p-0.5"
+                />
+                {bgSwatches.map((hex) => (
+                  <button
+                    key={hex}
+                    type="button"
+                    onClick={() => updateColors({ glassBg: hex })}
+                    className={`w-5 h-5 rounded-full border ${colors.glassBg.toLowerCase() === hex.toLowerCase() ? "ring-2 ring-sky-500 border-white" : "border-slate-300"}`}
+                    style={{ backgroundColor: hex }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const getTemplateScheduleLabel = (t: any): string => {
   if (!t) return "";
   if (t.questType === "Daily") return "毎日";
@@ -3751,15 +4151,21 @@ export default function Home() {
     }
   };
 
+  const { colors: uiColors } = useCustomUiColors();
+
   if (authLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative selection:bg-sky-500/20" onClick={() => setIsRelaxOpen(false)}>
+    <div
+      className="min-h-screen bg-background text-foreground relative selection:bg-sky-500/20 transition-colors duration-200"
+      style={{ backgroundColor: uiColors.pageBg }}
+      onClick={() => setIsRelaxOpen(false)}
+    >
       {/* Ambient Apple Sonoma / iOS Mesh Gradient Background */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
-        <div className="absolute -top-[18%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-sky-400/[0.07] dark:bg-sky-500/[0.05] blur-[110px]" />
-        <div className="absolute top-[15%] -right-[12%] w-[45vw] h-[45vw] rounded-full bg-indigo-400/[0.06] dark:bg-indigo-500/[0.05] blur-[120px]" />
-        <div className="absolute -bottom-[15%] left-[20%] w-[50vw] h-[50vw] rounded-full bg-amber-300/[0.06] dark:bg-amber-500/[0.04] blur-[120px]" />
+        <div className="absolute -top-[18%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-sky-400/[0.06] blur-[110px]" />
+        <div className="absolute top-[15%] -right-[12%] w-[45vw] h-[45vw] rounded-full bg-indigo-400/[0.05] blur-[120px]" />
+        <div className="absolute -bottom-[15%] left-[20%] w-[50vw] h-[50vw] rounded-full bg-amber-300/[0.05] blur-[120px]" />
       </div>
 
       <main className={`relative z-10 ${planningViewMode === 'weekly' ? 'w-full max-w-none px-2.5 sm:px-8 py-3 sm:py-6' : 'max-w-[1600px] 2xl:max-w-[1720px] px-2.5 sm:px-6 lg:px-10 py-3 sm:py-6'} mx-auto overflow-x-hidden`}>
@@ -3767,31 +4173,32 @@ export default function Home() {
         <div className="apple-glass rounded-3xl p-3 sm:px-5 sm:py-3.5 mb-4 sm:mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 dark:from-white dark:to-stone-300 text-white dark:text-stone-950 flex items-center justify-center shadow-md shadow-slate-900/10 font-black text-base tracking-tighter select-none">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white flex items-center justify-center shadow-md shadow-slate-900/10 font-black text-base tracking-tighter select-none">
                 Q
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">Quest Log</h1>
+                  <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 leading-none">Quest Log</h1>
                   {(progression?.currentStreak ?? 0) > 0 && (
-                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-600 dark:text-orange-400 font-bold text-xs shadow-2xs">
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-600 font-bold text-xs shadow-2xs">
                       <Flame className="fill-orange-500 text-orange-500 w-3.5 h-3.5" />
                       <span>{progression?.currentStreak}日連続</span>
                     </div>
                   )}
                 </div>
-                <p className="text-[10.5px] text-slate-400 dark:text-stone-400 font-medium mt-0.5 hidden sm:block">
+                <p className="text-[10.5px] text-slate-400 font-medium mt-0.5 hidden sm:block">
                   Personal Mission & Life Rhythm OS
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 lg:hidden">
+              <ColorStudioButton compact />
               <QuestCreateDialog
                 onCreated={refreshAll}
                 planningDayOffset={planningDayOffset}
                 trigger={
-                  <button className="h-8 px-3 rounded-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-stone-200 text-white dark:text-stone-950 text-xs font-bold flex items-center gap-1 shadow-sm transition-all active:scale-95 cursor-pointer">
+                  <button className="h-8 px-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-all active:scale-95 cursor-pointer">
                     <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                     <span>作成</span>
                   </button>
@@ -3802,22 +4209,23 @@ export default function Home() {
 
           {/* Sub Navigation Bar - Apple Pill Buttons */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 lg:pb-0 text-xs">
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/rhythm"} className="rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold shrink-0 text-xs h-8 px-3.5 transition-all">
+            <ColorStudioButton />
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/rhythm"} className="rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 font-bold shrink-0 text-xs h-8 px-3.5 transition-all">
               <Activity className="w-3.5 h-3.5 mr-1.5 text-amber-500" /> 生活リズム
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/awareness"} className="rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold shrink-0 text-xs h-8 px-3.5 transition-all">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/awareness"} className="rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 font-bold shrink-0 text-xs h-8 px-3.5 transition-all">
               <Lightbulb className="w-3.5 h-3.5 mr-1.5 fill-amber-500/30 text-amber-500" /> 意識を育てる
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"} className="rounded-full hover:bg-slate-200/60 dark:hover:bg-stone-800 text-slate-600 dark:text-stone-300 font-semibold shrink-0 text-xs h-8 px-3">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/templates"} className="rounded-full hover:bg-slate-200/60 text-slate-600 font-semibold shrink-0 text-xs h-8 px-3">
               Templates
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"} className="rounded-full hover:bg-slate-200/60 dark:hover:bg-stone-800 text-slate-600 dark:text-stone-300 font-semibold shrink-0 text-xs h-8 px-3">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/projects"} className="rounded-full hover:bg-slate-200/60 text-slate-600 font-semibold shrink-0 text-xs h-8 px-3">
               Projects
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/history"} className="rounded-full hover:bg-slate-200/60 dark:hover:bg-stone-800 text-slate-600 dark:text-stone-300 font-semibold shrink-0 text-xs h-8 px-3">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/history"} className="rounded-full hover:bg-slate-200/60 text-slate-600 font-semibold shrink-0 text-xs h-8 px-3">
               <History className="w-3.5 h-3.5 mr-1" /> 履歴
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"} className="rounded-full hover:bg-slate-200/60 dark:hover:bg-stone-800 text-slate-500 dark:text-stone-400 font-semibold shrink-0 text-xs h-8 px-3">
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/admin/db"} className="rounded-full hover:bg-slate-200/60 text-slate-500 font-semibold shrink-0 text-xs h-8 px-3">
               <Database className="w-3.5 h-3.5 mr-1" /> DB
             </Button>
             <div className="hidden lg:block pl-1">
@@ -3825,7 +4233,7 @@ export default function Home() {
                 onCreated={refreshAll}
                 planningDayOffset={planningDayOffset}
                 trigger={
-                  <button className="h-8 px-4 rounded-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-stone-200 text-white dark:text-stone-950 text-xs font-bold flex items-center gap-1.5 shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer">
+                  <button className="h-8 px-4 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer">
                     <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                     <span>新規ミッション</span>
                   </button>
@@ -5682,16 +6090,20 @@ function BulletinBoard() {
   };
 
   const displaySelectedDateStr = `${selectedDateObj.getMonth() + 1}/${selectedDateObj.getDate()}(${weekdays[selectedDateObj.getDay()]})`;
+  const { colors: uiColors } = useCustomUiColors();
 
   return (
-    <section className="apple-glass mb-6 p-0 rounded-3xl relative overflow-hidden">
+    <section
+      className="apple-glass mb-6 p-0 rounded-3xl relative overflow-hidden transition-colors duration-200"
+      style={{ backgroundColor: uiColors.bulletinBg, color: uiColors.bulletinText }}
+    >
       {/* Header */}
-      <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-slate-200/60 bg-white/50">
-        <h2 className="text-sm font-black tracking-tight flex items-center gap-2 text-slate-800">
+      <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-slate-200/60 bg-white/40">
+        <h2 className="text-sm font-black tracking-tight flex items-center gap-2" style={{ color: uiColors.bulletinText }}>
           <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-sm shadow-inner">📌</span>
           <span>掲示板</span>
-          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Notice Board</span>
-          <span className="ml-1 px-2.5 py-0.5 rounded-full bg-slate-900/5 text-slate-700 text-xs font-bold">{displaySelectedDateStr}</span>
+          <span className="text-xs font-semibold opacity-50 hidden sm:inline">Notice Board</span>
+          <span className="ml-1 px-2.5 py-0.5 rounded-full bg-black/5 text-xs font-bold">{displaySelectedDateStr}</span>
           {isSaving ? (
             <span className="text-[11px] text-amber-600 ml-2 font-mono flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full">
               <span className="animate-spin inline-block">⏳</span> 保存中...
@@ -5702,14 +6114,17 @@ function BulletinBoard() {
             </span>
           ) : null}
         </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleReset}
-          className="h-7 rounded-full px-3 text-xs text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-        >
-          <Trash2 className="w-3 h-3 mr-1" /> リセット
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <ColorStudioButton compact />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            className="h-7 rounded-full px-3 text-xs text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+          >
+            <Trash2 className="w-3 h-3 mr-1" /> リセット
+          </Button>
+        </div>
       </div>
 
       {/* Unsaved Draft Recovery Banner (案A) */}
@@ -5742,10 +6157,10 @@ function BulletinBoard() {
       )}
 
       {/* Text areas: Month & Week side-by-side on desktop, Day full width */}
-      <div className="flex flex-col divide-y divide-slate-200/50">
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/50">
-          <div className="p-4 flex flex-col gap-1.5 bg-white/30">
-            <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+      <div className="flex flex-col divide-y divide-slate-200/60" style={{ color: uiColors.bulletinText }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/60">
+          <div className="p-4 flex flex-col gap-1.5">
+            <div className="text-[11px] font-bold opacity-75 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-400" />
               月間掲示板 ({format(selectedDateObj, "yyyy年M月")})
             </div>
@@ -5758,13 +6173,13 @@ function BulletinBoard() {
                 monthTimeout.current = setTimeout(() => triggerSaveMonth(monthRefVal.current), 400);
               }}
               placeholder="今月の目標、領収書のメモ、忘れたくないこと..."
-              textAreaClassName="text-slate-700 text-sm leading-6 placeholder:text-slate-300"
+              textAreaClassName="text-sm leading-6 placeholder:opacity-40"
               minHeight={50}
               theme="stone"
             />
           </div>
-          <div className="p-4 flex flex-col gap-1.5 bg-white/20">
-            <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+          <div className="p-4 flex flex-col gap-1.5">
+            <div className="text-[11px] font-bold opacity-75 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-sky-400" />
               週間掲示板 ({format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), "M/d")}~ 週)
             </div>
@@ -5777,14 +6192,14 @@ function BulletinBoard() {
                 weekTimeout.current = setTimeout(() => triggerSaveWeek(weekRefVal.current), 400);
               }}
               placeholder="今週の予定、メモ..."
-              textAreaClassName="text-slate-700 text-sm leading-6 placeholder:text-slate-300"
+              textAreaClassName="text-sm leading-6 placeholder:opacity-40"
               minHeight={50}
               theme="stone"
             />
           </div>
         </div>
-        <div className="p-4 flex flex-col gap-1.5 bg-white/40">
-          <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+        <div className="p-4 flex flex-col gap-1.5">
+          <div className="text-[11px] font-bold opacity-75 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
             日間掲示板 (自由欄)
           </div>
@@ -5799,7 +6214,7 @@ function BulletinBoard() {
               contentTimeout.current = setTimeout(() => triggerSave(contentRefVal.current, diaryRefVal.current), 400);
             }}
             placeholder="今日の自由に書き込めるメモ..."
-            textAreaClassName="text-slate-700 text-sm leading-6 placeholder:text-slate-300"
+            textAreaClassName="text-sm leading-6 placeholder:opacity-40"
             minHeight={60}
             theme="stone"
           />
@@ -6196,31 +6611,41 @@ function MonthlyGoalBoard() {
     setSelectedMonthDate(d);
   };
 
+  const { colors: uiColors } = useCustomUiColors();
+
   return (
-    <section className="apple-glass mb-5 rounded-3xl relative overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200/60 bg-white/50">
+    <section
+      className="apple-glass mb-5 rounded-3xl relative overflow-hidden transition-colors duration-200"
+      style={{ backgroundColor: uiColors.goalBg, color: uiColors.goalText }}
+    >
+      <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200/60 bg-white/40">
         <button
           onClick={handlePrevMonth}
-          className="w-8 h-8 rounded-full bg-slate-900/5 hover:bg-slate-900/10 text-slate-600 transition-all flex items-center justify-center text-xs shrink-0 active:scale-90"
+          className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 transition-all flex items-center justify-center text-xs shrink-0 active:scale-90"
+          style={{ color: uiColors.goalText }}
         >
           ◀
         </button>
-        <h2 className="text-sm font-black tracking-tight flex items-center justify-center gap-2 text-slate-800">
+        <h2 className="text-sm font-black tracking-tight flex items-center justify-center gap-2" style={{ color: uiColors.goalText }}>
           <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm shadow-inner">🎯</span>
           <span>{selectedMonthDate.getFullYear()}年{selectedMonthDate.getMonth() + 1}月の目標</span>
-          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">Monthly Focus</span>
+          <span className="text-xs font-semibold opacity-50 hidden sm:inline">Monthly Focus</span>
           {isSaving && <span className="text-[10px] text-emerald-600/70 sm:ml-2 italic">Saving...</span>}
         </h2>
-        <button
-          onClick={handleNextMonth}
-          className="w-8 h-8 rounded-full bg-slate-900/5 hover:bg-slate-900/10 text-slate-600 transition-all flex items-center justify-center text-xs shrink-0 active:scale-90"
-        >
-          ▶
-        </button>
+        <div className="flex items-center gap-1.5">
+          <ColorStudioButton compact />
+          <button
+            onClick={handleNextMonth}
+            className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 transition-all flex items-center justify-center text-xs shrink-0 active:scale-90"
+            style={{ color: uiColors.goalText }}
+          >
+            ▶
+          </button>
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/50">
-        <div className="p-4 flex flex-col gap-1.5 bg-white/30">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700">
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/60" style={{ color: uiColors.goalText }}>
+        <div className="p-4 flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold opacity-80">
             <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-xs">🏃</span>
             行動 (Action)
           </div>
@@ -6228,13 +6653,13 @@ function MonthlyGoalBoard() {
             value={content}
             onChange={handleContentChange}
             placeholder="今月やること、取り組む行動..."
-            textAreaClassName="text-slate-800 text-sm leading-6 placeholder:text-slate-300"
+            textAreaClassName="text-sm leading-6 placeholder:opacity-40"
             minHeight={56}
             theme="emerald"
           />
         </div>
-        <div className="p-4 flex flex-col gap-1.5 bg-white/20">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-teal-700">
+        <div className="p-4 flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold opacity-80">
             <span className="w-5 h-5 rounded-full bg-teal-100 flex items-center justify-center text-xs">🧠</span>
             意識 (Mindset)
           </div>
@@ -6242,7 +6667,7 @@ function MonthlyGoalBoard() {
             value={awareness}
             onChange={handleAwarenessChange}
             placeholder="意識したいこと、マインド..."
-            textAreaClassName="text-slate-800 text-sm leading-6 placeholder:text-slate-300"
+            textAreaClassName="text-sm leading-6 placeholder:opacity-40"
             minHeight={56}
             theme="emerald"
           />
