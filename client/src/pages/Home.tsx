@@ -481,12 +481,13 @@ export function getQuestEarliestSlot(q: any): string | null {
   try {
     const parsed = JSON.parse(q.plannedTimeSlot);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const sorted = [...parsed].sort();
+      const cleanList = parsed.map(s => typeof s === 'string' ? s.split(/[#:?]/)[0] : s);
+      const sorted = [...cleanList].sort();
       return sorted[0];
     }
-    if (typeof parsed === 'string' && parsed) return parsed;
+    if (typeof parsed === 'string' && parsed) return parsed.split(/[#:?]/)[0];
   } catch {
-    if (typeof q.plannedTimeSlot === 'string' && q.plannedTimeSlot) return q.plannedTimeSlot;
+    if (typeof q.plannedTimeSlot === 'string' && q.plannedTimeSlot) return q.plannedTimeSlot.split(/[#:?]/)[0];
   }
   return null;
 }
@@ -498,8 +499,9 @@ export function getQuestEarliestSlot(q: any): string | null {
  */
 export function normalizeSlotForInterval(slot: string, interval: 30 | 60): string {
   if (!slot) return slot;
-  const match = slot.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
-  if (!match) return slot;
+  const cleanSlot = slot.split(/[#:?]/)[0];
+  const match = cleanSlot.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
+  if (!match) return cleanSlot;
 
   const startH = parseInt(match[1], 10);
   const startM = parseInt(match[2], 10);
@@ -1211,9 +1213,30 @@ function DayColumn({
             try {
               const parsed = JSON.parse(q.plannedTimeSlot);
               const list = Array.isArray(parsed) ? parsed : [parsed];
-              return list.some(s => s === slot.id || normalizeSlotForInterval(s, currentInterval) === slot.id);
+              return list.some(s => {
+                const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                return base === slot.id || normalizeSlotForInterval(base, currentInterval) === slot.id;
+              });
             } catch {
-              return q.plannedTimeSlot === slot.id || normalizeSlotForInterval(q.plannedTimeSlot, currentInterval) === slot.id;
+              const base = typeof q.plannedTimeSlot === 'string' ? q.plannedTimeSlot.split(/[#:?]/)[0] : q.plannedTimeSlot;
+              return base === slot.id || normalizeSlotForInterval(base, currentInterval) === slot.id;
+            }
+          });
+
+          const isDashedSlot = isUsed && quests.some(q => {
+            if (!q.plannedTimeSlot) return false;
+            try {
+              const parsed = JSON.parse(q.plannedTimeSlot);
+              const list = Array.isArray(parsed) ? parsed : [parsed];
+              return list.some(s => {
+                const isDashed = typeof s === 'string' && (s.includes('#dashed') || s.includes('#rescheduled') || s.includes(':dashed'));
+                const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                return isDashed && (base === slot.id || normalizeSlotForInterval(base, currentInterval) === slot.id);
+              });
+            } catch {
+              const isDashed = typeof q.plannedTimeSlot === 'string' && (q.plannedTimeSlot.includes('#dashed') || q.plannedTimeSlot.includes('#rescheduled') || q.plannedTimeSlot.includes(':dashed'));
+              const base = typeof q.plannedTimeSlot === 'string' ? q.plannedTimeSlot.split(/[#:?]/)[0] : q.plannedTimeSlot;
+              return isDashed && (base === slot.id || normalizeSlotForInterval(base, currentInterval) === slot.id);
             }
           });
 
@@ -1243,7 +1266,9 @@ function DayColumn({
                 title={showMoaiRhythm ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
                 className={`w-full rounded-xl px-2 py-1.5 min-h-[30px] flex items-center justify-center transition-all duration-200 group relative overflow-hidden border ${
                   isUsed
-                    ? 'bg-white border-sky-400/80 shadow-xs ring-2 ring-sky-500/15'
+                    ? isDashedSlot
+                      ? 'bg-amber-50/65 dark:bg-amber-950/30 border-dashed border-amber-400/90 shadow-2xs ring-1 ring-amber-400/30'
+                      : 'bg-white border-sky-400/80 shadow-xs ring-2 ring-sky-500/15'
                     : showMoaiRhythm
                       ? `${zone.slotClass} hover:border-sky-300/80 hover:shadow-xs`
                       : 'bg-white/65 border-slate-200/70 hover:bg-white hover:border-sky-300/70 hover:shadow-xs'
@@ -1254,7 +1279,9 @@ function DayColumn({
                 )}
                 <span className={`z-10 font-mono text-[11px] sm:text-[11.5px] tracking-tight select-none pointer-events-none transition-colors ${
                   isUsed
-                    ? 'font-black text-slate-900'
+                    ? isDashedSlot
+                      ? 'font-black text-amber-900 dark:text-amber-200'
+                      : 'font-black text-slate-900'
                     : 'font-semibold text-slate-600 group-hover:text-slate-900'
                 }`}>
                   {slot.label}
@@ -2618,10 +2645,22 @@ function ConnectionLines({
   quests: any[];
   parentRef: React.RefObject<HTMLDivElement>;
   templates: any[];
-  onUnlink: (questId: number, slotId: string) => void;
+  onUnlink: (questId: number, slotId: string, isDashed?: boolean) => void;
   timelineInterval?: 30 | 60;
 }) {
-  const [paths, setPaths] = useState<{ id: string, questId: number, slotId: string, d: string, color: string, x1: number, y1: number, x2: number, y2: number }[]>([]);
+  const [paths, setPaths] = useState<{
+    id: string;
+    questId: number;
+    rawSlotId: string;
+    slotId: string;
+    isDashed: boolean;
+    d: string;
+    color: string;
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  }[]>([]);
 
   const getColor = (q: any) => {
     const idx = q.id % LINE_COLORS.length;
@@ -2645,7 +2684,10 @@ function ConnectionLines({
         if (typeof q.plannedTimeSlot === 'string') slots = [q.plannedTimeSlot];
       }
 
-      slots.forEach(slotId => {
+      slots.forEach(rawSlot => {
+        if (!rawSlot || typeof rawSlot !== 'string') return;
+        const isDashed = rawSlot.includes('#dashed') || rawSlot.includes('#rescheduled') || rawSlot.includes(':dashed');
+        const slotId = rawSlot.split(/[#:?]/)[0];
         const sourceEl = parentRef.current?.querySelector(`#source-${q.id}`) || document.getElementById(`source-${q.id}`);
         const normalizedSlotId = normalizeSlotForInterval(slotId, timelineInterval);
         const targetEl = parentRef.current?.querySelector(`[data-slot-id="${normalizedSlotId}"]`) || parentRef.current?.querySelector(`[data-slot-id="${slotId}"]`);
@@ -2660,9 +2702,11 @@ function ConnectionLines({
           const cp1x = x1 + (x2 - x1) * 0.5;
           const cp2x = x2 - (x2 - x1) * 0.5;
           newPaths.push({
-            id: `${q.id}-${slotId}`,
+            id: `${q.id}-${rawSlot}`,
             questId: q.id,
+            rawSlotId: rawSlot,
             slotId: slotId,
+            isDashed: isDashed,
             d: `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`,
             color: getColor(q),
             x1,
@@ -2693,21 +2737,65 @@ function ConnectionLines({
       {paths.map(p => (
         <React.Fragment key={p.id}>
           {/* Soft Luminous Outer Glow */}
-          <path d={p.d} fill="none" stroke={p.color} strokeWidth="7" strokeLinecap="round" className="opacity-15" />
-          <path d={p.d} fill="none" stroke="white" strokeWidth="4.5" strokeLinecap="round" className="opacity-70 dark:opacity-20" />
-          <path d={p.d} fill="none" stroke={p.color} strokeWidth="2.5" strokeLinecap="round" />
+          <path
+            d={p.d}
+            fill="none"
+            stroke={p.color}
+            strokeWidth={p.isDashed ? "5" : "7"}
+            strokeDasharray={p.isDashed ? "6 6" : undefined}
+            strokeLinecap="round"
+            className={p.isDashed ? "opacity-25" : "opacity-15"}
+          />
+          {/* Center contrast line */}
+          <path
+            d={p.d}
+            fill="none"
+            stroke="white"
+            strokeWidth={p.isDashed ? "3.5" : "4.5"}
+            strokeDasharray={p.isDashed ? "6 6" : undefined}
+            strokeLinecap="round"
+            className="opacity-70 dark:opacity-20"
+          />
+          {/* Main colored stroke (Dashed for 変更, Solid for 通常) */}
+          <path
+            d={p.d}
+            fill="none"
+            stroke={p.color}
+            strokeWidth={p.isDashed ? "2.2" : "2.5"}
+            strokeDasharray={p.isDashed ? "6 6" : undefined}
+            strokeLinecap="round"
+            className={p.isDashed ? "opacity-85" : "opacity-100"}
+          />
+          {/* Wide touch/click hit area */}
           <path
             d={p.d}
             fill="none"
             stroke="transparent"
-            strokeWidth="20"
-            className="pointer-events-auto cursor-pointer hover:stroke-red-500/25 transition-all"
-            onClick={() => onUnlink(p.questId, p.slotId)}
+            strokeWidth="24"
+            className={`pointer-events-auto cursor-pointer transition-all ${
+              p.isDashed
+                ? "hover:stroke-rose-500/35"
+                : "hover:stroke-amber-400/35"
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnlink(p.questId, p.rawSlotId, p.isDashed);
+            }}
           >
-            <title>クリックして時間の紐付けを解除</title>
+            <title>{p.isDashed ? "2回目のタップ: 紐付けを削除" : "1回目のタップ: 変更（破線）にする"}</title>
           </path>
+          {/* Start Circle (Mission card side) */}
           <circle cx={p.x1} cy={p.y1} r="4.5" fill="white" stroke={p.color} strokeWidth="2.5" />
-          <circle cx={p.x2} cy={p.y2} r="4.5" fill={p.color} stroke="white" strokeWidth="1.5" />
+          {/* End Circle (Timeline slot side) */}
+          <circle
+            cx={p.x2}
+            cy={p.y2}
+            r="4.5"
+            fill={p.isDashed ? "white" : p.color}
+            stroke={p.color}
+            strokeWidth={p.isDashed ? "2" : "1.5"}
+            strokeDasharray={p.isDashed ? "2 2" : undefined}
+          />
         </React.Fragment>
       ))}
     </svg>
@@ -3724,11 +3812,14 @@ export default function Home() {
                 toast.success(`${format(newDate, "M/d (E)")} ${slotId} に配置しました`);
                 refreshAll();
               } else {
-                const filtered = currentSlots.filter(s =>
-                  s !== slotId &&
-                  normalizeSlotForInterval(s, timelineInterval) !== slotId &&
-                  normalizeSlotForInterval(slotId, timelineInterval === 60 ? 30 : 60) !== s
-                );
+                const filtered = currentSlots.filter(s => {
+                  const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                  return (
+                    base !== slotId &&
+                    normalizeSlotForInterval(base, timelineInterval) !== slotId &&
+                    normalizeSlotForInterval(slotId, timelineInterval === 60 ? 30 : 60) !== base
+                  );
+                });
                 const newSlots = [...filtered, slotId];
                 await updateQuest.mutateAsync({ questId: dragState.itemId, plannedTimeSlot: JSON.stringify(newSlots) });
                 toast.success(`Planned for ${slotId}`);
@@ -3809,7 +3900,7 @@ export default function Home() {
     };
   }, [dragState.active, dragState.itemId, dragState.mode, dragState.adhocPreview, activeQuests]);
 
-  const handleUnlink = async (questId: number, slotId: string) => {
+  const handleUnlink = async (questId: number, slotId: string, isCurrentlyDashed?: boolean) => {
     const quest = activeQuests?.find(q => q.id === questId);
     if (!quest) return;
     try {
@@ -3823,17 +3914,43 @@ export default function Home() {
       } catch {
         if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
       }
-      const newSlots = currentSlots.filter(s =>
-        s !== slotId &&
-        normalizeSlotForInterval(s, timelineInterval) !== slotId &&
-        normalizeSlotForInterval(slotId, timelineInterval === 60 ? 30 : 60) !== s
-      );
-      const val = newSlots.length === 0 ? null : JSON.stringify(newSlots);
-      await updateQuest.mutateAsync({ questId, plannedTimeSlot: val });
-      toast.success("Link removed");
-      refreshAll();
+
+      const cleanTarget = slotId.split(/[#:?]/)[0];
+      const existingSlot = currentSlots.find(s => typeof s === 'string' && s.split(/[#:?]/)[0] === cleanTarget);
+      const isDashed = isCurrentlyDashed !== undefined
+        ? isCurrentlyDashed
+        : !!(existingSlot && typeof existingSlot === 'string' && (existingSlot.includes('#dashed') || existingSlot.includes('#rescheduled') || existingSlot.includes(':dashed')));
+
+      if (!isDashed) {
+        // 1回目のタップ: 破線（変更）にする
+        const newSlots = currentSlots.map(s => {
+          if (typeof s === 'string' && s.split(/[#:?]/)[0] === cleanTarget) {
+            return `${cleanTarget}#dashed`;
+          }
+          return s;
+        });
+        await updateQuest.mutateAsync({ questId, plannedTimeSlot: JSON.stringify(newSlots) });
+        if (window.navigator?.vibrate) window.navigator.vibrate(20);
+        toast.info("変更（破線）にしました。もう一度タップで削除");
+        refreshAll();
+      } else {
+        // 2回目のタップ: 削除する
+        const newSlots = currentSlots.filter(s => {
+          const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+          return (
+            base !== cleanTarget &&
+            normalizeSlotForInterval(base, timelineInterval) !== cleanTarget &&
+            normalizeSlotForInterval(cleanTarget, timelineInterval === 60 ? 30 : 60) !== base
+          );
+        });
+        const val = newSlots.length === 0 ? null : JSON.stringify(newSlots);
+        await updateQuest.mutateAsync({ questId, plannedTimeSlot: val });
+        if (window.navigator?.vibrate) window.navigator.vibrate(30);
+        toast.success("紐付けを削除しました");
+        refreshAll();
+      }
     } catch (err) {
-      toast.error("Failed to unlink");
+      toast.error("操作に失敗しました");
     }
   };
 
@@ -4964,9 +5081,30 @@ export default function Home() {
                             try {
                               const parsed = JSON.parse(q.plannedTimeSlot);
                               const list = Array.isArray(parsed) ? parsed : [parsed];
-                              return list.some(s => s === slot.id || normalizeSlotForInterval(s, timelineInterval) === slot.id);
+                              return list.some(s => {
+                                const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                                return base === slot.id || normalizeSlotForInterval(base, timelineInterval) === slot.id;
+                              });
                             } catch {
-                              return q.plannedTimeSlot === slot.id || normalizeSlotForInterval(q.plannedTimeSlot, timelineInterval) === slot.id;
+                              const base = typeof q.plannedTimeSlot === 'string' ? q.plannedTimeSlot.split(/[#:?]/)[0] : q.plannedTimeSlot;
+                              return base === slot.id || normalizeSlotForInterval(base, timelineInterval) === slot.id;
+                            }
+                          });
+
+                          const isDashedSlot = isUsed && todayQuests.some(q => {
+                            if (!q.plannedTimeSlot) return false;
+                            try {
+                              const parsed = JSON.parse(q.plannedTimeSlot);
+                              const list = Array.isArray(parsed) ? parsed : [parsed];
+                              return list.some(s => {
+                                const isDashed = typeof s === 'string' && (s.includes('#dashed') || s.includes('#rescheduled') || s.includes(':dashed'));
+                                const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                                return isDashed && (base === slot.id || normalizeSlotForInterval(base, timelineInterval) === slot.id);
+                              });
+                            } catch {
+                              const isDashed = typeof q.plannedTimeSlot === 'string' && (q.plannedTimeSlot.includes('#dashed') || q.plannedTimeSlot.includes('#rescheduled') || q.plannedTimeSlot.includes(':dashed'));
+                              const base = typeof q.plannedTimeSlot === 'string' ? q.plannedTimeSlot.split(/[#:?]/)[0] : q.plannedTimeSlot;
+                              return isDashed && (base === slot.id || normalizeSlotForInterval(base, timelineInterval) === slot.id);
                             }
                           });
 
@@ -4998,10 +5136,12 @@ export default function Home() {
                               <div
                                 data-slot-id={slot.id}
                                 data-slot-date={format(targetDate, "yyyy-MM-dd")}
-                                title={showMoaiRhythmToday ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
+                                title={isDashedSlot ? `${slot.label}: 変更（破線）された枠` : showMoaiRhythmToday ? `${slot.label} 【${zone.name}】\n「${zone.motto}」\nおすすめ: ${zone.actionGuidance}` : undefined}
                                 className={`w-[68px] sm:w-32 md:w-36 shrink-0 rounded-xl px-1.5 sm:px-2 py-1.5 min-h-[30px] sm:min-h-[33px] flex items-center justify-center transition-all duration-200 group relative overflow-hidden border ${
                                   isUsed
-                                    ? 'bg-white border-sky-400/80 shadow-xs ring-2 ring-sky-500/15'
+                                    ? isDashedSlot
+                                      ? 'bg-amber-50/65 dark:bg-amber-950/30 border-dashed border-amber-400/90 shadow-2xs ring-1 ring-amber-400/30'
+                                      : 'bg-white border-sky-400/80 shadow-xs ring-2 ring-sky-500/15'
                                     : isCurrentHourSlot
                                       ? 'bg-rose-50/90 border-rose-300/90 shadow-2xs'
                                       : showMoaiRhythmToday
@@ -5016,7 +5156,9 @@ export default function Home() {
                                 ) : null}
                                 <span className={`z-10 font-mono text-[10px] sm:text-[12px] tracking-tight select-none pointer-events-none transition-colors ${
                                   isUsed
-                                    ? 'font-black text-slate-900'
+                                    ? isDashedSlot
+                                      ? 'font-black text-amber-900 dark:text-amber-200'
+                                      : 'font-black text-slate-900'
                                     : isCurrentHourSlot
                                       ? 'font-bold text-rose-700'
                                       : 'font-semibold text-slate-600 group-hover:text-slate-900'
@@ -5024,7 +5166,11 @@ export default function Home() {
                                   {slot.label}
                                 </span>
                                 {isUsed && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500 ml-1 sm:ml-1.5 shrink-0 shadow-[0_0_6px_rgba(14,165,233,0.8)]" />
+                                  isDashedSlot ? (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ml-1 sm:ml-1.5 shrink-0 shadow-[0_0_6px_rgba(245,158,11,0.8)]" title="変更（破線）" />
+                                  ) : (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 ml-1 sm:ml-1.5 shrink-0 shadow-[0_0_6px_rgba(14,165,233,0.8)]" />
+                                  )
                                 )}
                                 {!isUsed && isJobModeActive && isJobSlot(slot.label) && (
                                   <span className="ml-1 text-[7.5px] sm:text-[8px] font-black uppercase tracking-wider px-1 py-0.2 rounded-full bg-slate-200/80 text-slate-500 select-none pointer-events-none">
