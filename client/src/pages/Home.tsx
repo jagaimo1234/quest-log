@@ -476,18 +476,23 @@ const LINE_COLORS = [
   "#f43f5e", // Rose
 ];
 
+export function cleanSlotId(slot: string | null | undefined): string {
+  if (!slot || typeof slot !== 'string') return '';
+  return slot.split('#')[0].replace(/:dashed.*$/, '').replace(/:rescheduled.*$/, '').trim();
+}
+
 export function getQuestEarliestSlot(q: any): string | null {
   if (!q || !q.plannedTimeSlot) return null;
   try {
     const parsed = JSON.parse(q.plannedTimeSlot);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const cleanList = parsed.map(s => typeof s === 'string' ? s.split(/[#:?]/)[0] : s);
+      const cleanList = parsed.map(s => typeof s === 'string' ? cleanSlotId(s) : s);
       const sorted = [...cleanList].sort();
       return sorted[0];
     }
-    if (typeof parsed === 'string' && parsed) return parsed.split(/[#:?]/)[0];
+    if (typeof parsed === 'string' && parsed) return cleanSlotId(parsed);
   } catch {
-    if (typeof q.plannedTimeSlot === 'string' && q.plannedTimeSlot) return q.plannedTimeSlot.split(/[#:?]/)[0];
+    if (typeof q.plannedTimeSlot === 'string' && q.plannedTimeSlot) return cleanSlotId(q.plannedTimeSlot);
   }
   return null;
 }
@@ -499,7 +504,7 @@ export function getQuestEarliestSlot(q: any): string | null {
  */
 export function normalizeSlotForInterval(slot: string, interval: 30 | 60): string {
   if (!slot) return slot;
-  const cleanSlot = slot.split(/[#:?]/)[0];
+  const cleanSlot = cleanSlotId(slot);
   const match = cleanSlot.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
   if (!match) return cleanSlot;
 
@@ -1214,11 +1219,11 @@ function DayColumn({
               const parsed = JSON.parse(q.plannedTimeSlot);
               const list = Array.isArray(parsed) ? parsed : [parsed];
               return list.some(s => {
-                const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                const base = cleanSlotId(s);
                 return base === slot.id || normalizeSlotForInterval(base, currentInterval) === slot.id;
               });
             } catch {
-              const base = typeof q.plannedTimeSlot === 'string' ? q.plannedTimeSlot.split(/[#:?]/)[0] : q.plannedTimeSlot;
+              const base = cleanSlotId(q.plannedTimeSlot);
               return base === slot.id || normalizeSlotForInterval(base, currentInterval) === slot.id;
             }
           });
@@ -1230,12 +1235,12 @@ function DayColumn({
               const list = Array.isArray(parsed) ? parsed : [parsed];
               return list.some(s => {
                 const isDashed = typeof s === 'string' && (s.includes('#dashed') || s.includes('#rescheduled') || s.includes(':dashed'));
-                const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                const base = cleanSlotId(s);
                 return isDashed && (base === slot.id || normalizeSlotForInterval(base, currentInterval) === slot.id);
               });
             } catch {
               const isDashed = typeof q.plannedTimeSlot === 'string' && (q.plannedTimeSlot.includes('#dashed') || q.plannedTimeSlot.includes('#rescheduled') || q.plannedTimeSlot.includes(':dashed'));
-              const base = typeof q.plannedTimeSlot === 'string' ? q.plannedTimeSlot.split(/[#:?]/)[0] : q.plannedTimeSlot;
+              const base = cleanSlotId(q.plannedTimeSlot);
               return isDashed && (base === slot.id || normalizeSlotForInterval(base, currentInterval) === slot.id);
             }
           });
@@ -2689,7 +2694,7 @@ function ConnectionLines({
       slots.forEach(rawSlot => {
         if (!rawSlot || typeof rawSlot !== 'string') return;
         const isDashed = rawSlot.includes('#dashed') || rawSlot.includes('#rescheduled') || rawSlot.includes(':dashed');
-        const slotId = rawSlot.split(/[#:?]/)[0].trim();
+        const slotId = cleanSlotId(rawSlot);
         const sourceEl = parentRef.current?.querySelector(`#source-${q.id}`) || document.getElementById(`source-${q.id}`);
         const normalizedSlotId = normalizeSlotForInterval(slotId, timelineInterval);
         const targetEl =
@@ -3824,7 +3829,7 @@ export default function Home() {
                 refreshAll();
               } else {
                 const filtered = currentSlots.filter(s => {
-                  const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                  const base = cleanSlotId(s);
                   return (
                     base !== slotId &&
                     normalizeSlotForInterval(base, timelineInterval) !== slotId &&
@@ -3926,8 +3931,8 @@ export default function Home() {
         if (quest.plannedTimeSlot) currentSlots = [quest.plannedTimeSlot];
       }
 
-      const cleanTarget = slotId.split(/[#:?]/)[0];
-      const existingSlot = currentSlots.find(s => typeof s === 'string' && s.split(/[#:?]/)[0] === cleanTarget);
+      const cleanTarget = cleanSlotId(slotId);
+      const existingSlot = currentSlots.find(s => typeof s === 'string' && cleanSlotId(s) === cleanTarget);
       const isDashed = isCurrentlyDashed !== undefined
         ? isCurrentlyDashed
         : !!(existingSlot && typeof existingSlot === 'string' && (existingSlot.includes('#dashed') || existingSlot.includes('#rescheduled') || existingSlot.includes(':dashed')));
@@ -3935,7 +3940,7 @@ export default function Home() {
       if (!isDashed) {
         // 1回目のタップ: 破線（変更）にする
         const newSlots = currentSlots.map(s => {
-          if (typeof s === 'string' && s.split(/[#:?]/)[0] === cleanTarget) {
+          if (typeof s === 'string' && cleanSlotId(s) === cleanTarget) {
             return `${cleanTarget}#dashed`;
           }
           return s;
@@ -3947,7 +3952,7 @@ export default function Home() {
       } else {
         // 2回目のタップ: 削除する
         const newSlots = currentSlots.filter(s => {
-          const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+          const base = cleanSlotId(s);
           return (
             base !== cleanTarget &&
             normalizeSlotForInterval(base, timelineInterval) !== cleanTarget &&
@@ -5093,11 +5098,11 @@ export default function Home() {
                               const parsed = JSON.parse(q.plannedTimeSlot);
                               const list = Array.isArray(parsed) ? parsed : [parsed];
                               return list.some(s => {
-                                const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                                const base = cleanSlotId(s);
                                 return base === slot.id || normalizeSlotForInterval(base, timelineInterval) === slot.id;
                               });
                             } catch {
-                              const base = typeof q.plannedTimeSlot === 'string' ? q.plannedTimeSlot.split(/[#:?]/)[0] : q.plannedTimeSlot;
+                              const base = cleanSlotId(q.plannedTimeSlot);
                               return base === slot.id || normalizeSlotForInterval(base, timelineInterval) === slot.id;
                             }
                           });
@@ -5109,12 +5114,12 @@ export default function Home() {
                               const list = Array.isArray(parsed) ? parsed : [parsed];
                               return list.some(s => {
                                 const isDashed = typeof s === 'string' && (s.includes('#dashed') || s.includes('#rescheduled') || s.includes(':dashed'));
-                                const base = typeof s === 'string' ? s.split(/[#:?]/)[0] : s;
+                                const base = cleanSlotId(s);
                                 return isDashed && (base === slot.id || normalizeSlotForInterval(base, timelineInterval) === slot.id);
                               });
                             } catch {
                               const isDashed = typeof q.plannedTimeSlot === 'string' && (q.plannedTimeSlot.includes('#dashed') || q.plannedTimeSlot.includes('#rescheduled') || q.plannedTimeSlot.includes(':dashed'));
-                              const base = typeof q.plannedTimeSlot === 'string' ? q.plannedTimeSlot.split(/[#:?]/)[0] : q.plannedTimeSlot;
+                              const base = cleanSlotId(q.plannedTimeSlot);
                               return isDashed && (base === slot.id || normalizeSlotForInterval(base, timelineInterval) === slot.id);
                             }
                           });
