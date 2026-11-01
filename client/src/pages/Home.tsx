@@ -2662,6 +2662,8 @@ function ConnectionLines({
     y2: number;
   }[]>([]);
 
+  const pathsRef = useRef<string>("");
+
   const getColor = (q: any) => {
     const idx = q.id % LINE_COLORS.length;
     return LINE_COLORS[idx];
@@ -2687,10 +2689,14 @@ function ConnectionLines({
       slots.forEach(rawSlot => {
         if (!rawSlot || typeof rawSlot !== 'string') return;
         const isDashed = rawSlot.includes('#dashed') || rawSlot.includes('#rescheduled') || rawSlot.includes(':dashed');
-        const slotId = rawSlot.split(/[#:?]/)[0];
+        const slotId = rawSlot.split(/[#:?]/)[0].trim();
         const sourceEl = parentRef.current?.querySelector(`#source-${q.id}`) || document.getElementById(`source-${q.id}`);
         const normalizedSlotId = normalizeSlotForInterval(slotId, timelineInterval);
-        const targetEl = parentRef.current?.querySelector(`[data-slot-id="${normalizedSlotId}"]`) || parentRef.current?.querySelector(`[data-slot-id="${slotId}"]`);
+        const targetEl =
+          parentRef.current?.querySelector(`[data-slot-id="${normalizedSlotId}"]`) ||
+          parentRef.current?.querySelector(`[data-slot-id="${slotId}"]`) ||
+          document.querySelector(`[data-slot-id="${normalizedSlotId}"]`) ||
+          document.querySelector(`[data-slot-id="${slotId}"]`);
         if (sourceEl && targetEl) {
           const sourceRect = sourceEl.getBoundingClientRect();
           const targetRect = targetEl.getBoundingClientRect();
@@ -2717,7 +2723,12 @@ function ConnectionLines({
         }
       });
     });
-    setPaths(newPaths);
+
+    const signature = JSON.stringify(newPaths.map(p => `${p.id}:${p.d}:${p.isDashed}`));
+    if (pathsRef.current !== signature) {
+      pathsRef.current = signature;
+      setPaths(newPaths);
+    }
   };
 
   useLayoutEffect(() => {
