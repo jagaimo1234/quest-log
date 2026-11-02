@@ -3262,7 +3262,7 @@ export default function Home() {
     activeQuests.forEach(q => {
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return;
       const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
-      if (!qDate) return;
+      if (!qDate || isNaN(qDate.getTime())) return;
       const dStr = format(qDate, "yyyy-MM-dd");
       if (!questsByDate[dStr]) questsByDate[dStr] = [];
       questsByDate[dStr].push(q);
@@ -3283,7 +3283,7 @@ export default function Home() {
     const questsOnDate = activeQuests?.filter(q => {
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
       const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
-      if (!qDate) return false;
+      if (!qDate || isNaN(qDate.getTime())) return false;
       return format(qDate, "yyyy-MM-dd") === dateStr;
     }) || [];
 
@@ -3367,7 +3367,7 @@ export default function Home() {
       if (!["accepted", "challenging", "almost", "failed", "cleared"].includes(q.status)) return false;
       
       const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
-      if (!qDate) return false;
+      if (!qDate || isNaN(qDate.getTime())) return false;
       const qDateStr = format(qDate, "yyyy-MM-dd");
 
       // Strictly match date: do not carry over uncleared tasks to the next day
@@ -3404,7 +3404,7 @@ export default function Home() {
       targetDate.setDate(targetDate.getDate() + planningDayOffset);
       const dateStr = format(targetDate, "yyyy-MM-dd");
       const qDate = q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null);
-      if (!qDate) return false;
+      if (!qDate || isNaN(qDate.getTime())) return false;
       return format(qDate, "yyyy-MM-dd") === dateStr;
     }) || null;
   }, [activeQuests, planningDayOffset]);
@@ -3438,7 +3438,7 @@ export default function Home() {
     (activeQuests || []).forEach(q => {
       if (!isMoaiQuest(q)) return;
       const d = q.clearedAt ? new Date(q.clearedAt) : (q.startDate ? new Date(q.startDate) : (q.createdAt ? new Date(q.createdAt) : null));
-      if (d && isWithinInterval(d, { start: wStart, end: wEnd })) {
+      if (d && !isNaN(d.getTime()) && isWithinInterval(d, { start: wStart, end: wEnd })) {
         counted.add(`quest-${q.id}`);
         count++;
       }
@@ -3449,7 +3449,7 @@ export default function Home() {
       const key = h.questId ? `quest-${h.questId}` : `hist-${h.id}`;
       if (counted.has(key)) return;
       const d = h.clearedAt ? new Date(h.clearedAt) : (h.recordedDate ? new Date(h.recordedDate) : (h.createdAt ? new Date(h.createdAt) : null));
-      if (d && isWithinInterval(d, { start: wStart, end: wEnd })) {
+      if (d && !isNaN(d.getTime()) && isWithinInterval(d, { start: wStart, end: wEnd })) {
         counted.add(key);
         count++;
       }
@@ -3468,11 +3468,12 @@ export default function Home() {
         if (!history) return false;
         
         // If today or tomorrow planning, we only keep it visible if it was cleared specifically on that target date
-        const clearedOnTargetDate = history.some(h => 
-          h.templateId === t.id && 
-          h.finalStatus === 'cleared' && 
-          format(new Date(h.recordedAt), "yyyy-MM-dd") === targetDateStr
-        );
+        const clearedOnTargetDate = history.some(h => {
+          if (h.templateId !== t.id || h.finalStatus !== 'cleared' || !h.recordedAt) return false;
+          const hDate = new Date(h.recordedAt);
+          if (isNaN(hDate.getTime())) return false;
+          return format(hDate, "yyyy-MM-dd") === targetDateStr;
+        });
         
         if (!clearedOnTargetDate) return false;
       }

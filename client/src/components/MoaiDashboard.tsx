@@ -78,17 +78,19 @@ export function MoaiDashboard({
     const list = Array.from(allCandidates.values());
 
     // 2. Filter by period
+    const parseSafe = (val: any): Date | null => {
+      if (!val) return null;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
     return list.filter((item) => {
       // Determine relevant date for the item
-      const itemDate = item.clearedAt
-        ? new Date(item.clearedAt)
-        : item.startDate
-        ? new Date(item.startDate)
-        : item.recordedDate
-        ? new Date(item.recordedDate)
-        : item.createdAt
-        ? new Date(item.createdAt)
-        : null;
+      const itemDate =
+        parseSafe(item.clearedAt) ||
+        parseSafe(item.startDate) ||
+        parseSafe(item.recordedDate) ||
+        parseSafe(item.createdAt);
 
       if (!itemDate) return false;
 
@@ -101,9 +103,11 @@ export function MoaiDashboard({
         return isWithinInterval(itemDate, { start: monthStart, end: monthEnd });
       }
     }).sort((a, b) => {
-      const dateA = new Date(a.clearedAt || a.startDate || a.createdAt || 0).getTime();
-      const dateB = new Date(b.clearedAt || b.startDate || b.createdAt || 0).getTime();
-      return dateB - dateA; // newest first
+      const getSafeTime = (item: any) => {
+        const d = parseSafe(item.clearedAt) || parseSafe(item.startDate) || parseSafe(item.createdAt);
+        return d ? d.getTime() : 0;
+      };
+      return getSafeTime(b) - getSafeTime(a); // newest first
     });
   }, [activeQuests, history, period, todayStr, weekStart, weekEnd, monthStart, monthEnd]);
 
@@ -337,11 +341,20 @@ export function MoaiDashboard({
             {periodData.map((quest) => {
               const isCleared = quest.status === "cleared" || quest.finalStatus === "cleared";
               const isRunning = quest.status === "challenging";
-              const dateDisplay = quest.clearedAt
-                ? format(new Date(quest.clearedAt), "M/d (E) HH:mm")
-                : quest.startDate
-                ? format(new Date(quest.startDate), "M/d (E)")
-                : format(new Date(quest.createdAt), "M/d (E)");
+              const formatSafe = (val: any, fmt: string) => {
+                if (!val) return "";
+                const d = new Date(val);
+                if (isNaN(d.getTime())) return "";
+                try {
+                  return format(d, fmt);
+                } catch {
+                  return "";
+                }
+              };
+              const dateDisplay =
+                formatSafe(quest.clearedAt, "M/d (E) HH:mm") ||
+                formatSafe(quest.startDate, "M/d (E)") ||
+                formatSafe(quest.createdAt, "M/d (E)");
 
               return (
                 <div
