@@ -4686,7 +4686,7 @@ export default function Home() {
                 {/* SLIDE 1: TODAY / WEEKLY PLANNING (SHELF 1) */}
                 <div
                   className={`w-1/3 shrink-0 pr-2 transition-all duration-300 ${
-                    todaySubView === 'planning' ? 'opacity-100 h-auto' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+                    todaySubView === 'planning' ? 'opacity-100 h-auto' : 'opacity-0 pointer-events-none h-0 max-h-0 overflow-hidden'
                   }`}
                 >
                   {/* SHELF 1: TODAY / WEEKLY PLANNING (Apple Glass Bento Stage) */}
@@ -5266,7 +5266,7 @@ export default function Home() {
                 {/* SLIDE 2: 脳みその画面 (MOAI FOCUS ROOM) */}
                 <div
                   className={`w-1/3 shrink-0 px-2 transition-all duration-300 ${
-                    todaySubView === 'focus' ? 'opacity-100 h-auto' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+                    todaySubView === 'focus' ? 'opacity-100 h-auto' : 'opacity-0 pointer-events-none h-0 max-h-0 overflow-hidden'
                   }`}
                 >
                   <ActiveMissionMoaiPanel
@@ -5281,7 +5281,7 @@ export default function Home() {
                 {/* SLIDE 3: 🗿 MOAI活動ログ (MOAI ACTIVITY DASHBOARD) */}
                 <div
                   className={`w-1/3 shrink-0 pl-2 transition-all duration-300 ${
-                    todaySubView === 'moai' ? 'opacity-100 h-auto' : 'opacity-0 pointer-events-none'
+                    todaySubView === 'moai' ? 'opacity-100 h-auto' : 'opacity-0 pointer-events-none h-0 max-h-0 overflow-hidden'
                   }`}
                 >
                   <MoaiDashboard
