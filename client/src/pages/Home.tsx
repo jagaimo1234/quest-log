@@ -881,14 +881,19 @@ function MoaiRhythmGuideDialog({
 
 export function isMfgQuest(quest: any): boolean {
   if (!quest) return false;
-  if (typeof quest.description === 'string' && quest.description.includes('[mfg:')) {
+  // 1. note (または description) に [mfg: が含まれる
+  const noteText = typeof quest.note === 'string' ? quest.note : (typeof quest.description === 'string' ? quest.description : '');
+  if (noteText.includes('[mfg:')) {
     return true;
   }
-  if (typeof quest.title === 'string' && (
-    quest.title.includes('3Dプリント') ||
-    quest.title.includes('MOAI活動3Dプリント') ||
-    quest.title.includes('-MOAI活動')
-  )) {
+  // 2. projectName に 3Dプリント が含まれる
+  const proj = typeof quest.projectName === 'string' ? quest.projectName : '';
+  if (proj.includes('3Dプリント') || proj.includes('MOAI活動3Dプリント')) {
+    return true;
+  }
+  // 3. questName (または title) に 3Dプリント が含まれる
+  const name = typeof quest.questName === 'string' ? quest.questName : (typeof quest.title === 'string' ? quest.title : '');
+  if (name.includes('3Dプリント') || name.includes('MOAI活動3Dプリント') || name.includes('-MOAI活動3Dプリント-')) {
     return true;
   }
   return false;
