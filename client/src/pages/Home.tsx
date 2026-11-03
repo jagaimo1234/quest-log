@@ -876,8 +876,94 @@ function MoaiRhythmGuideDialog({
 }
 
 // ------------------------------------------------------------------
-// COMPONENTS
+// COMPONENTS & MFG HELPERS
 // ------------------------------------------------------------------
+
+export function isMfgQuest(quest: any): boolean {
+  if (!quest) return false;
+  if (typeof quest.description === 'string' && quest.description.includes('[mfg:')) {
+    return true;
+  }
+  if (typeof quest.title === 'string' && (
+    quest.title.includes('3Dプリント') ||
+    quest.title.includes('MOAI活動3Dプリント') ||
+    quest.title.includes('-MOAI活動')
+  )) {
+    return true;
+  }
+  return false;
+}
+
+function QuestCategoryTabs({
+  activeTab,
+  onTabChange,
+  normalCount,
+  mfgCount,
+  totalCount,
+  hasRunningMfg,
+}: {
+  activeTab: 'normal' | 'mfg' | 'all';
+  onTabChange: (tab: 'normal' | 'mfg' | 'all') => void;
+  normalCount: number;
+  mfgCount: number;
+  totalCount: number;
+  hasRunningMfg?: boolean;
+}) {
+  if (mfgCount === 0) return null;
+
+  return (
+    <div className="flex items-center p-0.5 bg-slate-200/60 dark:bg-stone-800/70 rounded-xl gap-0.5 text-[11px] font-bold select-none border border-slate-300/40 dark:border-stone-700/50 shadow-2xs shrink-0">
+      <button
+        type="button"
+        onClick={() => onTabChange('normal')}
+        className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+          activeTab === 'normal'
+            ? 'bg-white dark:bg-stone-900 text-slate-800 dark:text-stone-100 shadow-xs font-black'
+            : 'text-slate-500 hover:text-slate-800 dark:text-stone-400 dark:hover:text-stone-200'
+        }`}
+      >
+        <span>通常</span>
+        <span className="text-[9.5px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-stone-800 text-slate-600 dark:text-stone-300 font-mono">
+          {normalCount}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onTabChange('mfg')}
+        className={`flex-1 py-1 px-2 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+          activeTab === 'mfg'
+            ? 'bg-white dark:bg-stone-900 text-amber-600 dark:text-amber-400 shadow-xs font-black'
+            : 'text-slate-500 hover:text-amber-600 dark:text-stone-400 dark:hover:text-amber-400'
+        }`}
+      >
+        <span>🏭 製造</span>
+        <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-mono flex items-center gap-0.5 ${
+          hasRunningMfg
+            ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold'
+            : 'bg-slate-100 dark:bg-stone-800 text-slate-600 dark:text-stone-300'
+        }`}>
+          {hasRunningMfg && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />}
+          {mfgCount}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onTabChange('all')}
+        className={`py-1 px-2 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+          activeTab === 'all'
+            ? 'bg-white dark:bg-stone-900 text-slate-800 dark:text-stone-100 shadow-xs font-black'
+            : 'text-slate-500 hover:text-slate-800 dark:text-stone-400 dark:hover:text-stone-200'
+        }`}
+        title="通常タスクと製造タスクをすべて表示"
+      >
+        <span>すべて</span>
+        <span className="text-[9.5px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-stone-800 text-slate-600 dark:text-stone-300 font-mono">
+          {totalCount}
+        </span>
+      </button>
+    </div>
+  );
+}
 
 function DayColumn({
   date,
@@ -946,6 +1032,19 @@ function DayColumn({
     }
   });
 
+  const [columnCategoryTab, setColumnCategoryTab] = useState<'normal' | 'mfg' | 'all'>('normal');
+
+  const mfgQuests = useMemo(() => quests.filter(isMfgQuest), [quests]);
+  const normalQuests = useMemo(() => quests.filter(q => !isMfgQuest(q)), [quests]);
+  const hasRunningMfg = useMemo(() => mfgQuests.some(q => q.status === 'challenging' || q.status === 'almost'), [mfgQuests]);
+
+  const displayedQuests = useMemo(() => {
+    if (mfgQuests.length === 0) return quests;
+    if (columnCategoryTab === 'normal') return normalQuests;
+    if (columnCategoryTab === 'mfg') return mfgQuests;
+    return quests;
+  }, [quests, normalQuests, mfgQuests, columnCategoryTab]);
+
   useEffect(() => {
     const handleSync = () => {
       try {
@@ -996,7 +1095,7 @@ function DayColumn({
       {/* SVG Connecting Lines inside this column */}
       <div className="absolute inset-0 pointer-events-none z-10 overflow-visible">
         <ConnectionLines
-          quests={quests}
+          quests={displayedQuests}
           parentRef={columnRef as React.RefObject<HTMLDivElement>}
           templates={templates}
           onUnlink={handleUnlink}
@@ -1017,7 +1116,7 @@ function DayColumn({
             {isSelected && <span className="text-[9px] font-bold text-sky-600 dark:text-sky-300 bg-sky-500/10 px-1.5 py-0.5 rounded-full leading-none border border-sky-500/20">🎯 選択中</span>}
           </span>
           <div className="flex items-center gap-1.5">
-            {quests.length > 1 && onSortByTime && (
+            {displayedQuests.length > 1 && onSortByTime && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -1032,7 +1131,7 @@ function DayColumn({
               </button>
             )}
             <span className="text-[10px] font-bold text-slate-500 dark:text-stone-400 bg-slate-100/80 dark:bg-stone-800 px-2 py-0.5 rounded-full">
-              {quests.length} tasks
+              {mfgQuests.length > 0 && columnCategoryTab !== 'all' ? `${displayedQuests.length}/${quests.length}` : `${displayedQuests.length}`} tasks
             </span>
           </div>
         </div>
@@ -1148,12 +1247,39 @@ function DayColumn({
           }
         />
 
+        {/* Category Tabs: Normal / Mfg / All (Shown only when Mfg tasks exist) */}
+        <QuestCategoryTabs
+          activeTab={columnCategoryTab}
+          onTabChange={setColumnCategoryTab}
+          normalCount={normalQuests.length}
+          mfgCount={mfgQuests.length}
+          totalCount={quests.length}
+          hasRunningMfg={hasRunningMfg}
+        />
+
         {/* Quests list */}
         <div className="flex flex-col gap-2.5 min-h-[100px]">
-          {quests.length === 0 ? (
-            <div className="text-[11px] text-muted-foreground/40 italic text-center py-8 select-none">No tasks</div>
+          {displayedQuests.length === 0 ? (
+            <div className="text-[11px] text-muted-foreground/60 italic text-center py-8 select-none border border-dashed border-slate-200/60 dark:border-stone-800 rounded-2xl bg-slate-50/30 dark:bg-stone-900/20">
+              {columnCategoryTab === 'normal' && mfgQuests.length > 0 ? (
+                <div className="flex flex-col items-center gap-1">
+                  <span>通常のタスクはありません</span>
+                  <button
+                    type="button"
+                    onClick={() => setColumnCategoryTab('mfg')}
+                    className="text-amber-600 dark:text-amber-400 hover:underline text-[10px] font-bold not-italic cursor-pointer"
+                  >
+                    🏭 製造計画 ({mfgQuests.length}件) を表示
+                  </button>
+                </div>
+              ) : columnCategoryTab === 'mfg' ? (
+                <span>製造計画タスクはありません</span>
+              ) : (
+                <span>No tasks</span>
+              )}
+            </div>
           ) : (
-            quests.map(q => {
+            displayedQuests.map(q => {
               const isDraggingCurrent = dragState.itemId === q.id && dragState.mode === 'sort';
               const effectiveAdhoc = isDraggingCurrent
                 ? (dragState.adhocPreview !== undefined ? dragState.adhocPreview : !!q.isAdhoc)
@@ -1213,7 +1339,7 @@ function DayColumn({
         {timeSlots.map(slot => {
           const currentInterval: 30 | 60 = timeSlots.length <= 18 ? 60 : 30;
           const { zone, isFirstSlotOfZone } = getMoaiZoneInfo(slot.label);
-          const isUsed = quests.some(q => {
+          const isUsed = displayedQuests.some(q => {
             if (!q.plannedTimeSlot) return false;
             try {
               const parsed = JSON.parse(q.plannedTimeSlot);
@@ -1228,7 +1354,7 @@ function DayColumn({
             }
           });
 
-          const isDashedSlot = isUsed && quests.some(q => {
+          const isDashedSlot = isUsed && displayedQuests.some(q => {
             if (!q.plannedTimeSlot) return false;
             try {
               const parsed = JSON.parse(q.plannedTimeSlot);
@@ -3397,6 +3523,32 @@ export default function Home() {
     return getQuestsForDate(targetDate);
   }, [getQuestsForDate, planningDayOffset]);
 
+  const [todayQuestCategoryTab, setTodayQuestCategoryTab] = useState<'normal' | 'mfg' | 'all'>(() => {
+    try {
+      const saved = localStorage.getItem('today_quest_category_tab');
+      if (saved === 'normal' || saved === 'mfg' || saved === 'all') return saved;
+    } catch {}
+    return 'normal';
+  });
+
+  const handleTodayCategoryChange = (tab: 'normal' | 'mfg' | 'all') => {
+    setTodayQuestCategoryTab(tab);
+    try {
+      localStorage.setItem('today_quest_category_tab', tab);
+    } catch {}
+  };
+
+  const todayMfgQuests = React.useMemo(() => todayQuests.filter(isMfgQuest), [todayQuests]);
+  const todayNormalQuests = React.useMemo(() => todayQuests.filter(q => !isMfgQuest(q)), [todayQuests]);
+  const hasRunningMfgToday = React.useMemo(() => todayMfgQuests.some((q: any) => q.status === 'challenging' || q.status === 'almost'), [todayMfgQuests]);
+
+  const displayedTodayQuests = React.useMemo(() => {
+    if (todayMfgQuests.length === 0) return todayQuests;
+    if (todayQuestCategoryTab === 'normal') return todayNormalQuests;
+    if (todayQuestCategoryTab === 'mfg') return todayMfgQuests;
+    return todayQuests;
+  }, [todayQuests, todayNormalQuests, todayMfgQuests, todayQuestCategoryTab]);
+
   const activeRunningQuest = React.useMemo(() => {
     return activeQuests?.find((q: any) => {
       if (q.status !== "challenging" && q.status !== "almost") return false;
@@ -4988,7 +5140,7 @@ export default function Home() {
                     className="flex justify-center items-start relative min-h-[500px] w-full max-w-full"
                   >
                     <ConnectionLines
-                      quests={todayQuests}
+                      quests={displayedTodayQuests}
                       parentRef={containerRef as React.RefObject<HTMLDivElement>}
                       templates={templates || []}
                       onUnlink={handleUnlink}
@@ -5006,11 +5158,13 @@ export default function Home() {
                         <span className="text-[11px] font-bold text-slate-400 dark:text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
                           <span>MISSIONS</span>
                           <span className="px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-stone-800 text-slate-600 dark:text-stone-300 font-mono text-[10px]">
-                            {todayQuests.length}
+                            {todayMfgQuests.length > 0 && todayQuestCategoryTab !== 'all'
+                              ? `${displayedTodayQuests.length}/${todayQuests.length}`
+                              : todayQuests.length}
                           </span>
                         </span>
                         <div className="flex items-center gap-1.5">
-                          {todayQuests.length > 1 && (
+                          {displayedTodayQuests.length > 1 && (
                             <button
                               type="button"
                               onClick={() => handleSortByTime(targetDateStr)}
@@ -5036,43 +5190,74 @@ export default function Home() {
                         }
                       />
 
-                      {todayQuests.map(q => {
-                        const isDraggingCurrent = dragState.itemId === q.id && dragState.mode === 'sort';
-                        const effectiveAdhoc = isDraggingCurrent
-                          ? (dragState.adhocPreview !== undefined ? dragState.adhocPreview : !!q.isAdhoc)
-                          : !!q.isAdhoc;
+                      {/* Category Tabs: Normal / Mfg / All (Shown only when Mfg tasks exist) */}
+                      <QuestCategoryTabs
+                        activeTab={todayQuestCategoryTab}
+                        onTabChange={handleTodayCategoryChange}
+                        normalCount={todayNormalQuests.length}
+                        mfgCount={todayMfgQuests.length}
+                        totalCount={todayQuests.length}
+                        hasRunningMfg={hasRunningMfgToday}
+                      />
 
-                        return (
-                          <div
-                            id={`source-${q.id}`}
-                            key={q.id}
-                            data-sort-id={q.id}
-                            data-sort-date={targetDateStr}
-                            className={`cursor-default relative rounded-2xl z-20 transition-all duration-150 ${
-                              effectiveAdhoc ? 'ml-4 sm:ml-5 w-[calc(100%-1rem)] sm:w-[calc(100%-1.25rem)]' : 'ml-0 w-full'
-                            } ${
-                              isDraggingCurrent
-                                ? 'shadow-2xl scale-105 z-50 ring-2 ring-sky-500'
-                                : ''
-                            }`}
-                          >
-                            <TodayItem
-                              quest={q}
-                              templates={templates || []}
-                              onStatusChange={() => refreshAll()}
-                              isAdhocEffective={effectiveAdhoc}
-                              onDragStart={(e) => {
-                                if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
-                                else handleMouseDown(e as any, q.id, 'plan');
-                              }}
-                              onReorderStart={(e) => {
-                                if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
-                                else handleMouseDown(e as any, q.id, 'sort');
-                              }}
-                            />
-                          </div>
-                        );
-                      })}
+                      {displayedTodayQuests.length === 0 ? (
+                        <div className="text-[11px] text-muted-foreground/60 italic text-center py-8 select-none border border-dashed border-slate-200/60 dark:border-stone-800 rounded-2xl bg-slate-50/30 dark:bg-stone-900/20">
+                          {todayQuestCategoryTab === 'normal' && todayMfgQuests.length > 0 ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <span>通常のタスクはありません</span>
+                              <button
+                                type="button"
+                                onClick={() => handleTodayCategoryChange('mfg')}
+                                className="text-amber-600 dark:text-amber-400 hover:underline text-[10px] font-bold not-italic cursor-pointer"
+                              >
+                                🏭 製造計画 ({todayMfgQuests.length}件) を表示
+                              </button>
+                            </div>
+                          ) : todayQuestCategoryTab === 'mfg' ? (
+                            <span>製造計画タスクはありません</span>
+                          ) : (
+                            <span>No tasks</span>
+                          )}
+                        </div>
+                      ) : (
+                        displayedTodayQuests.map(q => {
+                          const isDraggingCurrent = dragState.itemId === q.id && dragState.mode === 'sort';
+                          const effectiveAdhoc = isDraggingCurrent
+                            ? (dragState.adhocPreview !== undefined ? dragState.adhocPreview : !!q.isAdhoc)
+                            : !!q.isAdhoc;
+
+                          return (
+                            <div
+                              id={`source-${q.id}`}
+                              key={q.id}
+                              data-sort-id={q.id}
+                              data-sort-date={targetDateStr}
+                              className={`cursor-default relative rounded-2xl z-20 transition-all duration-150 ${
+                                effectiveAdhoc ? 'ml-4 sm:ml-5 w-[calc(100%-1rem)] sm:w-[calc(100%-1.25rem)]' : 'ml-0 w-full'
+                              } ${
+                                isDraggingCurrent
+                                  ? 'shadow-2xl scale-105 z-50 ring-2 ring-sky-500'
+                                  : ''
+                              }`}
+                            >
+                              <TodayItem
+                                quest={q}
+                                templates={templates || []}
+                                onStatusChange={() => refreshAll()}
+                                isAdhocEffective={effectiveAdhoc}
+                                onDragStart={(e) => {
+                                  if ('touches' in e) handleTouchStart(e as any, q.id, 'plan');
+                                  else handleMouseDown(e as any, q.id, 'plan');
+                                }}
+                                onReorderStart={(e) => {
+                                  if ('touches' in e) handleTouchStart(e as any, q.id, 'sort');
+                                  else handleMouseDown(e as any, q.id, 'sort');
+                                }}
+                              />
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
 
                     <div className={`flex items-start gap-0 relative z-10 pl-0 shrink-0 ${TIME_SLOT_WIDTH}`}>
@@ -5093,7 +5278,7 @@ export default function Home() {
                         </div>
                         {timeSlots.map(slot => {
                           const { zone, isFirstSlotOfZone } = getMoaiZoneInfo(slot.label);
-                          const isUsed = todayQuests.some(q => {
+                          const isUsed = displayedTodayQuests.some(q => {
                             if (!q.plannedTimeSlot) return false;
                             try {
                               const parsed = JSON.parse(q.plannedTimeSlot);
@@ -5108,7 +5293,7 @@ export default function Home() {
                             }
                           });
 
-                          const isDashedSlot = isUsed && todayQuests.some(q => {
+                          const isDashedSlot = isUsed && displayedTodayQuests.some(q => {
                             if (!q.plannedTimeSlot) return false;
                             try {
                               const parsed = JSON.parse(q.plannedTimeSlot);
